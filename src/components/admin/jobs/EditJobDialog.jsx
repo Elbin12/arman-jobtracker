@@ -22,10 +22,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Users, RotateCcw, Plus, XSquare } from "lucide-react";
 import moment from "moment-timezone";
-import { useUpdateJobMutation } from "../../../store/api/jobsApi";
+import { jobsApi, useUpdateJobMutation } from "../../../store/api/jobsApi";
 import { useGetAssigneesQuery } from "../../../store/api/assigneesApi";
+import { useDispatch } from "react-redux";
 
-export function EditJobDialog({ job, open, onClose, objective }) {
+export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate }) {
   const [updateJob, { isLoading, error }] = useUpdateJobMutation();
   const [customServices, setCustomServices] = useState([]);
   const [showCustomServiceForm, setShowCustomServiceForm] = useState(false);
@@ -40,6 +41,8 @@ export function EditJobDialog({ job, open, onClose, objective }) {
   const { data: usersData, isLoading: usersLoading } = useGetAssigneesQuery();
 
   const users = usersData?.results || [];
+
+  const dispatch = useDispatch();
 
   // Store form data in the same structure as the job object
   const [formData, setFormData] = useState({
@@ -307,6 +310,11 @@ export function EditJobDialog({ job, open, onClose, objective }) {
       };
 
       const result = await updateJob({ id: job.id, filter:objective==='convert'&&'status=to_convert', ...payload}).unwrap();
+
+      console.log("RTK update using address:", job.customer_address);
+
+      handleJobUpdate(result);
+
 
       onClose();
     } catch (err) {

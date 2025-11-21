@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Badge, Box, Button, Card, CardContent, CircularProgress, FormControlLabel, Pagination, Switch, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material"
-import { useGetJobsByLocationQuery, useGetJobsQuery } from "../../store/api/jobsApi"
+import { useGetLocationsQuery, useGetJobsQuery, jobsApi } from "../../store/api/jobsApi"
 import { useGetAssigneesQuery } from "../../store/api/assigneesApi"
 import { CalendarIcon, FilterIcon, ListIcon } from "lucide-react"
 import { NewCalendar } from "../../components/admin/calendar/Calendar"
@@ -12,6 +12,7 @@ import { LocationOn } from "@mui/icons-material"
 import { JobCard } from "../../components/admin/jobs/JobCard"
 import DeleteJobDialog from "../../components/admin/jobs/DeleteJobDialog"
 import { EditJobDialog } from "../../components/admin/jobs/EditJobDialog"
+import { useDispatch } from "react-redux"
 
 export function Jobs() {
   const [viewMode, setViewMode] = useState("list")
@@ -29,9 +30,11 @@ export function Jobs() {
     useGetJobsQuery({ ...filterParams, page }, { skip: groupByLocation });
 
   const { data: locationData, isLoading: isLocationsFetching } =
-    useGetJobsByLocationQuery({ ...filterParams, page }, { skip: !groupByLocation });
+    useGetLocationsQuery({ ...filterParams, page }, { skip: !groupByLocation });
 
   const { data: assigneesData, isLoading: assigneesLoading } = useGetAssigneesQuery()
+
+  const dispatch = useDispatch();
 
   const totalJobs = jobsData?.count || 0;
   const totalLocations = locationData?.count || 0;
@@ -68,6 +71,22 @@ export function Jobs() {
     //   updatedJobs = jobs.filter((j) => j.id !== jobToDelete.id)
     // }
   }
+
+  const handleJobUpdate = (result)=>{
+      console.log(selectedJob, 'selected job')
+      dispatch(
+        jobsApi.util.updateQueryData(
+          "getJobs",
+          { ...filterParams, page },
+          (draft) => {
+            const index = draft.results.findIndex(j => j.id === selectedJob.id);
+            if (index !== -1) {
+              draft.results[index] = result;
+            }
+          }
+        )
+      );
+    }
 
 
   if (isFetching || isLocationsFetching || assigneesLoading) {
@@ -147,16 +166,16 @@ export function Jobs() {
       </Box>
 
       {viewMode === "calendar" ? (
-        <NewCalendar jobs={jobs} users={users} />
+        <NewCalendar jobs={jobsData?.results} users={users} />
       ) : (
         <>
           {/* Results Count */}
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {jobs.length} job{jobs.length !== 1 ? "s" : ""} found
+            {jobsData?.results.length} job{jobsData?.results.length !== 1 ? "s" : ""} found
           </Typography>
 
           {/* Jobs Display */}
-          {jobs.length === 0 ? (
+          {jobsData?.results.length === 0 ? (
             <Card>
               <CardContent sx={{ textAlign: "center", py: 6 }}>
                 <Typography variant="h6" gutterBottom>
@@ -178,7 +197,7 @@ export function Jobs() {
               }}
             >
               {locationData?.results.map((locationInfo, index) => (
-                <LocationGroupCard locationInfo={locationInfo} />
+                <LocationGroupCard locationInfo={locationInfo} users={users}/>
               ))}
             </Box>
           ) : 
@@ -192,7 +211,7 @@ export function Jobs() {
                 alignItems: 'stretch',
               }}
             >
-              {jobs.map((job) => (
+              {jobsData?.results.map((job) => (
                 <JobCard
                   job={job}
                   onEdit={handleEdit}
@@ -246,6 +265,7 @@ export function Jobs() {
           open={editDialogOpen}
           onClose={() => setEditDialogOpen(false)}
           users={users}
+          handleJobUpdate={handleJobUpdate}
         />
       )}
 
