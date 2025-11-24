@@ -48,6 +48,8 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
     assignments: [],
     total_price: 0,
   });
+
+  console.log(formData, 'deeaa')
   
   const [timeData, setTimeData] = useState({
     date: "",
@@ -415,6 +417,8 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
   };
 
   const isRecurring = formData.job_type === "recurring";
+  const isFirstTime = formData.job_type === "one_time";
+
 
   // Helper to convert priority string to number for select
   const priorityToNumber = (priority) => {
@@ -894,13 +898,26 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
         <CardContent className="space-y-4">
           <div className="flex items-center space-x-2">
             <Checkbox
+              id="first_time"
+              checked={isFirstTime}
+              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, job_type: checked ? "one_time": 'recurring',
+                repeat_every: null,
+                repeat_unit: null,
+                occurrences: null,
+                day_of_week: null
+               }))}
+            />
+            <Label htmlFor="first_time" className="cursor-pointer">This is a first time job</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
               id="is_recurring"
               checked={isRecurring}
               onCheckedChange={(checked) => setFormData(prev => ({
                 ...prev,
                 job_type: checked ? "recurring" : "one_time",
                 repeat_every: checked ? (prev.repeat_every || 1) : null,
-                repeat_unit: checked ? (prev.repeat_unit || "daily") : null,
+                repeat_unit: checked ? (prev.repeat_unit || "day") : null,
                 occurrences: checked ? (prev.occurrences || 1) : null,
                 day_of_week: checked ? prev.day_of_week : null
               }))}
@@ -929,7 +946,7 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
                     <Select
                       labelId="frequency-label"
                       id="frequency"
-                      value={formData.repeat_unit || "daily"}
+                      value={formData.repeat_unit || "day"}
                       label="Unit"
                       onChange={(e) => setFormData(prev => ({ ...prev, repeat_unit: e.target.value }))}
                       inputProps={{ 'aria-label': 'Without label' }}
@@ -989,19 +1006,19 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
                   {formData.repeat_every === 1 && formData.repeat_unit === 'week' && formData.day_of_week !== null && (
                     <p>Weekly: Every {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][formData.day_of_week]}</p>
                   )}
-                  {formData.repeat_unit === 'daily' && (
+                  {formData.repeat_unit === 'day' && (
                     <p>Daily: Every {formData.repeat_every} day{formData.repeat_every > 1 ? 's' : ''}</p>
                   )}
-                  {formData.repeat_unit === 'monthly' && (
+                  {formData.repeat_unit === 'month' && (
                     <p>Monthly: Every {formData.repeat_every} month{formData.repeat_every > 1 ? 's' : ''}</p>
                   )}
-                  {formData.repeat_unit === 'quarterly' && (
+                  {formData.repeat_unit === 'quarter' && (
                     <p>Quarterly: Every {formData.repeat_every} quarter{formData.repeat_every > 1 ? 's' : ''}</p>
                   )}
-                  {formData.repeat_unit === 'semi_annually' && (
+                  {formData.repeat_unit === 'semi_annual' && (
                     <p>Semi-annually: Every {formData.repeat_every * 6} months</p>
                   )}
-                  {formData.repeat_unit === 'yearly' && (
+                  {formData.repeat_unit === 'year' && (
                     <p>Yearly: Every {formData.repeat_every} year{formData.repeat_every > 1 ? 's' : ''}</p>
                   )}
                 </div>

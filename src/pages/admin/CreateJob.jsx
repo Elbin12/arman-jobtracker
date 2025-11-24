@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Typography, Card, CardContent } from '@mui/material';
-import { CreateJobForm } from '../../components/admin/jobs/NewJobForm.jsx';
+import { CreateJobForm } from '../../components/admin/jobs/CreateJob.jsx';
 
 const CreateJob = () => {
   const [form, setForm] = useState({ title: '', customer: '', status: 'NEW' });

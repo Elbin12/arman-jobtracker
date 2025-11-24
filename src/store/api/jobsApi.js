@@ -32,9 +32,11 @@ export const jobsApi = createApi({
       query: (id) => ({ url: `${id}/`, method: 'DELETE' }),
       invalidatesTags: ['Job'],
     }),
-    scheduleJob: builder.mutation({
-      query: ({ id, payload }) => ({ url: `${id}/schedule/`, method: 'POST', data: payload }),
-      invalidatesTags: ['Schedule', (r, e, { id }) => ({ type: 'Job', id })],
+
+    //Calendar jobs
+    getCalendarJobs: builder.query({
+      query: (params = {}) => ({ url: 'jobs/', params }),
+      providesTags: ['Job'],
     }),
   }),
 });
@@ -45,9 +47,10 @@ export const {
   useCreateJobMutation,
   useUpdateJobMutation,
   useDeleteJobMutation,
-  useScheduleJobMutation,
   useGetJobsByLocationQuery,
-  useGetLocationsQuery
+  useGetLocationsQuery,
+
+  useGetCalendarJobsQuery
 } = jobsApi;
 
 

@@ -27,13 +27,13 @@ import { cn } from "@/lib/utils";
 import { Calendar as DatePicker } from "@/components/ui/calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { JobCard } from "../jobs/JobCard";
+import { useGetCalendarJobsQuery } from "../../../store/api/jobsApi";
 
 const localizer = momentLocalizer(moment);
 
 const accountTimezone = "America/Chicago";
 
 export function NewCalendar({
-  jobs,
   quotes = [],
   statusFilter: parentStatusFilter = "all",
   onRefresh,
@@ -50,6 +50,44 @@ export function NewCalendar({
   const [currentDate, setCurrentDate] = useState(new Date());
   const [acceptedQuotes, setAcceptedQuotes] = useState([]);
   const [monthRowHeight, setMonthRowHeight] = useState(140);
+
+  const getDateRange = () => {
+    let start, end;
+
+    if (view === "month") {
+      start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59);
+    }
+
+    if (view === "week") {
+      const weekStart = new Date(currentDate);
+      weekStart.setDate(currentDate.getDate() - currentDate.getDay());
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+
+      start = weekStart;
+      end = weekEnd;
+    }
+
+    if (view === "day") {
+      start = new Date(currentDate.setHours(0, 0, 0));
+      end = new Date(currentDate.setHours(23, 59, 59));
+    }
+
+    return {
+      start: start.toISOString(),
+      end: end.toISOString(),
+    };
+  };
+
+  const { start, end } = getDateRange();
+
+  const { data: calendarJobs, isLoading } = useGetCalendarJobsQuery({
+    start,
+    end,
+  });
+
+  const jobs = calendarJobs?.results ?? [];
 
   useEffect(() => {
     convertJobsToEvents();

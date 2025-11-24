@@ -140,6 +140,7 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate }
         occurrences: job.occurrences || null,
         items: job.items || [],
         assignments: job.assignments || [],
+        day_of_week: job.day_of_week
       });
     }
   }, [open, job]);
@@ -853,7 +854,8 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate }
                     job_type: checked ? "recurring" : "one_time",
                     repeat_every: checked ? (prev.repeat_every || 1) : null,
                     repeat_unit: checked ? (prev.repeat_unit || "day") : null,
-                    occurrences: checked ? (prev.occurrences || 1) : null
+                    occurrences: checked ? (prev.occurrences || 1) : null,
+                    day_of_week: checked ? (prev.day_of_week) : null
                   }))}
                 />
                 <Label htmlFor="is_recurring" className="cursor-pointer">This is a recurring job</Label>

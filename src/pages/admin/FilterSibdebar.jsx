@@ -108,7 +108,7 @@ export function FilterSidebar({
       open={open}
       onClose={onClose}
       PaperProps={{
-        sx: { width: { xs: '100%', sm: 400 } }
+        sx: { width: { xs: '100%', sm: 400 }, zIndex: 2, }
       }}
     >
       <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
