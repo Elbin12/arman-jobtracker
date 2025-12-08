@@ -14,6 +14,7 @@ import {
 import { assigneesApi, useCreateAssigneeMutation, useDeleteAssigneeMutation, useGetAssigneesQuery, useUpdateAssigneeMutation } from '../../store/api/assigneesApi';
 import { Pagination } from '@mui/material';
 import { useDispatch } from 'react-redux';
+import { USER_PASSWORD } from '../../store/axios/axios';
 
 const TeamManagement = () => {
   const [page, setPage] = useState(1);
@@ -21,6 +22,7 @@ const TeamManagement = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
   const [formData, setFormData] = useState({
+    full_name: '',
     first_name: '',
     last_name: '',
     email: '',
@@ -30,7 +32,7 @@ const TeamManagement = () => {
 
   const dispatch = useDispatch();
 
-  const itemsPerPage = 6;
+  const itemsPerPage = 20;
 
   const { data: teamData, isLoading } = useGetAssigneesQuery({ page, limit: itemsPerPage });
   const totalPages = Math.ceil(teamData?.results?.length / itemsPerPage);
@@ -43,6 +45,7 @@ const TeamManagement = () => {
   const handleAddMember = () => {
     setSelectedMember(null);
     setFormData({
+      full_name: '',
       first_name: '',
       last_name: '',
       email: '',
@@ -52,9 +55,12 @@ const TeamManagement = () => {
     setShowDialog(true);
   };
 
+  console.log('teamData', formData);
+
   const handleEditMember = (member) => {
     setSelectedMember(member);
     setFormData({
+      full_name: `${member.first_name} ${member.last_name}`,
       first_name: member.first_name,
       last_name: member.last_name,
       email: member.email,
@@ -79,8 +85,8 @@ const TeamManagement = () => {
         );
       } else {
         const created = await createAssignee({
-          username: formData.email.split('@')[0], // Generate username from email
-          password: formData.email.slice(0, formData.email.indexOf('@')).toLowerCase() + '@246',
+          username: formData.email, // Generate username from email
+          password: USER_PASSWORD,
           ...formData
         }).unwrap();
         dispatch(
@@ -278,15 +284,18 @@ const TeamManagement = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
                 <input
                   type="text"
-                  value={`${formData.first_name} ${formData.last_name}`.trim()}
-                  onChange={(e) => {
-                    const parts = e.target.value.split(' ');
-                    setFormData({
-                      ...formData,
-                      first_name: parts[0] || '',
-                      last_name: parts.slice(1).join(' ') || ''
-                    });
-                  }}
+                  value={formData.full_name || ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+
+                      // Update the raw full name so typing works naturally
+                      setFormData((prev) => ({
+                        ...prev,
+                        full_name: value,
+                        first_name: value.split(" ")[0] || "",
+                        last_name: value.split(" ").slice(1).join(" ").trim(),
+                      }));
+                    }}
                   placeholder="John Doe"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />

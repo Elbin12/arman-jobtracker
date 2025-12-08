@@ -73,20 +73,20 @@ export function Jobs() {
   }
 
   const handleJobUpdate = (result)=>{
-      console.log(selectedJob, 'selected job')
-      dispatch(
-        jobsApi.util.updateQueryData(
-          "getJobs",
-          { ...filterParams, page },
-          (draft) => {
-            const index = draft.results.findIndex(j => j.id === selectedJob.id);
-            if (index !== -1) {
-              draft.results[index] = result;
-            }
+    console.log(selectedJob, 'selected job')
+    dispatch(
+      jobsApi.util.updateQueryData(
+        "getJobs",
+        { ...filterParams, page },
+        (draft) => {
+          const index = draft.results.findIndex(j => j.id === selectedJob.id);
+          if (index !== -1) {
+            draft.results[index] = result;
           }
-        )
-      );
-    }
+        }
+      )
+    );
+  }
 
 
   if (isFetching || isLocationsFetching || assigneesLoading) {

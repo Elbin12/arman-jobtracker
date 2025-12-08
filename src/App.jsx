@@ -28,6 +28,12 @@ import AdminCalendar from './pages/admin/AdminCalendar.jsx';
 import TeamManagement from './pages/admin/TeamManagement.jsx';
 import AcceptedQuotes from './pages/admin/AcceptedQuotes.jsx';
 import CreateJob from './pages/admin/CreateJob.jsx';
+import RoleProtectedRoute from './pages/RoleProtectedRoute.jsx';
+import TimeClock from './pages/admin/payroll/TimeClock.jsx';
+import PayrollCalculator from './pages/admin/payroll/PayrollCalculator.jsx';
+import PayrollReports from './pages/admin/payroll/PayrollReports.jsx';
+import PayrollSettings from './pages/admin/payroll/PayrollSettings.jsx';
+import PayrollTeamManagement from './pages/admin/payroll/PayrollTeamManagement.jsx';
 
 // Create Material-UI theme that integrates with our design system
 const theme = createTheme({
@@ -87,7 +93,7 @@ function App() {
                   {/* Protected Admin Routes */}
                   <Route path="/admin" element={
                     <AdminProtectedRoute >
-                      <AdminLayout >
+                      <AdminLayout userRole="worker">
                         <Outlet />
                       </AdminLayout>
                     </AdminProtectedRoute>
@@ -95,13 +101,60 @@ function App() {
                     <Route path="dashboard" element={<AdminDashboard />} />
                     <Route path="jobs" element={<Jobs />} />
                     {/* <Route path="jobs/:id" element={<JobDetails />} /> */}
-                    <Route path="accepted-quotes" element={<AcceptedQuotes />} />
-                    <Route path="team" element={<TeamManagement />} />
+                    <Route path="accepted-quotes" element={
+                        <RoleProtectedRoute allowedRoles={['manager']}>
+                          <AcceptedQuotes />
+                        </RoleProtectedRoute>
+                      }
+                      />
+                    <Route path="team" element={
+                        <RoleProtectedRoute allowedRoles={['manager']}>
+                          <TeamManagement />
+                        </RoleProtectedRoute>
+                      }
+                    />
                     <Route path="calendar" element={<AdminCalendar />} />
-                    <Route path="create-job" element={<CreateJob />} />
-                    <Route path="services" element={<ServicesManagement />} />
-                    <Route path="locations" element={<LocationsManagement />} />
-                    <Route path="house-size-info" element={<HouseSizeInfo />} />
+                    <Route path="create-job" element={
+                        <RoleProtectedRoute allowedRoles={['manager']}>
+                          <CreateJob />
+                        </RoleProtectedRoute>
+                      }
+                    />
+                    <Route path="services" element={
+                        <RoleProtectedRoute allowedRoles={['manager']}>
+                          <ServicesManagement />
+                        </RoleProtectedRoute>
+                      }
+                    />
+                    <Route path="locations" element={
+                        <RoleProtectedRoute allowedRoles={['manager']}>
+                          <LocationsManagement />
+                        </RoleProtectedRoute>
+                      }
+                    />
+                    <Route path="house-size-info" element={
+                        <RoleProtectedRoute allowedRoles={['manager']}>
+                          <HouseSizeInfo />
+                        </RoleProtectedRoute>
+                      }
+                    />
+                    
+                    {/* Payroll Routes */}
+                    <Route path="payroll" element={<TimeClock />} />
+                    <Route path="payroll/calculator" element={<PayrollCalculator />} />
+                    <Route path="payroll/reports" element={<PayrollReports />} />
+                    <Route path="payroll/settings" element={
+                        <RoleProtectedRoute allowedRoles={['admin', 'manager']}>
+                          <PayrollSettings />
+                        </RoleProtectedRoute>
+                      }
+                    />
+                    {/* <Route path="payroll/team" element={
+                        <RoleProtectedRoute allowedRoles={['admin', 'manager']}>
+                          <PayrollTeamManagement />
+                        </RoleProtectedRoute>
+                      }
+                    /> */}
                   </Route>
                   
                   {/* Catch-all route */}

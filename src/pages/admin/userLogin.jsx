@@ -16,7 +16,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 // Replace this with your actual login action
 import { loginUser } from '../../store/slices/authSlice';
-import { ADMIN_PASSWORD, ADMIN_USERNAME } from '../../store/axios/axios';
+import { ADMIN_PASSWORD, ADMIN_USERNAME, USER_PASSWORD } from '../../store/axios/axios';
 
 const UserLogin = () => {
   const dispatch = useDispatch();
@@ -29,14 +29,19 @@ const UserLogin = () => {
     if (email === "theservicepilot@gmail.com") {
       dispatch(loginUser({ username: ADMIN_USERNAME, password: ADMIN_PASSWORD }))
         .unwrap()
-        .then(() => navigate("/admin", { replace: true })) // go to dashboard
+        .then(() => navigate("/admin/dashboard", { replace: true })) // go to dashboard
+        .catch(() => {});
+    }else{
+      dispatch(loginUser({ username: email, password: USER_PASSWORD }))
+        .unwrap()
+        .then(() => navigate("/admin/dashboard", { replace: true })) // go to dashboard
         .catch(() => {});
     }
   }, [email, dispatch, navigate]);
 
   useEffect(()=>{
     if (success) {
-      navigate('/admin/services');
+      navigate('/admin/dashboard');
     }
   },[success, navigate]);
 

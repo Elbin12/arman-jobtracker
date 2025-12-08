@@ -5,11 +5,17 @@ import { BASE_URL } from '../axios/axios';
 
 const access = localStorage.getItem('access');
 const refresh = localStorage.getItem('refresh');
+const user_profile = localStorage.getItem('user_profile');
+const user = localStorage.getItem('user');
+
+console.log("Auth Slice - User Profile:", user_profile);  
 
 const initialState = {
   admin: null,
   access: access,
   refresh: refresh,
+  user_profile: user_profile ? JSON.parse(user_profile) : null,
+  user: user ? JSON.parse(user) : null,
   error: null,
   isAuthenticated: false,
   loading: false,
@@ -83,8 +89,13 @@ const authSlice = createSlice({
         state.loading = false;
         state.access = action.payload.access;
         state.refresh = action.payload.refresh;
+        state.user = action.payload.user;
+        state.user_profile = action.payload.user_profile;
         localStorage.setItem('access', action.payload.access);
         localStorage.setItem('refresh', action.payload.refresh);
+        localStorage.setItem('user_profile', JSON.stringify(action.payload.employee_profile));
+        localStorage.setItem('user', JSON.stringify(action.payload.user));
+
         state.isAuthenticated = true;
         state.error = null;
         state.success = true;
@@ -97,6 +108,7 @@ const authSlice = createSlice({
 
       // Logout User
       .addCase(logoutUser.fulfilled, (state) => {
+        state.user_profile = null;
         state.user = null;
         state.access = null;
         state.refresh = null;
@@ -104,6 +116,8 @@ const authSlice = createSlice({
         state.error = null;
         localStorage.removeItem('access');
         localStorage.removeItem('refresh');
+        localStorage.removeItem('user_profile');
+        localStorage.removeItem('user');
       })
       .addCase(logoutUser.rejected, (state) => {
         state.user = null;

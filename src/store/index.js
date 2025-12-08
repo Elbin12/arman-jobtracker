@@ -26,7 +26,8 @@ import bookingReducer from './slices/bookingSlice';
 import { globalPriceApi } from './api/globalPriceApi';
 import { jobsApi } from './api/jobsApi';
 import { assigneesApi } from './api/assigneesApi';
-import { scheduleApi } from './api/scheduleApi';
+import { payrollApi } from './api/payrollApi';
+import { dashboardApi } from './api/dashboardApi';
 
 const persistConfig = {
   key: 'booking',
@@ -62,7 +63,8 @@ export const store = configureStore({
     [globalPriceApi.reducerPath]: globalPriceApi.reducer,
     [jobsApi.reducerPath]: jobsApi.reducer,
     [assigneesApi.reducerPath]: assigneesApi.reducer,
-    [scheduleApi.reducerPath]: scheduleApi.reducer,
+    [dashboardApi.reducerPath]: dashboardApi.reducer,
+    [payrollApi.reducerPath]: payrollApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -92,7 +94,8 @@ export const store = configureStore({
       .concat(globalPriceApi.middleware)
       .concat(jobsApi.middleware)
       .concat(assigneesApi.middleware)
-      .concat(scheduleApi.middleware)
+      .concat(dashboardApi.middleware)
+      .concat(payrollApi.middleware)
 });
 
 export const persistor = persistStore(store);

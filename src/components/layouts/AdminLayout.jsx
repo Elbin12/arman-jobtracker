@@ -18,6 +18,8 @@ import {
   List,
   ListItemButton,
   ListItemText,
+  Breadcrumbs,
+  Link,
 } from "@mui/material"
 import {
   Menu as MenuIcon,
@@ -35,25 +37,95 @@ import {
   Home,
   ExpandLess,
   ExpandMore,
+  AttachMoney,
+  AccessTime,
+  Calculate,
+  Assessment,
+  Settings,
+  PeopleAlt,
+  NavigateNext,
+  Dashboard as DashboardIcon,
+  AccountCircle,
 } from "@mui/icons-material"
 import { useState } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
-import { useDispatch } from "react-redux"
+import { useDispatch, useSelector } from "react-redux"
 import { logoutUser } from "../../store/slices/authSlice"
 
-const navItems = [
-  { text: "Dashboard", path: "/admin/dashboard", icon: AdminPanelSettings },
-  { text: "Jobs", path: "/admin/jobs", icon: WorkOutline },
-  { text: "Quotes", path: "/admin/accepted-quotes", icon: ReceiptLong },
-  { text: "Team", path: "/admin/team", icon: Group },
-  { text: "Calendar", path: "/admin/calendar", icon: Event },
-]
+// Navigation configuration based on roles
+const getNavItemsByRole = (role, fullAccessRoles, user_profile) => {
+  const commonItems = [
+    { text: "Dashboard", path: "/admin/dashboard", icon: DashboardIcon, roles: ["admin", "worker"] },
+  ]
 
-const managementItems = [
-  { text: "Service Management", path: "/admin/services", icon: BusinessCenter },
-  { text: "Location Management", path: "/admin/locations", icon: LocationOn },
-  { text: "House Size Info", path: "/admin/house-size-info", icon: Home },
-]
+  const adminItems = [
+    { text: "Jobs", path: "/admin/jobs", icon: WorkOutline, roles: ["admin"] },
+    { text: "Quotes", path: "/admin/accepted-quotes", icon: ReceiptLong, roles: ["admin"] },
+    { text: "Team", path: "/admin/team", icon: Group, roles: ["admin"] },
+  ]
+
+  const workerItems = [
+    { text: "My Jobs", path: "/admin/jobs", icon: WorkOutline, roles: ["worker"] },
+    { text: "Calendar", path: "/admin/calendar", icon: Event, roles: ["worker"] },
+  ]
+
+  const payrollItem = [
+    { text: "Payroll", path: "/admin/payroll", icon: AttachMoney, roles: ["admin", "worker"] },
+  ]
+
+  const workerReportsProfile = [
+    // { text: "Reports", path: "/admin/reports", icon: Assessment, roles: ["worker"] },
+    { text: "Profile", path: "/admin/profile", icon: AccountCircle, roles: ["worker"] },
+  ]
+
+  if (fullAccessRoles.includes(role)) {
+    return [...commonItems, ...adminItems, ...payrollItem]
+  } else if (role === "worker") {
+    return [...commonItems, ...workerItems, ...payrollItem, ...workerReportsProfile]
+  }
+
+  return commonItems
+}
+
+const getPayrollSubNavByRole = (role, fullAccessRoles, user_profile) => {
+  const commonPayrollItems = [
+    // { text: "Payroll Home", path: "/admin/payroll", icon: AttachMoney, roles: ["admin", "worker"] },
+    ...(user_profile?.pay_scale_type === "hourly"
+      ? [
+          {
+            text: "Time Clock",
+            path: "/admin/payroll",
+            icon: AccessTime,
+            roles: ["admin", "worker"],
+          },
+        ]
+      : []),
+    { text: "Payroll Calculator", path: "/admin/payroll/calculator", icon: Calculate, roles: ["admin", "worker"] },
+    { text: "Reports", path: "/admin/payroll/reports", icon: Assessment, roles: ["admin", "worker"] },
+  ]
+
+  const adminOnlyPayrollItems = [
+    { text: "Settings", path: "/admin/payroll/settings", icon: Settings, roles: ["admin"] },
+    // { text: "Team Management", path: "/admin/payroll/team", icon: PeopleAlt, roles: ["admin"] },
+  ]
+
+  if (fullAccessRoles.includes(role)) {
+    return [...commonPayrollItems, ...adminOnlyPayrollItems]
+  }
+
+  return commonPayrollItems
+}
+
+const getManagementItemsByRole = (role, fullAccessRoles) => {
+  if (!fullAccessRoles.includes(role)) return []
+
+  return [
+    { text: "Calendar", path: "/admin/calendar", icon: Event },
+    { text: "Service Management", path: "/admin/services", icon: BusinessCenter },
+    { text: "Location Management", path: "/admin/locations", icon: LocationOn },
+    { text: "House Size Info", path: "/admin/house-size-info", icon: Home },
+  ]
+}
 
 export const AdminLayout = ({ children }) => {
   const theme = useTheme()
@@ -63,12 +135,35 @@ export const AdminLayout = ({ children }) => {
   const [managementAnchor, setManagementAnchor] = useState(null)
   const [userMenuAnchor, setUserMenuAnchor] = useState(null)
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false)
+  const [mobilePayrollOpen, setMobilePayrollOpen] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
   const dispatch = useDispatch()
 
-  const isManagementActive =
-    managementItems.some((item) => location.pathname === item.path) || location.pathname === "/admin/calendar"
+  const user_profile = useSelector((state) => state.auth.user_profile)
+  const user = useSelector((state) => state.auth.user)
+  console.log("User Profile in AdminLayout:", user);
+
+  // Get user role from Redux store - adjust this based on your store structure
+  const userRole = user?.role || "worker"
+  const userName = user_profile?.full_name || "User"
+  console.log("User Role:", userRole, useSelector((state) => state.auth.user_profile));
+
+  const fullAccessRoles = ["admin", "manager"]
+
+  // Get filtered navigation items based on role
+  const navItems = getNavItemsByRole(userRole, fullAccessRoles, user_profile)
+  const payrollSubNavItems = getPayrollSubNavByRole(userRole, fullAccessRoles, user_profile)
+  const managementItems = getManagementItemsByRole(userRole, fullAccessRoles)
+
+  const isPayrollSection = location.pathname.startsWith("/admin/payroll")
+  const isManagementActive = managementItems.some((item) => location.pathname === item.path)
+  const showManagementDropdown = managementItems.length > 0
+
+  const getPayrollBreadcrumb = () => {
+    const currentPayrollItem = payrollSubNavItems.find(item => item.path === location.pathname)
+    return currentPayrollItem ? currentPayrollItem.text : "Payroll Home"
+  }
 
   const handleMobileMenuClick = (e) => {
     setMobileMenuAnchor(e.currentTarget)
@@ -77,6 +172,7 @@ export const AdminLayout = ({ children }) => {
   const handleMobileMenuClose = () => {
     setMobileMenuAnchor(null)
     setMobileMoreOpen(false)
+    setMobilePayrollOpen(false)
   }
 
   const handleManagementClick = (e) => {
@@ -112,8 +208,27 @@ export const AdminLayout = ({ children }) => {
     handleUserMenuClose()
   }
 
+  const getRoleLabel = (role) => {
+    const roleLabels = {
+      admin: "Administrator",
+      worker: "Employee",
+      manager: "Manager",
+    }
+    return roleLabels[role] || "User"
+  }
+
+  const getRoleColor = (role) => {
+    const roleColors = {
+      admin: "error",
+      worker: "primary",
+      manager: "warning",
+    }
+    return roleColors[role] || "default"
+  }
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      {/* Main Navigation Bar */}
       <AppBar
         position="sticky"
         elevation={0}
@@ -121,6 +236,7 @@ export const AdminLayout = ({ children }) => {
           backgroundColor: "white",
           borderBottom: "1px solid",
           borderColor: "divider",
+          zIndex: 2,
         }}
       >
         <Toolbar sx={{ gap: 1 }}>
@@ -135,155 +251,140 @@ export const AdminLayout = ({ children }) => {
           )}
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mr: 3 }}>
-            {/* <AdminPanelSettings sx={{ color: "hsl(var(--primary))", fontSize: 28 }} /> */}
-            <img src="/image.png" alt="" className="h-9"/>
-            {/* {!isSmallMobile && ( */}
-              {/* <Typography
-                variant="h6"
-                component="div"
-                sx={{
-                  fontWeight: 700,
-                  color: "text.primary",
-                  fontSize: { xs: "1rem", sm: "1.25rem" },
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Service Booking
-              </Typography> */}
-            {/* )} */}
+            <img src="/image.png" alt="Logo" className="h-9"/>
           </Box>
 
-          {!isMobile && (
+          {!isMobile && ( 
             <>
               <Box sx={{ display: "flex", gap: 0.5, flexGrow: 1 }}>
-                {navItems.slice(0, 4).map((item) => (
-                  <Button
-                    key={item.text}
-                    onClick={() => handleNavigate(item.path)}
-                    sx={{
-                      color: location.pathname === item.path ? "hsl(var(--primary))" : "text.primary",
-                      fontWeight: location.pathname === item.path ? 600 : 500,
-                      textTransform: "none",
-                      px: 2,
-                      borderRadius: 2,
-                      position: "relative",
-                      "&:hover": {
-                        backgroundColor: "hsl(var(--primary) / 0.08)",
-                      },
-                      "&::after": {
-                        content: '""',
-                        position: "absolute",
-                        bottom: 0,
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        width: location.pathname === item.path ? "80%" : "0%",
-                        height: "3px",
-                        backgroundColor: "hsl(var(--primary))",
-                        transition: "width 0.3s ease",
-                      },
-                    }}
-                  >
-                    {item.text}
-                  </Button>
-                ))}
-
-                <Button
-                  onClick={handleManagementClick}
-                  endIcon={<KeyboardArrowDown />}
-                  sx={{
-                    color: isManagementActive ? "hsl(var(--primary))" : "text.primary",
-                    fontWeight: isManagementActive ? 600 : 500,
-                    textTransform: "none",
-                    px: 2,
-                    borderRadius: 2,
-                    position: "relative",
-                    "&:hover": {
-                      backgroundColor: "hsl(var(--primary) / 0.08)",
-                    },
-                    "&::after": {
-                      content: '""',
-                      position: "absolute",
-                      bottom: 0,
-                      left: "50%",
-                      transform: "translateX(-50%)",
-                      width: isManagementActive ? "80%" : "0%",
-                      height: "3px",
-                      backgroundColor: "hsl(var(--primary))",
-                      transition: "width 0.3s ease",
-                    },
-                  }}
-                >
-                  More
-                </Button>
-
-                <Menu
-                  anchorEl={managementAnchor}
-                  open={Boolean(managementAnchor)}
-                  onClose={handleManagementClose}
-                  anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-                  transformOrigin={{ vertical: "top", horizontal: "right" }}
-                  sx={{
-                    mt: 1,
-                    "& .MuiPaper-root": {
-                      minWidth: 220,
-                      boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
-                      borderRadius: 2,
-                    },
-                  }}
-                >
-                  <MenuItem
-                    onClick={() => handleNavigate("/admin/calendar")}
-                    selected={location.pathname === "/admin/calendar"}
-                    sx={{ py: 1.5 }}
-                  >
-                    <ListItemIcon>
-                      <Event fontSize="small" />
-                    </ListItemIcon>
-                    Calendar
-                  </MenuItem>
-                  <Divider sx={{ my: 1 }} />
-                  <Box sx={{ px: 2, py: 1 }}>
-                    <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
-                      MANAGEMENT
-                    </Typography>
-                  </Box>
-                  {managementItems.map((item) => (
-                    <MenuItem
+                {navItems.map((item) => {
+                  const isPayrollPath = item.path === "/admin/payroll"
+                  const isActive = location.pathname === item.path || (isPayrollPath && isPayrollSection)
+                  
+                  return (
+                    <Button
                       key={item.text}
                       onClick={() => handleNavigate(item.path)}
-                      selected={location.pathname === item.path}
-                      sx={{ py: 1.5 }}
+                      sx={{
+                        color: isActive ? "hsl(var(--primary))" : "text.primary",
+                        fontWeight: isActive ? 600 : 500,
+                        textTransform: "none",
+                        px: 2,
+                        borderRadius: 2,
+                        position: "relative",
+                        "&:hover": {
+                          backgroundColor: "hsl(var(--primary) / 0.08)",
+                        },
+                        "&::after": {
+                          content: '""',
+                          position: "absolute",
+                          bottom: 0,
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                          width: isActive ? "80%" : "0%",
+                          height: "3px",
+                          backgroundColor: "hsl(var(--primary))",
+                          transition: "width 0.3s ease",
+                        },
+                      }}
                     >
-                      <ListItemIcon>
-                        <item.icon fontSize="small" />
-                      </ListItemIcon>
                       {item.text}
-                    </MenuItem>
-                  ))}
-                </Menu>
+                    </Button>
+                  )
+                })}
+
+                {showManagementDropdown && (
+                  <>
+                    <Button
+                      onClick={handleManagementClick}
+                      endIcon={<KeyboardArrowDown />}
+                      sx={{
+                        color: isManagementActive ? "hsl(var(--primary))" : "text.primary",
+                        fontWeight: isManagementActive ? 600 : 500,
+                        textTransform: "none",
+                        px: 2,
+                        borderRadius: 2,
+                        position: "relative",
+                        "&:hover": {
+                          backgroundColor: "hsl(var(--primary) / 0.08)",
+                        },
+                        "&::after": {
+                          content: '""',
+                          position: "absolute",
+                          bottom: 0,
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                          width: isManagementActive ? "80%" : "0%",
+                          height: "3px",
+                          backgroundColor: "hsl(var(--primary))",
+                          transition: "width 0.3s ease",
+                        },
+                      }}
+                    >
+                      More
+                    </Button>
+
+                    <Menu
+                      anchorEl={managementAnchor}
+                      open={Boolean(managementAnchor)}
+                      onClose={handleManagementClose}
+                      anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                      transformOrigin={{ vertical: "top", horizontal: "right" }}
+                      sx={{
+                        mt: 1,
+                        "& .MuiPaper-root": {
+                          minWidth: 220,
+                          boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
+                          borderRadius: 2,
+                        },
+                      }}
+                    >
+                      <Box sx={{ px: 2, py: 1 }}>
+                        <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
+                          MANAGEMENT
+                        </Typography>
+                      </Box>
+                      {managementItems.map((item) => (
+                        <MenuItem
+                          key={item.text}
+                          onClick={() => handleNavigate(item.path)}
+                          selected={location.pathname === item.path}
+                          sx={{ py: 1.5 }}
+                        >
+                          <ListItemIcon>
+                            <item.icon fontSize="small" />
+                          </ListItemIcon>
+                          {item.text}
+                        </MenuItem>
+                      ))}
+                    </Menu>
+                  </>
+                )}
               </Box>
 
-              <Button
-                variant="contained"
-                startIcon={<AddCircleOutline />}
-                onClick={() => handleNavigate("/admin/create-job")}
-                sx={{
-                  textTransform: "none",
-                  backgroundColor: "hsl(var(--primary))",
-                  color: "white",
-                  px: 3,
-                  borderRadius: 1,
-                  fontWeight: 600,
-                  boxShadow: "none",
-                  "&:hover": {
-                    backgroundColor: "hsl(var(--primary) / 0.9)",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-                  },
-                  mr: 1,
-                }}
-              >
-                Create Job
-              </Button>
+              {fullAccessRoles.includes(userRole)  && (
+                <Button
+                  variant="contained"
+                  startIcon={<AddCircleOutline />}
+                  onClick={() => handleNavigate("/admin/create-job")}
+                  sx={{
+                    textTransform: "none",
+                    backgroundColor: "hsl(var(--primary))",
+                    color: "white",
+                    px: 3,
+                    borderRadius: 1,
+                    fontWeight: 600,
+                    boxShadow: "none",
+                    "&:hover": {
+                      backgroundColor: "hsl(var(--primary) / 0.9)",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                    },
+                    mr: 1,
+                  }}
+                >
+                  Create Job
+                </Button>
+              )}
             </>
           )}
 
@@ -314,51 +415,19 @@ export const AdminLayout = ({ children }) => {
             }}
           >
             <Box sx={{ py: 1 }}>
-              {navItems.map((item) => (
-                <MenuItem
-                  key={item.text}
-                  onClick={() => handleNavigate(item.path)}
-                  selected={location.pathname === item.path}
-                  sx={{
-                    py: 1.5,
-                    mx: 1,
-                    borderRadius: 1,
-                    "&.Mui-selected": {
-                      backgroundColor: "hsl(var(--primary) / 0.1)",
-                      color: "hsl(var(--primary))",
-                    },
-                  }}
-                >
-                  <ListItemIcon sx={{ color: location.pathname === item.path ? "hsl(var(--primary))" : "inherit" }}>
-                    <item.icon fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText primary={item.text} />
-                </MenuItem>
-              ))}
-
-              <Divider sx={{ my: 1 }} />
-
-              <ListItemButton
-                onClick={() => setMobileMoreOpen(!mobileMoreOpen)}
-                sx={{ mx: 1, borderRadius: 1 }}
-              >
-                <ListItemText
-                  primary="More"
-                  primaryTypographyProps={{ fontWeight: 500 }}
-                />
-                {mobileMoreOpen ? <ExpandLess /> : <ExpandMore />}
-              </ListItemButton>
-
-              <Collapse in={mobileMoreOpen} timeout="auto" unmountOnExit>
-                <List component="div" disablePadding>
-                  {managementItems.map((item) => (
-                    <MenuItem
-                      key={item.text}
-                      onClick={() => handleNavigate(item.path)}
-                      selected={location.pathname === item.path}
+              {navItems.map((item) => {
+                const isPayrollPath = item.path === "/admin/payroll"
+                return isPayrollPath ? (
+                  <Box key={item.text}>
+                    <ListItemButton
+                      onClick={() => {
+                        setMobilePayrollOpen(!mobilePayrollOpen)
+                        // if (!isPayrollSection) {
+                        //   handleNavigate(item.path)
+                        // }
+                      }}
+                      selected={isPayrollSection}
                       sx={{
-                        py: 1.5,
-                        pl: 4,
                         mx: 1,
                         borderRadius: 1,
                         "&.Mui-selected": {
@@ -367,44 +436,148 @@ export const AdminLayout = ({ children }) => {
                         },
                       }}
                     >
-                      <ListItemIcon
-                        sx={{ color: location.pathname === item.path ? "hsl(var(--primary))" : "inherit" }}
-                      >
+                      {/* <ListItemIcon sx={{ color: isPayrollSection ? "hsl(var(--primary))" : "inherit" }}>
                         <item.icon fontSize="small" />
-                      </ListItemIcon>
+                      </ListItemIcon> */}
+                      {/* <ListItemText primary={item.text} /> */}
                       <ListItemText
-                        primary={item.text}
-                        primaryTypographyProps={{ fontSize: "0.9rem" }}
+                        primary="Payroll"
+                        primaryTypographyProps={{ fontWeight: 500 }}
                       />
-                    </MenuItem>
-                  ))}
-                </List>
-              </Collapse>
+                      {mobilePayrollOpen ? <ExpandLess /> : <ExpandMore />}
+                    </ListItemButton>
+                    <Collapse in={mobilePayrollOpen} timeout="auto" unmountOnExit>
+                      <List component="div" disablePadding>
+                        {payrollSubNavItems.map((subItem) => (
+                          <MenuItem
+                            key={subItem.text}
+                            onClick={() => handleNavigate(subItem.path)}
+                            selected={location.pathname === subItem.path}
+                            sx={{
+                              py: 1.5,
+                              pl: 4,
+                              mx: 1,
+                              borderRadius: 1,
+                              "&.Mui-selected": {
+                                backgroundColor: "hsl(var(--primary) / 0.1)",
+                                color: "hsl(var(--primary))",
+                              },
+                            }}
+                          >
+                            <ListItemIcon
+                              sx={{ color: location.pathname === subItem.path ? "hsl(var(--primary))" : "inherit" }}
+                            >
+                              <subItem.icon fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={subItem.text}
+                              primaryTypographyProps={{ fontSize: "0.9rem" }}
+                            />
+                          </MenuItem>
+                        ))}
+                      </List>
+                    </Collapse>
+                  </Box>
+                ) : (
+                  <MenuItem
+                    key={item.text}
+                    onClick={() => handleNavigate(item.path)}
+                    selected={location.pathname === item.path}
+                    sx={{
+                      py: 1.5,
+                      mx: 1,
+                      borderRadius: 1,
+                      "&.Mui-selected": {
+                        backgroundColor: "hsl(var(--primary) / 0.1)",
+                        color: "hsl(var(--primary))",
+                      },
+                    }}
+                  >
+                    <ListItemIcon sx={{ color: location.pathname === item.path ? "hsl(var(--primary))" : "inherit" }}>
+                      <item.icon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary={item.text} />
+                  </MenuItem>
+                )
+              })}
 
-              <Divider sx={{ my: 1 }} />
+              {showManagementDropdown && (
+                <>
+                  <Divider sx={{ my: 1 }} />
 
-              <MenuItem
-                onClick={() => handleNavigate("/admin/create-job")}
-                selected={location.pathname === "/admin/create-job"}
-                sx={{
-                  py: 1.5,
-                  mx: 1,
-                  borderRadius: 1,
-                  backgroundColor: "hsl(var(--primary))",
-                  color: "white",
-                  "&:hover": {
-                    backgroundColor: "hsl(var(--primary) / 0.9)",
-                  },
-                  "&.Mui-selected": {
-                    backgroundColor: "hsl(var(--primary))",
-                  },
-                }}
-              >
-                <ListItemIcon sx={{ color: "white" }}>
-                  <AddCircleOutline fontSize="small" />
-                </ListItemIcon>
-                <ListItemText primary="Create Job" />
-              </MenuItem>
+                  <ListItemButton
+                    onClick={() => setMobileMoreOpen(!mobileMoreOpen)}
+                    sx={{ mx: 1, borderRadius: 1 }}
+                  >
+                    <ListItemText
+                      primary="More"
+                      primaryTypographyProps={{ fontWeight: 500 }}
+                    />
+                    {mobileMoreOpen ? <ExpandLess /> : <ExpandMore />}
+                  </ListItemButton>
+
+                  <Collapse in={mobileMoreOpen} timeout="auto" unmountOnExit>
+                    <List component="div" disablePadding>
+                      {managementItems.map((item) => (
+                        <MenuItem
+                          key={item.text}
+                          onClick={() => handleNavigate(item.path)}
+                          selected={location.pathname === item.path}
+                          sx={{
+                            py: 1.5,
+                            pl: 4,
+                            mx: 1,
+                            borderRadius: 1,
+                            "&.Mui-selected": {
+                              backgroundColor: "hsl(var(--primary) / 0.1)",
+                              color: "hsl(var(--primary))",
+                            },
+                          }}
+                        >
+                          <ListItemIcon
+                            sx={{ color: location.pathname === item.path ? "hsl(var(--primary))" : "inherit" }}
+                          >
+                            <item.icon fontSize="small" />
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={item.text}
+                            primaryTypographyProps={{ fontSize: "0.9rem" }}
+                          />
+                        </MenuItem>
+                      ))}
+                    </List>
+                  </Collapse>
+                </>
+              )}
+
+              {fullAccessRoles.includes(userRole) && (
+                <>
+                  <Divider sx={{ my: 1 }} />
+
+                  <MenuItem
+                    onClick={() => handleNavigate("/admin/create-job")}
+                    selected={location.pathname === "/admin/create-job"}
+                    sx={{
+                      py: 1.5,
+                      mx: 1,
+                      borderRadius: 1,
+                      backgroundColor: "hsl(var(--primary))",
+                      color: "white",
+                      "&:hover": {
+                        backgroundColor: "hsl(var(--primary) / 0.9)",
+                      },
+                      "&.Mui-selected": {
+                        backgroundColor: "hsl(var(--primary))",
+                      },
+                    }}
+                  >
+                    <ListItemIcon sx={{ color: "white" }}>
+                      <AddCircleOutline fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary="Create Job" />
+                  </MenuItem>
+                </>
+              )}
             </Box>
           </Menu>
 
@@ -426,16 +599,23 @@ export const AdminLayout = ({ children }) => {
           >
             <Box sx={{ px: 2, py: 1.5, borderBottom: "1px solid", borderColor: "divider" }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                Admin User
+                {userName}
               </Typography>
-              <Chip label="Administrator" size="small" color="primary" sx={{ mt: 0.5, height: 20 }} />
+              <Chip 
+                label={getRoleLabel(userRole)} 
+                size="small" 
+                color={getRoleColor(userRole)} 
+                sx={{ mt: 0.5, height: 20 }} 
+              />
             </Box>
-            <MenuItem onClick={handleSwitchToUser} sx={{ py: 1.5 }}>
-              <ListItemIcon>
-                <Person fontSize="small" />
-              </ListItemIcon>
-              Switch to User
-            </MenuItem>
+            {fullAccessRoles.includes(userRole) && (
+              <MenuItem onClick={handleSwitchToUser} sx={{ py: 1.5 }}>
+                <ListItemIcon>
+                  <Person fontSize="small" />
+                </ListItemIcon>
+                Switch to User
+              </MenuItem>
+            )}
             <Divider />
             <MenuItem onClick={handleLogout} sx={{ py: 1.5, color: "error.main" }}>
               <ListItemIcon>
@@ -447,6 +627,69 @@ export const AdminLayout = ({ children }) => {
         </Toolbar>
       </AppBar>
 
+      {/* Payroll Sub-Navigation */}
+      {isPayrollSection && (
+        <Box
+          sx={{
+            backgroundColor: "#073D7F",
+            borderColor: "divider",
+            position: "sticky",
+            top: 64,
+            zIndex: 1200,
+            boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
+          }}
+        >
+          <Box
+            sx={{
+              display: { xs: "none", md: "flex" },
+              gap: 0.5,
+              px: 3,
+              overflowX: "auto",
+              "&::-webkit-scrollbar": {
+                height: 4,
+              },
+              "&::-webkit-scrollbar-thumb": {
+                backgroundColor: "rgba(255,255,255,0.3)",
+                borderRadius: 2,
+              },
+            }}
+          >
+            {payrollSubNavItems.map((item) => (
+              <Button
+                key={item.text}
+                onClick={() => handleNavigate(item.path)}
+                startIcon={<item.icon sx={{ fontSize: 18 }} />}
+                sx={{
+                  color: location.pathname === item.path ? "hsl(var(--primary))" : "#FFFFFF",
+                  fontWeight: location.pathname === item.path ? 600 : 400,
+                  textTransform: "none",
+                  fontSize: "0.875rem",
+                  px: 2,
+                  py: 0.7,
+                  borderRadius: 0,
+                  whiteSpace: "nowrap",
+                  minWidth: "auto",
+                  backgroundColor: location.pathname === item.path ? "white" : "transparent",
+                  "&:hover": {
+                    backgroundColor: location.pathname === item.path ? "white" : "rgba(255,255,255,0.1)",
+                  },
+                }}
+              >
+                {item.text}
+              </Button>
+            ))}
+          </Box>
+
+          {/* Mobile breadcrumb */}
+          <Box sx={{ display: { xs: "block", md: "none" }, px: 2, py: 1 }}>
+            <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.8)", fontWeight: 600 }}>
+              PAYROLL MODULE
+            </Typography>
+          </Box>
+        </Box>
+      )}
+
+      {/* Main Content Area */}
       <Box
         component="main"
         sx={{
@@ -456,6 +699,32 @@ export const AdminLayout = ({ children }) => {
           minHeight: "calc(100vh - 64px)",
         }}
       >
+        {/* Breadcrumb for Payroll Section */}
+        {isPayrollSection && (
+          <Breadcrumbs
+            separator={<NavigateNext fontSize="small" />}
+            sx={{ mb: 3 }}
+          >
+            <Link
+              component="button"
+              variant="body2"
+              onClick={() => handleNavigate("/admin/payroll")}
+              sx={{
+                textDecoration: "none",
+                color: "text.secondary",
+                "&:hover": {
+                  color: "hsl(var(--primary))",
+                  textDecoration: "underline",
+                },
+              }}
+            >
+              Payroll
+            </Link>
+            <Typography variant="body2" sx={{ color: "text.primary", fontWeight: 600 }}>
+              {getPayrollBreadcrumb()}
+            </Typography>
+          </Breadcrumbs>
+        )}
         {children}
       </Box>
     </Box>

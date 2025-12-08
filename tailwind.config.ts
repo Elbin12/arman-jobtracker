@@ -19,7 +19,22 @@ export default {
 		},
 		extend: {
 			colors: {
-				//NEW COLORS
+				success: {
+					DEFAULT: '#16a34a',
+					light: '#bbf7d0',
+				},
+				warning: {
+					DEFAULT: '#f59e0b',
+					light: '#fde68a',
+				},
+				danger: {
+					DEFAULT: '#dc2626',
+					light: '#fecaca',
+				},
+				info: {
+					DEFAULT: '#3b82f6',
+				},
+						//NEW COLORS
 
 				brand:{
 					'DEFAULT':"#FF000C"
@@ -42,14 +57,6 @@ export default {
 					DEFAULT: 'hsl(var(--secondary))',
 					foreground: 'hsl(var(--secondary-foreground))',
 					light: 'hsl(var(--secondary-light))'
-				},
-				success: {
-					DEFAULT: 'hsl(var(--success))',
-					foreground: 'hsl(var(--success-foreground))'
-				},
-				warning: {
-					DEFAULT: 'hsl(var(--warning))',
-					foreground: 'hsl(var(--warning-foreground))'
 				},
 				destructive: {
 					DEFAULT: 'hsl(var(--destructive))',
