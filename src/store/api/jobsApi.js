@@ -38,6 +38,24 @@ export const jobsApi = createApi({
       query: (params = {}) => ({ url: 'jobs/', params }),
       providesTags: ['Job'],
     }),
+
+    // Appointments
+    getAppointmentsCalendar: builder.query({
+      query: (params = {}) => ({ url: 'appointments-calendar/', params }),
+      providesTags: ['Appointment'],
+    }),
+    createAppointment: builder.mutation({
+      query: (payload) => ({ url: 'appointments/', method: 'POST', data: payload }),
+      invalidatesTags: ['Appointment'],
+    }),
+    updateAppointment: builder.mutation({
+      query: ({ id, ...payload }) => ({ url: `appointments/${id}/`, method: 'PATCH', data: payload }),
+      invalidatesTags: (r, e, { id }) => [{ type: 'Appointment', id }],
+    }),
+    deleteAppointment: builder.mutation({
+      query: (id) => ({ url: `appointments/${id}/`, method: 'DELETE' }),
+      invalidatesTags: ['Appointment'],
+    }),
   }),
 });
 
@@ -50,7 +68,11 @@ export const {
   useGetJobsByLocationQuery,
   useGetLocationsQuery,
 
-  useGetCalendarJobsQuery
+  useGetCalendarJobsQuery,
+  useGetAppointmentsCalendarQuery,
+  useCreateAppointmentMutation,
+  useUpdateAppointmentMutation,
+  useDeleteAppointmentMutation,
 } = jobsApi;
 
 

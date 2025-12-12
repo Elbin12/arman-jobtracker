@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import moment from "moment-timezone"
 import {
   Card,
   CardHeader,
@@ -28,7 +29,7 @@ import {
 } from "@mui/icons-material"
 import DeleteJobDialog from "./DeleteJobDialog" // Import DeleteJobDialog component
 
-export function JobCard({ job, onUpdate, onEdit, onDelete, users = [] }) {
+export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTimezone = "America/Chicago" }) {
   const [updating, setUpdating] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
@@ -59,16 +60,9 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [] }) {
 
   const formatDate = (dateString) => {
     if (!dateString) return "Not scheduled"
-    const date = new Date(dateString)
-    return date.toLocaleString("en-US", {
-      timeZone: "UTC",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    })
+    // Parse as UTC (explicitly) and convert to account timezone
+    const m = moment.utc(dateString).tz(accountTimezone);
+    return m.format("MM/DD/YYYY h:mm A");
   }
 
   const formatPrice = (price) => {
@@ -91,8 +85,23 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [] }) {
 
  const assignedUserNames =
   job.assignments
-    .filter((assignment) => assignment.user_name)
-    .map((assignment) => assignment.user_name)
+    .map((assignment) => {
+      // Look up the user from the users array
+      if (assignment.user && users.length > 0) {
+        const user = users.find((u) => u.id === assignment.user);
+        if (user) {
+          // Use first_name + last_name if available, otherwise fall back to email
+          if (user.first_name || user.last_name) {
+            return `${user.first_name || ""} ${user.last_name || ""}`.trim();
+          } else if (user.email) {
+            return user.email;
+          }
+        }
+      }
+      // Fall back to assignment user_email or user ID if nothing else is available
+      return assignment.user_email || assignment.user || "";
+    })
+    .filter((name) => name) // Remove empty strings
     .join(", ") || "";
 
   const quotedByUser = users.find((u) => u.id === job.quoted_by)?.name || job.quoted_by

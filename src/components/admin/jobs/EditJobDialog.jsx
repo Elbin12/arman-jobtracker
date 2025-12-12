@@ -26,7 +26,7 @@ import { jobsApi, useUpdateJobMutation } from "../../../store/api/jobsApi";
 import { useGetAssigneesQuery } from "../../../store/api/assigneesApi";
 import { useDispatch } from "react-redux";
 
-export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate }) {
+export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, accountTimezone = "America/Chicago" }) {
   const [updateJob, { isLoading, error }] = useUpdateJobMutation();
   const [customServices, setCustomServices] = useState([]);
   const [showCustomServiceForm, setShowCustomServiceForm] = useState(false);
@@ -81,7 +81,7 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate }
       // Parse scheduled date
       let parsedTimeData = { date: "", hour: "12", minute: "00", period: "PM" };
       if (job.scheduled_at) {
-        const m = moment.parseZone(job.scheduled_at).tz("America/Chicago", true);
+        const m = moment.utc(job.scheduled_at).tz(accountTimezone);
         const dateStr = m.format("YYYY-MM-DD");
 
         let hours = m.hour();
@@ -168,8 +168,12 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate }
       if (updated.period === "PM" && hour24 !== 12) hour24 += 12;
       if (updated.period === "AM" && hour24 === 12) hour24 = 0;
 
-      const isoString = `${updated.date}T${String(hour24).padStart(2, '0')}:${updated.minute}:00`;
-      setFormData(prev => ({ ...prev, scheduled_at: isoString }));
+      // Create moment in account timezone, then convert to UTC
+      const timeStr = `${String(hour24).padStart(2, '0')}:${updated.minute}:00`;
+      const localMoment = moment.tz(`${updated.date} ${timeStr}`, "YYYY-MM-DD HH:mm:ss", accountTimezone);
+      const utcIsoString = localMoment.utc().toISOString();
+      
+      setFormData(prev => ({ ...prev, scheduled_at: utcIsoString }));
     }
   };
 

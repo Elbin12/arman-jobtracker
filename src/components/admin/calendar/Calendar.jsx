@@ -1,17 +1,160 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Calendar as BigCalendar, momentLocalizer } from "react-big-calendar";
+import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
+import { DndProvider, useDrop } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
 import moment from "moment-timezone";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Loader2, RotateCcw, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Calendar as DatePicker } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import "react-big-calendar/lib/css/react-big-calendar.css";
+import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
+
+// Custom styles to prevent calendar width overflow and improve event styling
+const calendarStyles = `
+  .rbc-calendar {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+  .rbc-month-view {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .rbc-month-row {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .rbc-day-bg {
+    width: 100% !important;
+  }
+  .rbc-header {
+    width: 100% !important;
+  }
+  .rbc-event {
+    border-radius: 8px !important;
+    padding: 0 !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    box-shadow: none !important;
+    border: none !important;
+    outline: none !important;
+    margin: 0 !important;
+    transition: all 0.2s ease !important;
+    overflow: hidden !important;
+  }
+  .rbc-event-wrapper {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+  }
+  .rbc-event:hover {
+    box-shadow: none !important;
+    transform: translateY(-1px);
+    border: none !important;
+    outline: none !important;
+  }
+  .rbc-event:hover .rbc-event-content {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+  }
+  .rbc-event-content {
+    line-height: 1.4 !important;
+    overflow: visible !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    border: none !important;
+    outline: none !important;
+    padding: 6px 10px !important;
+    border-radius: 8px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    min-height: 28px !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+  .rbc-event-label {
+    display: none !important;
+  }
+  .rbc-day-slot .rbc-time-slot {
+    border-top: none !important;
+  }
+  .rbc-time-slot {
+    border-top: 1px solid #f0f0f0 !important;
+  }
+  .rbc-event-selected {
+    border: none !important;
+    outline: none !important;
+  }
+  .rbc-event:focus {
+    border: none !important;
+    outline: none !important;
+  }
+  .rbc-event.rbc-selected {
+    border: none !important;
+    outline: none !important;
+  }
+  .rbc-day-slot .rbc-event {
+    border: none !important;
+    outline: none !important;
+    margin: 0 !important;
+  }
+  .rbc-month-view .rbc-event {
+    border: none !important;
+    outline: none !important;
+    margin: 0 !important;
+  }
+  .rbc-month-view .rbc-day-slot .rbc-event {
+    margin: 0 !important;
+  }
+  .rbc-day-slot .rbc-events-container {
+    margin: 0 !important;
+  }
+  .rbc-day-slot .rbc-events-container .rbc-event {
+    margin: 0 !important;
+  }
+  .rbc-day-bg {
+    overflow: visible !important;
+  }
+  .rbc-day-slot {
+    overflow: visible !important;
+  }
+  .rbc-date-cell {
+    overflow: visible !important;
+  }
+  .rbc-month-view .rbc-day-bg {
+    overflow: visible !important;
+  }
+  .rbc-month-view .rbc-day-slot {
+    overflow: visible !important;
+  }
+  .rbc-month-view .rbc-date-cell {
+    overflow: visible !important;
+  }
+  .rbc-month-row {
+    overflow: visible !important;
+  }
+  .rbc-month-view .rbc-month-row {
+    overflow: visible !important;
+  }
+  .rbc-row-content {
+    overflow: visible !important;
+  }
+  .rbc-month-view .rbc-row-content {
+    overflow: visible !important;
+  }
+`;
 import { JobCard } from "../jobs/JobCard";
-import { jobsApi, useGetCalendarJobsQuery } from "../../../store/api/jobsApi";
+import { jobsApi, useGetCalendarJobsQuery, useGetAppointmentsCalendarQuery } from "../../../store/api/jobsApi";
 import { useSelector, useDispatch } from "react-redux";
 import { FilterSidebar } from "../../../pages/admin/FilterSibdebar";
 import { EditJobDialog } from "../jobs/EditJobDialog";
@@ -19,27 +162,233 @@ import { TimelineSidebar } from "./TimelineSidebar";
 import { useUpdateJobMutation } from "../../../store/api/jobsApi";
 
 const localizer = momentLocalizer(moment);
+const DnDCalendar = withDragAndDrop(BigCalendar);
 
-export function NewCalendar({ users = [] }) {
+// Custom Event Component that accepts staff drops
+function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, ...props }) {
+  // Handle "+X more" event type
+  if (event?.type === 'more') {
+    return (
+      <div
+        className="rbc-event"
+        style={{
+          backgroundColor: "transparent",
+          border: "none",
+          outline: "none",
+          borderRadius: "8px",
+          padding: "0",
+          boxShadow: "none",
+          margin: "0",
+          cursor: "pointer",
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (onSelectEvent) {
+            onSelectEvent(event);
+          }
+        }}
+        title={event?.title}
+        {...props}
+      >
+        <div
+          className="truncate"
+          style={{
+            lineHeight: "1.4",
+            backgroundColor: "#e5e7eb",
+            borderRadius: "8px",
+            padding: "6px 10px",
+            fontWeight: "500",
+            fontSize: "13px",
+            color: "#374151",
+            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+            transition: "all 0.2s ease",
+          }}
+        >
+          {event?.title || "+more"}
+        </div>
+      </div>
+    );
+  }
+  
+  // Don't allow staff drops on appointments
+  const isAppointment = event?.type === 'appointment';
+  
+  const [{ isOver }, drop] = useDrop({
+    accept: "staff",
+    drop: (item) => {
+      if (onStaffDrop && event?.resource && !isAppointment) {
+        onStaffDrop(event.resource, item.user);
+      }
+    },
+    canDrop: () => !isAppointment,
+    collect: (monitor) => ({
+      isOver: monitor.isOver() && !isAppointment,
+    }),
+  });
+
+  const eventStyle = style || {};
+  const eventTitle = title || event?.title || "";
+  
+  // Get the background color from the event style (set by eventStyleGetter)
+  // We need to extract it from the parent wrapper's computed style or pass it differently
+  const resource = event?.resource;
+  let backgroundColor = "#9ca3ef"; // Default
+  
+  if (event?.type === 'appointment') {
+    const appointment = resource;
+    switch (appointment?.appointment_status) {
+      case "new":
+        backgroundColor = "#9ca3ef";
+        break;
+      case "confirmed":
+        backgroundColor = "#06b6d4";
+        break;
+      case "cancelled":
+        backgroundColor = "#ef4444";
+        break;
+      case "completed":
+        backgroundColor = "#10b981";
+        break;
+      default:
+        backgroundColor = "#9ca3ef";
+    }
+  } else if (resource) {
+    const job = resource;
+    switch (job?.status) {
+      case "scheduled":
+        backgroundColor = "#9ca3ef";
+        break;
+      case "pending":
+        backgroundColor = "#f59e0b";
+        break;
+      case "in_progress":
+        backgroundColor = "#3b82f6";
+        break;
+      case "completed":
+        backgroundColor = "#10b981";
+        break;
+      case "cancelled":
+        backgroundColor = "#ef4444";
+        break;
+      default:
+        backgroundColor = "#9ca3ef";
+    }
+  }
+
+  // React-big-calendar applies styles from eventPropGetter to a wrapper div
+  // We'll apply the background color and padding directly to our inner content div
+  return (
+    <div
+      ref={drop}
+      className={cn(
+        "rbc-event",
+        isOver && "rbc-event-droppable"
+      )}
+      style={{
+        backgroundColor: "transparent",
+        border: "none",
+        outline: "none",
+        borderRadius: "8px",
+        padding: "0",
+        boxShadow: "none",
+        margin: "0",
+      }}
+      title={eventTitle}
+      {...props}
+    >
+      <div 
+        className="truncate" 
+        style={{ 
+          lineHeight: "1.4",
+          backgroundColor: backgroundColor,
+          borderRadius: "8px",
+          padding: "6px 10px",
+          fontWeight: "500",
+          fontSize: "13px",
+          color: "white",
+          boxShadow: isOver ? "0 2px 6px rgba(0, 0, 0, 0.15)" : "0 1px 3px rgba(0, 0, 0, 0.1)",
+          transition: "all 0.2s ease",
+          border: isOver ? "2px dashed rgba(255, 255, 255, 0.8)" : "none",
+        }}
+      >
+        {eventTitle}
+      </div>
+    </div>
+  );
+}
+
+export function NewCalendar({ users = [], isLoadingUsers = false }) {
   const dispatch = useDispatch();
   const [updateJob] = useUpdateJobMutation();
   const [events, setEvents] = useState([]);
+  const [originalEvents, setOriginalEvents] = useState([]); // Store original events for height calculation
   const [selectedJob, setSelectedJob] = useState(null);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [view, setView] = useState("month");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [monthRowHeight, setMonthRowHeight] = useState(140);
+  const [expandedDays, setExpandedDays] = useState(new Set()); // Track which days are expanded
   const [showSidebar, setShowSidebar] = useState(true);
   const [selectedCategories, setSelectedCategories] = useState({});
   const [selectedAssignees, setSelectedAssignees] = useState({});
-
-  const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [editingJob, setEditingJob] = useState(null);
-
   const [filterSidebarOpen, setFilterSidebarOpen] = useState(false);
   const [filterParams, setFilterParams] = useState({});
+  
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editingJob, setEditingJob] = useState(null);
+  
+  // Time picker dialog state for drag and drop
+  const [timePickerOpen, setTimePickerOpen] = useState(false);
+  const [draggedJob, setDraggedJob] = useState(null);
+  const [newDate, setNewDate] = useState(null);
+  const [selectedTime, setSelectedTime] = useState({ hour: "12", minute: "00", period: "PM" });
+  const [isUpdatingTime, setIsUpdatingTime] = useState(false);
+  const [lastUpdateInfo, setLastUpdateInfo] = useState(null); // Store original scheduled_at for undo
+  const undoTimeoutRef = useRef(null);
+
+  // Initialize all staff as unchecked when users are loaded (only on mount)
+  const isInitialized = useRef(false);
+  useEffect(() => {
+    if (users.length > 0 && !isInitialized.current) {
+      const initialAssignees = {};
+      users.forEach((user) => {
+        initialAssignees[user.id] = false; // All unchecked by default
+      });
+      setSelectedAssignees(initialAssignees);
+      // Set filterParams to empty assignee_ids so no jobs show initially
+      setFilterParams({ assignee_ids: "[]" });
+      isInitialized.current = true;
+    }
+  }, [users.length]); // Only run when users array length changes
+
+  // Sync selectedAssignees when filterParams.assignee_ids changes (from FilterSidebar)
+  // Skip if this change came from our own handleAssigneeToggle
+  const isInternalUpdate = useRef(false);
+  useEffect(() => {
+    if (filterParams.assignee_ids && users.length > 0 && !isInternalUpdate.current) {
+      // Parse assignee_ids from filterParams (format: "[1,2,3]" or "[]")
+      const assigneeIdsStr = filterParams.assignee_ids.replace(/[\[\]]/g, '');
+      const assigneeIds = assigneeIdsStr 
+        ? assigneeIdsStr.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id))
+        : [];
+      
+      // Update selectedAssignees based on filterParams
+      const updatedAssignees = {};
+      users.forEach((user) => {
+        updatedAssignees[user.id] = assigneeIds.includes(user.id);
+      });
+      setSelectedAssignees(updatedAssignees);
+    }
+    isInternalUpdate.current = false;
+  }, [filterParams.assignee_ids, users.length]);
 
   const user_profile = useSelector((state) => state.auth.user_profile)
+  const user = useSelector((state) => state.auth.user)
+  const userRole = user?.role || "worker"
   const accountTimezone = user_profile?.account?.timezone || "America/Chicago";
+  
+  // Check if user can see staff section (admin, manager, supervisor)
+  const canViewStaff = ["admin", "manager", "supervisor"].includes(userRole);
 
   const getDateRange = () => {
     let start, end;
@@ -67,16 +416,22 @@ export function NewCalendar({ users = [] }) {
 
   const { start, end } = getDateRange();
   const { data: calendarJobs, isLoading, isFetching } = useGetCalendarJobsQuery({ ...filterParams, start, end });
+  const { data: appointments, isLoading: isLoadingAppointments, isFetching: isFetchingAppointments } = useGetAppointmentsCalendarQuery({ start, end });
   const jobs = calendarJobs?.results ?? [];
+  // Handle both array response and results-wrapped response
+  const appointmentsList = Array.isArray(appointments) 
+    ? appointments 
+    : (appointments?.results ?? []);
 
   useEffect(() => {
-    const calendarEvents = jobs
+    // Transform jobs to events
+    const jobEvents = jobs
       .filter((job) => {
         if (!job.scheduled_at) return false;
         return true;
       })
       .map((job) => {
-        const m = moment.parseZone(job.scheduled_at).tz(accountTimezone, true);
+        const m = moment.utc(job.scheduled_at).tz(accountTimezone);
         const startDate = new Date(m.year(), m.month(), m.date(), m.hour(), m.minute());
         const duration = parseFloat(job.duration_hours) || 2;
         const endDate = new Date(m.year(), m.month(), m.date(), m.hour() + duration, m.minute());
@@ -89,11 +444,81 @@ export function NewCalendar({ users = [] }) {
           start: startDate,
           end: endDate,
           resource: job,
+          type: 'job',
         };
       });
 
-    setEvents(calendarEvents);
-  }, [jobs]);
+    // Transform appointments to events
+    const appointmentEvents = appointmentsList
+      .filter((appointment) => {
+        if (!appointment.start_time) return false;
+        return true;
+      })
+      .map((appointment) => {
+        const startM = moment.utc(appointment.start_time).tz(accountTimezone);
+        const endM = moment.utc(appointment.end_time).tz(accountTimezone);
+        const startDate = new Date(startM.year(), startM.month(), startM.date(), startM.hour(), startM.minute());
+        const endDate = new Date(endM.year(), endM.month(), endM.date(), endM.hour(), endM.minute());
+        const timeStr = startM.format("h A");
+
+        return {
+          id: appointment.appointment_id,
+          title: `${timeStr} ${appointment.title || appointment.contact_name || "Appointment"}`,
+          start: startDate,
+          end: endDate,
+          resource: appointment,
+          type: 'appointment',
+        };
+      });
+
+    // Merge both events
+    const allEvents = [...jobEvents, ...appointmentEvents];
+    
+    // Store original events for height calculation
+    setOriginalEvents(allEvents);
+    
+    // For month view, limit events per day to 6 (unless expanded)
+    // Group events by day
+    const eventsByDay = {};
+    allEvents.forEach((ev) => {
+      const dayKey = ev.start.toISOString().slice(0, 10);
+      if (!eventsByDay[dayKey]) {
+        eventsByDay[dayKey] = [];
+      }
+      eventsByDay[dayKey].push(ev);
+    });
+    
+    // Process events: limit to 6 per day unless expanded, add "+X more" event if needed
+    const processedEvents = [];
+    Object.keys(eventsByDay).forEach((dayKey) => {
+      const dayEvents = eventsByDay[dayKey];
+      const isExpanded = expandedDays.has(dayKey);
+      const maxVisible = 6;
+      
+      if (dayEvents.length <= maxVisible || isExpanded) {
+        // Show all events
+        processedEvents.push(...dayEvents);
+      } else {
+        // Show first 6 events + "+X more" event
+        processedEvents.push(...dayEvents.slice(0, maxVisible));
+        const remainingCount = dayEvents.length - maxVisible;
+        
+        // Create a special "+X more" event
+        const firstEvent = dayEvents[0];
+        const moreEvent = {
+          id: `more-${dayKey}`,
+          title: `+${remainingCount} more`,
+          start: firstEvent.start,
+          end: firstEvent.start,
+          resource: { type: 'more', dayKey, count: remainingCount, allEvents: dayEvents },
+          type: 'more',
+        };
+        processedEvents.push(moreEvent);
+      }
+    });
+    
+    setEvents(processedEvents);
+  }, [jobs, appointmentsList, accountTimezone, expandedDays]);
 
   // Dynamically set month row height so all events fit
   useEffect(() => {
@@ -102,8 +527,10 @@ export function NewCalendar({ users = [] }) {
     const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999);
 
+    // Count actual events per day (excluding "+X more" events)
+    // Use originalEvents which contains all actual events, not the processed ones with "+X more"
     const counts = {};
-    events.forEach((ev) => {
+    originalEvents.forEach((ev) => {
       const d = ev.start;
       if (d >= monthStart && d <= monthEnd) {
         const key = d.toISOString().slice(0, 10);
@@ -111,11 +538,41 @@ export function NewCalendar({ users = [] }) {
       }
     });
 
+    // Find the day with the most events - this determines the row height needed
     const maxCount = Object.values(counts).reduce((a, b) => Math.max(a, b), 0);
-    const base = 44;
-    const per = 26;
-    setMonthRowHeight(base + Math.max(maxCount, 1) * per);
-  }, [events, view, currentDate]);
+    
+    // Calculate height dynamically based on number of events
+    // Show max 6 events initially, or all if expanded
+    // Each event needs: padding (6px top + 6px bottom = 12px) + content height (~20px) = ~32px per event
+    const eventHeight = 32; // Height per event
+    const baseHeight = 44; // Base height for day cell (date number + padding)
+    const maxVisibleEvents = 6; // Maximum events to show before "+X more"
+    
+    // Calculate height needed: check each day and determine if it's expanded
+    // If expanded, use actual count; if not, use min(actual count, 6 + 1 for "+X more")
+    let maxEventsToShow = 0;
+    Object.keys(counts).forEach((dayKey) => {
+      const dayEventCount = counts[dayKey];
+      const isExpanded = expandedDays.has(dayKey);
+      
+      if (isExpanded) {
+        // Expanded day - show all events
+        maxEventsToShow = Math.max(maxEventsToShow, dayEventCount);
+      } else {
+        // Not expanded - show max 6 + 1 for "+X more" if needed
+        const eventsToShow = dayEventCount > maxVisibleEvents 
+          ? maxVisibleEvents + 1  // 6 events + "+X more" button
+          : dayEventCount;
+        maxEventsToShow = Math.max(maxEventsToShow, eventsToShow);
+      }
+    });
+    
+    const calculatedHeight = baseHeight + (Math.max(maxEventsToShow, 1) * eventHeight);
+    
+    // Set minimum height, but always use calculated height if it's larger
+    const minHeight = 140;
+    setMonthRowHeight(Math.max(minHeight, calculatedHeight));
+  }, [originalEvents, view, currentDate, expandedDays]);
 
   const weeksInMonth =
     view === "month"
@@ -138,7 +595,32 @@ export function NewCalendar({ users = [] }) {
   const monthTotalHeight = weekDayHeight();
 
   const handleSelectEvent = (event) => {
-    setSelectedJob(event.resource);
+    // Handle "+X more" click
+    if (event.type === 'more') {
+      const dayKey = event.resource.dayKey;
+      handleToggleExpand(dayKey);
+      return;
+    }
+    
+    if (event.type === 'appointment') {
+      setSelectedAppointment(event.resource);
+      setSelectedJob(null);
+    } else {
+      setSelectedJob(event.resource);
+      setSelectedAppointment(null);
+    }
+  };
+
+  const handleToggleExpand = (dayKey) => {
+    setExpandedDays((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(dayKey)) {
+        newSet.delete(dayKey);
+      } else {
+        newSet.add(dayKey);
+      }
+      return newSet;
+    });
   };
 
   const handleNavigate = (newDate) => {
@@ -202,35 +684,96 @@ export function NewCalendar({ users = [] }) {
   };
 
   const eventStyleGetter = (event) => {
+    // Handle "+X more" event
+    if (event.type === 'more') {
+      return {
+        style: {
+          backgroundColor: "transparent",
+          borderRadius: "8px",
+          opacity: 1,
+          color: "#374151",
+          border: "none",
+          outline: "none",
+          fontSize: "13px",
+          fontWeight: "500",
+          padding: "0",
+          boxShadow: "none",
+        },
+      };
+    }
+    
+    // Handle appointments differently
+    if (event.type === 'appointment') {
+      const appointment = event.resource;
+      let backgroundColor = "#a78bfa"; // Light purple-blue for appointments
+
+      switch (appointment.appointment_status) {
+        case "new":
+          backgroundColor = "#9ca3ef"; // Light purple-blue (matching the design)
+          break;
+        case "confirmed":
+          backgroundColor = "#06b6d4"; // Cyan
+          break;
+        case "cancelled":
+          backgroundColor = "#ef4444"; // Red
+          break;
+        case "completed":
+          backgroundColor = "#10b981"; // Green (matching the design)
+          break;
+        default:
+          backgroundColor = "#9ca3ef";
+      }
+
+      return {
+        style: {
+          backgroundColor: "transparent",
+          borderRadius: "8px",
+          opacity: 1,
+          color: "white",
+          border: "none",
+          outline: "none",
+          fontSize: "13px",
+          fontWeight: "500",
+          padding: "0",
+          boxShadow: "none",
+        },
+      };
+    }
+
+    // Handle jobs
     const job = event.resource;
-    let backgroundColor = "#3174ad";
+    let backgroundColor = "#9ca3ef"; // Default light purple-blue (softer tone)
 
     switch (job.status) {
       case "scheduled":
-        backgroundColor = "#8b5cf6"; // Purple for scheduled (accepted quotes)
+        backgroundColor = "#9ca3ef"; // Light purple-blue (matching the design)
         break;
       case "pending":
-        backgroundColor = "#f59e0b";
+        backgroundColor = "#f59e0b"; // Yellow/Orange
         break;
       case "in_progress":
-        backgroundColor = "#3b82f6";
+        backgroundColor = "#3b82f6"; // Blue
         break;
       case "completed":
-        backgroundColor = "#10b981";
+        backgroundColor = "#10b981"; // Green (matching the design)
         break;
       case "cancelled":
-        backgroundColor = "#ef4444";
+        backgroundColor = "#ef4444"; // Red
         break;
     }
 
     return {
       style: {
-        backgroundColor,
-        borderRadius: "4px",
-        opacity: 0.8,
+        backgroundColor: "transparent",
+        borderRadius: "8px",
+        opacity: 1,
         color: "white",
         border: "none",
-        fontSize: "12px",
+        outline: "none",
+        fontSize: "13px",
+        fontWeight: "500",
+        padding: "0",
+        boxShadow: "none",
       },
     };
   };
@@ -279,46 +822,339 @@ export function NewCalendar({ users = [] }) {
   }
 
   // Handle event drop (drag and drop)
-  const handleEventDrop = async ({ event, start, end }) => {
+  const handleEventDrop = ({ event, start, end }) => {
+    // Don't allow dragging appointments
+    if (event.type === 'appointment') return;
+    
     const job = event.resource;
     if (!job) return;
 
+    // Get original job date
+    const originalMoment = moment.utc(job.scheduled_at).tz(accountTimezone);
+    const originalDate = originalMoment.format("YYYY-MM-DD");
+    const newDateStr = moment(start).format("YYYY-MM-DD");
+
+    // Extract date/time components from start
+    const startDate = new Date(start);
+    const dateStr = moment(startDate).format("YYYY-MM-DD");
+    const timeStr = moment(startDate).format("HH:mm:ss");
+    
+    // Create moment in account timezone with the extracted date/time, then convert to UTC
+    const localMoment = moment.tz(`${dateStr} ${timeStr}`, "YYYY-MM-DD HH:mm:ss", accountTimezone);
+    const newScheduledAt = localMoment.utc().toISOString();
+
+    // In week and day views, directly update since user can see and drag to specific time slots
+    // In month view, show time picker when dragging to different date
+    if (view === "week" || view === "day") {
+      // Week/day view: directly update with the new time (store original for undo)
+      updateJobTime(job, newScheduledAt, job.scheduled_at);
+    } else {
+      // Month view: show time picker if dropped on different date
+      if (originalDate !== newDateStr) {
+        // Show time picker dialog
+        setDraggedJob(job);
+        setNewDate(moment(start).toDate());
+        // Set initial time from the drop position
+        const hours = localMoment.hour();
+        const hour12 = hours % 12 || 12;
+        setSelectedTime({
+          hour: hour12.toString(),
+          minute: localMoment.format("mm"),
+          period: hours >= 12 ? "PM" : "AM"
+        });
+        setTimePickerOpen(true);
+      } else {
+        // Same date in month view, just update time (store original for undo)
+        updateJobTime(job, newScheduledAt, job.scheduled_at);
+      }
+    }
+  };
+
+  // Handle event resize (change duration and/or start time)
+  const handleEventResize = ({ event, start, end }) => {
+    // Don't allow resizing appointments
+    if (event.type === 'appointment') return;
+    
+    const job = event.resource;
+    if (!job) return;
+
+    // Calculate duration in hours from start and end times
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    const durationMs = endDate - startDate;
+    const durationHours = durationMs / (1000 * 60 * 60); // Convert milliseconds to hours
+    
+    // Round to 2 decimal places for cleaner values
+    const roundedDuration = Math.round(durationHours * 100) / 100;
+
+    // Check if start time changed (resizing from left edge)
+    const originalMoment = moment.utc(job.scheduled_at).tz(accountTimezone);
+    const originalStart = originalMoment.toDate();
+    const startChanged = Math.abs(startDate.getTime() - originalStart.getTime()) > 60000; // More than 1 minute difference
+
+    if (startChanged) {
+      // Start time changed, update both scheduled_at and duration
+      const dateStr = moment(startDate).format("YYYY-MM-DD");
+      const timeStr = moment(startDate).format("HH:mm:ss");
+      const localMoment = moment.tz(`${dateStr} ${timeStr}`, "YYYY-MM-DD HH:mm:ss", accountTimezone);
+      const newScheduledAt = localMoment.utc().toISOString();
+      
+      updateJobTimeAndDuration(job, newScheduledAt, roundedDuration);
+    } else {
+      // Only duration changed (resizing from right edge)
+      updateJobDuration(job, roundedDuration);
+    }
+  };
+
+  // Update job time
+  const updateJobTime = async (job, newScheduledAt, originalScheduledAt = null) => {
     try {
-      const newScheduledAt = moment(start).tz(accountTimezone).format();
-      const duration = moment(end).diff(moment(start), "hours", true);
+      // Store original for undo if not provided
+      const original = originalScheduledAt || job.scheduled_at;
       
       const result = await updateJob({
         id: job.id,
         scheduled_at: newScheduledAt,
-        duration_hours: duration,
       }).unwrap();
       
       handleJobUpdate(result);
+      
+      // Store update info for undo
+      setLastUpdateInfo({
+        jobId: job.id,
+        originalScheduledAt: original,
+        newScheduledAt: newScheduledAt,
+        job: job
+      });
+      
+      // Auto-dismiss undo notification after 10 seconds
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current);
+      }
+      undoTimeoutRef.current = setTimeout(() => {
+        setLastUpdateInfo(null);
+      }, 10000);
     } catch (error) {
       console.error("Failed to update job:", error);
     }
   };
 
-  // Handle event resize (drag to change duration)
-  const handleEventResize = async ({ event, start, end }) => {
-    const job = event.resource;
-    if (!job) return;
-
+  // Update job duration
+  const updateJobDuration = async (job, durationHours) => {
     try {
-      const newScheduledAt = moment(start).tz(accountTimezone).format();
-      const duration = moment(end).diff(moment(start), "hours", true);
+      // Store original for undo
+      const originalScheduledAt = job.scheduled_at;
+      const originalDuration = job.duration_hours;
+      
+      // Ensure minimum duration of 0.5 hours
+      const newDuration = Math.max(0.5, durationHours);
+      
+      const result = await updateJob({
+        id: job.id,
+        duration_hours: newDuration,
+      }).unwrap();
+      
+      handleJobUpdate(result);
+      
+      // Store update info for undo (we'll restore both scheduled_at and duration)
+      setLastUpdateInfo({
+        jobId: job.id,
+        originalScheduledAt: originalScheduledAt,
+        originalDuration: originalDuration,
+        newScheduledAt: result.scheduled_at,
+        newDuration: newDuration,
+        job: job
+      });
+      
+      // Auto-dismiss undo notification after 10 seconds
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current);
+      }
+      undoTimeoutRef.current = setTimeout(() => {
+        setLastUpdateInfo(null);
+      }, 10000);
+    } catch (error) {
+      console.error("Failed to update job duration:", error);
+    }
+  };
+
+  // Update job time and duration
+  const updateJobTimeAndDuration = async (job, newScheduledAt, durationHours) => {
+    try {
+      // Store original for undo
+      const originalScheduledAt = job.scheduled_at;
+      const originalDuration = job.duration_hours;
+      
+      // Ensure minimum duration of 0.5 hours
+      const newDuration = Math.max(0.5, durationHours);
       
       const result = await updateJob({
         id: job.id,
         scheduled_at: newScheduledAt,
-        duration_hours: duration,
+        duration_hours: newDuration,
       }).unwrap();
       
       handleJobUpdate(result);
+      
+      // Store update info for undo
+      setLastUpdateInfo({
+        jobId: job.id,
+        originalScheduledAt: originalScheduledAt,
+        originalDuration: originalDuration,
+        newScheduledAt: newScheduledAt,
+        newDuration: newDuration,
+        job: job
+      });
+      
+      // Auto-dismiss undo notification after 10 seconds
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current);
+      }
+      undoTimeoutRef.current = setTimeout(() => {
+        setLastUpdateInfo(null);
+      }, 10000);
     } catch (error) {
-      console.error("Failed to update job:", error);
+      console.error("Failed to update job time and duration:", error);
     }
   };
+
+  // Handle time picker confirmation
+  const handleTimePickerConfirm = async () => {
+    if (!draggedJob || !newDate || isUpdatingTime) return;
+
+    // Store original scheduled_at for undo
+    const originalScheduledAt = draggedJob.scheduled_at;
+
+    // Convert 12-hour to 24-hour format
+    let hour24 = parseInt(selectedTime.hour);
+    if (selectedTime.period === "PM" && hour24 !== 12) hour24 += 12;
+    if (selectedTime.period === "AM" && hour24 === 12) hour24 = 0;
+
+    // Create datetime in account timezone, then convert to UTC
+    const dateStr = moment(newDate).format("YYYY-MM-DD");
+    const timeStr = `${String(hour24).padStart(2, '0')}:${selectedTime.minute}:00`;
+    
+    // Create moment in account timezone
+    const localMoment = moment.tz(`${dateStr} ${timeStr}`, "YYYY-MM-DD HH:mm:ss", accountTimezone);
+    
+    // Convert to UTC and format as UTC ISO string
+    const newScheduledAt = localMoment.utc().toISOString();
+    
+    setIsUpdatingTime(true);
+    
+    try {
+      await updateJobTime(draggedJob, newScheduledAt);
+      
+      // Store update info for undo
+      setLastUpdateInfo({
+        jobId: draggedJob.id,
+        originalScheduledAt: originalScheduledAt,
+        newScheduledAt: newScheduledAt,
+        job: draggedJob
+      });
+      
+      // Auto-dismiss undo notification after 10 seconds
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current);
+      }
+      undoTimeoutRef.current = setTimeout(() => {
+        setLastUpdateInfo(null);
+      }, 10000);
+      
+      // Close dialog and reset state after a brief delay to show success
+      setTimeout(() => {
+        setTimePickerOpen(false);
+        setDraggedJob(null);
+        setNewDate(null);
+        setIsUpdatingTime(false);
+      }, 500);
+    } catch (error) {
+      setIsUpdatingTime(false);
+      console.error("Failed to update job time:", error);
+    }
+  };
+
+  // Handle undo time change
+  const handleUndoTimeChange = async () => {
+    if (!lastUpdateInfo || isUpdatingTime) return;
+    
+    setIsUpdatingTime(true);
+    
+    // Clear auto-dismiss timeout
+    if (undoTimeoutRef.current) {
+      clearTimeout(undoTimeoutRef.current);
+      undoTimeoutRef.current = null;
+    }
+    
+    try {
+      // Check if we need to restore duration as well
+      if (lastUpdateInfo.originalDuration !== undefined) {
+        // Restore both time and duration
+        const result = await updateJob({
+          id: lastUpdateInfo.job.id,
+          scheduled_at: lastUpdateInfo.originalScheduledAt,
+          duration_hours: lastUpdateInfo.originalDuration,
+        }).unwrap();
+        handleJobUpdate(result);
+      } else {
+        // Only restore scheduled_at
+        await updateJobTime(lastUpdateInfo.job, lastUpdateInfo.originalScheduledAt, lastUpdateInfo.newScheduledAt);
+      }
+      setLastUpdateInfo(null);
+      setIsUpdatingTime(false);
+    } catch (error) {
+      setIsUpdatingTime(false);
+      console.error("Failed to undo time change:", error);
+    }
+  };
+
+  // Handle staff drop on job event
+  const handleStaffDrop = async (job, user) => {
+    if (!job || !user) return;
+    
+    // Don't allow staff drops on appointments
+    if (job.appointment_id) return;
+
+    // Check if user is already assigned
+    const isAlreadyAssigned = job.assignments?.some(
+      (assignment) => assignment.user === user.id
+    );
+
+    if (isAlreadyAssigned) {
+      // User is already assigned, no need to update
+      return;
+    }
+
+    try {
+      // Get current assignments or empty array
+      const currentAssignments = job.assignments || [];
+      
+      // Add new assignment
+      const newAssignments = [
+        ...currentAssignments,
+        { user: user.id, role: "worker" },
+      ];
+
+      // Update job with new assignments
+      const result = await updateJob({
+        id: job.id,
+        assignments: newAssignments,
+      }).unwrap();
+
+      handleJobUpdate(result);
+    } catch (error) {
+      console.error("Failed to add assignee to job:", error);
+    }
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleCategoryToggle = (categoryId, checked) => {
     setSelectedCategories((prev) => ({
@@ -328,151 +1164,187 @@ export function NewCalendar({ users = [] }) {
   };
 
   const handleAssigneeToggle = (assigneeId, checked) => {
-    setSelectedAssignees((prev) => ({
-      ...prev,
+    const updatedAssignees = {
+      ...selectedAssignees,
       [assigneeId]: checked,
+    };
+    setSelectedAssignees(updatedAssignees);
+    
+    // Convert selectedAssignees to assignee_ids array for filterParams
+    const selectedIds = Object.keys(updatedAssignees)
+      .filter((id) => updatedAssignees[id] === true)
+      .map((id) => parseInt(id));
+    
+    // Mark as internal update to prevent sync loop
+    isInternalUpdate.current = true;
+    
+    // Update filterParams with assignee_ids
+    setFilterParams((prev) => ({
+      ...prev,
+      assignee_ids: selectedIds.length > 0 ? `[${selectedIds.join(',')}]` : "[]",
     }));
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex gap-4">
-        {/* Left Sidebar */}
-        {showSidebar && (
-          <TimelineSidebar
-            currentDate={currentDate}
-            onDateChange={(date) => setCurrentDate(date)}
-            users={users}
-            selectedCategories={selectedCategories}
-            onCategoryToggle={handleCategoryToggle}
-            selectedAssignees={selectedAssignees}
-            onAssigneeToggle={handleAssigneeToggle}
-          />
-        )}
-
-        {/* Main Calendar */}
-        <div className="flex-1">
-          <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2 mb-4">
-            <CardTitle className="flex items-center gap-2">
-              <CalendarDays className="h-5 w-5" />
-              Calendar
-            </CardTitle>
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={navigateToday}>
-                Today
-              </Button>
-              <div className="flex items-center border rounded-md">
-                <Button variant="ghost" size="icon" onClick={navigateBack} className="rounded-r-none border-r">
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" className="font-semibold min-w-[180px] rounded-none">
-                      {getDateTitle()}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <DatePicker
-                      mode="single"
-                      selected={currentDate}
-                      onSelect={(date) => {
-                        if (date) {
-                          setCurrentDate(date);
-                        }
-                      }}
-                      initialFocus
-                      className={cn("p-3 pointer-events-auto")}
-                    />
-                  </PopoverContent>
-                </Popover>
-                <Button variant="ghost" size="icon" onClick={navigateNext} className="rounded-l-none border-l">
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-
-              <Select value={view} onValueChange={(value) => setView(value)}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="month">Month View</SelectItem>
-                  <SelectItem value="week">Week View</SelectItem>
-                  <SelectItem value="day">Day View</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setFilterSidebarOpen(true)}
-              >
-                Manage Filters
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-2 sm:p-6 relative">
-          {(isLoading || isFetching) && (
-            <div className="absolute inset-0 bg-background/50 z-50 flex items-center justify-center rounded-lg">
-              <div className="flex flex-col items-center gap-2">
-                <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                <span className="text-sm text-muted-foreground">Loading calendar...</span>
-              </div>
+    <>
+    <style>{calendarStyles}</style>
+    <DndProvider backend={HTML5Backend}>
+      <div className="space-y-4 w-full overflow-hidden">
+        <div className="flex gap-4 w-full min-w-0">
+          {/* Left Sidebar */}
+          {showSidebar && (
+            <div className="flex-shrink-0">
+            <TimelineSidebar
+              currentDate={currentDate}
+              onDateChange={(date) => setCurrentDate(date)}
+              users={users}
+              isLoadingUsers={isLoadingUsers}
+              canViewStaff={canViewStaff}
+              selectedCategories={selectedCategories}
+              onCategoryToggle={handleCategoryToggle}
+              selectedAssignees={selectedAssignees}
+              onAssigneeToggle={handleAssigneeToggle}
+              filterParams={filterParams}
+              onFilterChange={(field, value) => {
+                setFilterParams((prev) => ({
+                  ...prev,
+                  [field]: value,
+                }));
+              }}
+              jobs={jobs}
+            />
             </div>
           )}
-          
-          <div
-            className="min-h-[320px]"
-            style={{
-              height: view === "month" ? monthTotalHeight : "auto",
-              ["--month-row-height"]: `${monthRowHeight}px`,
-            }}
-          >
-            <BigCalendar
-              localizer={localizer}
-              events={events}
-              startAccessor="start"
-              endAccessor="end"
-              view={view}
-              onView={setView}
-              date={currentDate}
-              onNavigate={handleNavigate}
-              onSelectEvent={handleSelectEvent}
-              onEventDrop={handleEventDrop}
-              onEventResize={handleEventResize}
-              eventPropGetter={eventStyleGetter}
-              min={new Date(1970, 1, 1, 6, 0, 0)}
-              max={new Date(1970, 1, 1, 23, 59, 59)}
-              draggableAccessor={() => true}
-              resizable={true}
-              key={
-                view === "month"
-                  ? `month-${currentDate.getFullYear()}-${currentDate.getMonth()}-${monthRowHeight}`
-                  : `view-${view}`
-              }
-              style={{ height: view === "month" ? "100%" : "auto" }}
-              popup={false}
-              toolbar={false}
-              formats={{
-                timeGutterFormat: "h A",
-                eventTimeRangeFormat: () => "",
-                agendaTimeRangeFormat: () => "",
+
+          {/* Main Calendar */}
+          <div className="flex-1 min-w-0 overflow-hidden">
+            <Card className="w-full">
+          <CardHeader>
+            <div className="flex items-center gap-2 mb-4">
+              <CardTitle className="flex items-center gap-2">
+                <CalendarDays className="h-5 w-5" />
+                Calendar
+              </CardTitle>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button variant="outline" size="sm" onClick={navigateToday}>
+                  Today
+                </Button>
+                <div className="flex items-center border rounded-md">
+                  <Button variant="ghost" size="icon" onClick={navigateBack} className="rounded-r-none border-r">
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" className="font-semibold min-w-[180px] rounded-none">
+                        {getDateTitle()}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <DatePicker
+                        mode="single"
+                        selected={currentDate}
+                        onSelect={(date) => {
+                          if (date) {
+                            setCurrentDate(date);
+                          }
+                        }}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <Button variant="ghost" size="icon" onClick={navigateNext} className="rounded-l-none border-l">
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <Select value={view} onValueChange={(value) => setView(value)}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="month">Month View</SelectItem>
+                    <SelectItem value="week">Week View</SelectItem>
+                    <SelectItem value="day">Day View</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-2 sm:p-6 relative w-full overflow-hidden">
+            {(isLoading || isFetching || isLoadingAppointments || isFetchingAppointments) && (
+              <div className="absolute inset-0 bg-background/50 z-50 flex items-center justify-center rounded-lg">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-sm text-muted-foreground">Loading calendar...</span>
+                </div>
+              </div>
+            )}
+            
+            <div
+              className="min-h-[320px] w-full max-w-full overflow-hidden"
+              style={{
+                height: view === "month" ? monthTotalHeight : "auto",
+                ["--month-row-height"]: `${monthRowHeight}px`,
               }}
-            />
-          </div>
-        </CardContent>
-          </Card>
+            >
+              <div className="w-full h-full max-w-full overflow-hidden">
+                <DnDCalendar
+                  className="w-full max-w-full"
+                localizer={localizer}
+                events={events}
+                startAccessor="start"
+                endAccessor="end"
+                view={view}
+                onView={setView}
+                date={currentDate}
+                onNavigate={handleNavigate}
+                onSelectEvent={handleSelectEvent}
+                onEventDrop={handleEventDrop}
+                onEventResize={handleEventResize}
+                resizable={(event) => event.type !== 'appointment' && event.type !== 'more'}
+                eventPropGetter={eventStyleGetter}
+                min={new Date(1970, 1, 1, 6, 0, 0)}
+                max={new Date(1970, 1, 1, 23, 59, 59)}
+                draggableAccessor={(event) => event.type !== 'appointment' && event.type !== 'more'}
+                components={{
+                  event: (props) => (
+                    <DroppableEvent
+                      {...props}
+                      onStaffDrop={handleStaffDrop}
+                      onSelectEvent={handleSelectEvent}
+                    />
+                  ),
+                }}
+                key={
+                  view === "month"
+                    ? `month-${currentDate.getFullYear()}-${currentDate.getMonth()}-${monthRowHeight}`
+                    : `view-${view}`
+                }
+                style={{ height: view === "month" ? "100%" : "auto" }}
+                popup={false}
+                toolbar={false}
+                formats={{
+                  timeGutterFormat: "h A",
+                  eventTimeRangeFormat: () => "",
+                  agendaTimeRangeFormat: () => "",
+                }}
+              />
+              </div>
+            </div>
+          </CardContent>
+            </Card>
+        </div>
         </div>
       </div>
+    </DndProvider>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 px-2 sm:px-0">
+    <div className="space-y-2 px-2 sm:px-0">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 sm:w-4 sm:h-4 bg-purple-500 rounded"></div>
           <span className="text-xs sm:text-sm">Scheduled</span>
@@ -494,6 +1366,25 @@ export function NewCalendar({ users = [] }) {
           <span className="text-xs sm:text-sm">Cancelled</span>
         </div>
       </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 sm:w-4 sm:h-4 bg-indigo-500 rounded border-2 border-white"></div>
+          <span className="text-xs sm:text-sm">Appointment (New)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 sm:w-4 sm:h-4 bg-cyan-500 rounded border-2 border-white"></div>
+          <span className="text-xs sm:text-sm">Appointment (Confirmed)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 sm:w-4 sm:h-4 bg-green-500 rounded border-2 border-white"></div>
+          <span className="text-xs sm:text-sm">Appointment (Completed)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 sm:w-4 sm:h-4 bg-red-500 rounded border-2 border-white"></div>
+          <span className="text-xs sm:text-sm">Appointment (Cancelled)</span>
+        </div>
+      </div>
+    </div>
 
       <Dialog open={!!selectedJob} onOpenChange={() => setSelectedJob(null)}>
         <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto">
@@ -507,7 +1398,86 @@ export function NewCalendar({ users = [] }) {
               onEdit={handleEdit}
               onDelete={handleDeleteJob}
               users={users}
+              accountTimezone={accountTimezone}
             />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Appointment Details Dialog */}
+      <Dialog open={!!selectedAppointment} onOpenChange={() => setSelectedAppointment(null)}>
+        <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Appointment Details</DialogTitle>
+            <DialogDescription>View appointment information</DialogDescription>
+          </DialogHeader>
+          {selectedAppointment && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold">Title</Label>
+                  <span className="text-sm">{selectedAppointment.title || "N/A"}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold">Contact</Label>
+                  <span className="text-sm">{selectedAppointment.contact_name || "N/A"}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold">Assigned To</Label>
+                  <span className="text-sm">{selectedAppointment.assigned_user_name || "Unassigned"}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold">Status</Label>
+                  <span className={cn(
+                    "text-sm px-2 py-1 rounded",
+                    selectedAppointment.appointment_status === "new" && "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
+                    selectedAppointment.appointment_status === "confirmed" && "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
+                    selectedAppointment.appointment_status === "cancelled" && "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+                    selectedAppointment.appointment_status === "completed" && "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                  )}>
+                    {selectedAppointment.appointment_status || "N/A"}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-semibold">Start Time</Label>
+                  <div className="text-sm">
+                    {selectedAppointment.start_time 
+                      ? moment.utc(selectedAppointment.start_time).tz(accountTimezone).format("MMMM D, YYYY h:mm A")
+                      : "N/A"}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-semibold">End Time</Label>
+                  <div className="text-sm">
+                    {selectedAppointment.end_time 
+                      ? moment.utc(selectedAppointment.end_time).tz(accountTimezone).format("MMMM D, YYYY h:mm A")
+                      : "N/A"}
+                  </div>
+                </div>
+                {selectedAppointment.address && (
+                  <div className="space-y-1">
+                    <Label className="text-sm font-semibold">Address</Label>
+                    <div className="text-sm">{selectedAppointment.address}</div>
+                  </div>
+                )}
+                {selectedAppointment.notes && (
+                  <div className="space-y-1">
+                    <Label className="text-sm font-semibold">Notes</Label>
+                    <div className="text-sm whitespace-pre-wrap">{selectedAppointment.notes}</div>
+                  </div>
+                )}
+                {selectedAppointment.source && (
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-semibold">Source</Label>
+                    <span className="text-sm">{selectedAppointment.source}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold">Users Count</Label>
+                  <span className="text-sm">{selectedAppointment.users_count || 0}</span>
+                </div>
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>
@@ -533,9 +1503,178 @@ export function NewCalendar({ users = [] }) {
           }}
           users={users}
           handleJobUpdate={handleJobUpdate}
+          accountTimezone={accountTimezone}
         />
-      
 
-    </div>
+      {/* Time Picker Dialog for Drag and Drop */}
+      <Dialog 
+        open={timePickerOpen} 
+        onOpenChange={(open) => {
+          if (!isUpdatingTime) {
+            setTimePickerOpen(open);
+            if (!open) {
+              setDraggedJob(null);
+              setNewDate(null);
+              setIsUpdatingTime(false);
+            }
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select Time</DialogTitle>
+            <DialogDescription>
+              Choose the time for {draggedJob?.customer_name || draggedJob?.title || "this job"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <div className="text-sm font-medium">
+                {newDate ? moment(newDate).format("MMMM D, YYYY") : ""}
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Hour</Label>
+                <Select
+                  value={selectedTime.hour}
+                  onValueChange={(value) => setSelectedTime({ ...selectedTime, hour: value })}
+                  disabled={isUpdatingTime}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+                      <SelectItem key={h} value={h.toString()}>
+                        {h}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Minute</Label>
+                <Select
+                  value={selectedTime.minute}
+                  onValueChange={(value) => setSelectedTime({ ...selectedTime, minute: value })}
+                  disabled={isUpdatingTime}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["00", "15", "30", "45"].map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Period</Label>
+                <Select
+                  value={selectedTime.period}
+                  onValueChange={(value) => setSelectedTime({ ...selectedTime, period: value })}
+                  disabled={isUpdatingTime}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="AM">AM</SelectItem>
+                    <SelectItem value="PM">PM</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {isUpdatingTime ? (
+              <div className="flex items-center justify-center gap-2 py-4">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <span className="text-sm text-muted-foreground">Updating schedule...</span>
+              </div>
+            ) : (
+              <div className="flex justify-end gap-2 pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setTimePickerOpen(false);
+                    setDraggedJob(null);
+                    setNewDate(null);
+                    setIsUpdatingTime(false);
+                  }}
+                  disabled={isUpdatingTime}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleTimePickerConfirm}
+                  disabled={isUpdatingTime}
+                  className="min-w-[100px]"
+                >
+                  {isUpdatingTime ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Confirm"
+                  )}
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Undo Notification */}
+      {lastUpdateInfo && !timePickerOpen && (
+        <div className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-bottom-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 max-w-sm">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <CheckCircle2 className="h-5 w-5 text-green-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  Schedule updated successfully
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Time has been changed for this job
+                </p>
+              </div>
+              <div className="flex-shrink-0 flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleUndoTimeChange}
+                  disabled={isUpdatingTime}
+                  className="h-8 px-3"
+                >
+                  {isUpdatingTime ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <>
+                      <RotateCcw className="h-3 w-3 mr-1" />
+                      Undo
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setLastUpdateInfo(null)}
+                  className="h-8 w-8 p-0"
+                >
+                  ×
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

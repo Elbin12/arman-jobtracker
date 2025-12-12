@@ -43,22 +43,36 @@ export function FilterSidebar({
   assignees = [],
   initialFilters = {}
 }) {
+  // Helper function to parse assignee_ids from string format "[1,2,3]" to array
+  const parseAssigneeIds = (assigneeIds) => {
+    if (Array.isArray(assigneeIds)) {
+      return assigneeIds;
+    }
+    if (typeof assigneeIds === 'string') {
+      const cleaned = assigneeIds.replace(/[\[\]]/g, '');
+      return cleaned 
+        ? cleaned.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id))
+        : [];
+    }
+    return [];
+  };
+
   const [filters, setFilters] = useState({
     search: '',
     status: '',
     job_type: '',
-    assignee_ids: [],
-    ...initialFilters
+    assignee_ids: parseAssigneeIds(initialFilters.assignee_ids || []),
+    ...initialFilters,
+    assignee_ids: parseAssigneeIds(initialFilters.assignee_ids || [])
   })
 
   useEffect(() => {
     if (open && initialFilters) {
       setFilters({
-        search: '',
-        status: '',
-        job_type: '',
-        assignee_ids: [],
-        ...initialFilters
+        search: initialFilters.search || '',
+        status: initialFilters.status || '',
+        job_type: initialFilters.job_type || '',
+        assignee_ids: parseAssigneeIds(initialFilters.assignee_ids || [])
       })
     }
   }, [open, initialFilters])
