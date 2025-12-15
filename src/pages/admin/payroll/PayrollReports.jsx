@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Card,
@@ -26,13 +26,18 @@ import {
   Grid,
   CircularProgress,
   Alert,
+  Tooltip,
+  Stack,
+  Divider,
+  Pagination,
 } from '@mui/material';
 import {
-  Assessment as AssessmentIcon,
   FilterList as FilterIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   Clear as ClearIcon,
+  FileDownload as DownloadIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import {
   useGetPayoutsQuery,
@@ -43,165 +48,358 @@ import {
 
 const PayrollReports = () => {
   const [filters, setFilters] = useState({
-    employee: 'all',
-    type: 'all',
-    projectTitle: '',
-    fromDate: '',
-    toDate: '',
+    employee: '',
+    type: '',
+    project_title: '',
+    start_date: '',
+    end_date: '',
   });
+
+  const [page, setPage] = useState(1);
+
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedPayout, setSelectedPayout] = useState(null);
-  const [editFormData, setEditFormData] = useState({});
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    amount: '',
+    rate_percentage: '',
+    project_value: '',
+    notes: '',
+  });
+  const [formErrors, setFormErrors] = useState({});
+  const [notification, setNotification] = useState({ open: false, type: '', message: '' });
 
-  const { data: payoutsData, isLoading } = useGetPayoutsQuery();
-  const { data: employeesData } = useGetEmployeesQuery();
+  // Build query params from filters
+  const queryParams = useMemo(() => {
+    const params = {};
+    if (filters.employee) params.employee = filters.employee;
+    if (filters.type) params.type = filters.type;
+    if (filters.start_date) params.start_date = filters.start_date;
+    if (filters.end_date) params.end_date = filters.end_date;
+    if (filters.project_title) params.project_title = filters.project_title;
+    params.page = page;
+
+    return params;
+  }, [filters, page]);
+
+  const { data: payoutsData, isLoading, isFetching, refetch } = useGetPayoutsQuery(queryParams);
+  const { data: employeesData, isLoading: loadingEmployees } = useGetEmployeesQuery();
   const [updatePayout, { isLoading: updating }] = useUpdatePayoutMutation();
   const [deletePayout, { isLoading: deleting }] = useDeletePayoutMutation();
 
   const payouts = payoutsData?.results || [];
   const employees = employeesData?.results || [];
+  const totalCount = payoutsData?.count || 0;
+  const totalPages = Math.ceil(totalCount / 20);
+  
+  // Calculate summary statistics
+  const summary = useMemo(() => {
+    const totalAmount = payouts.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+    const projectPayouts = payouts.filter(p => p.payout_type === 'project');
+    const hourlyPayouts = payouts.filter(p => p.payout_type === 'hourly');
+    
+    return {
+      totalAmount,
+      totalCount: payouts.length,
+      projectCount: projectPayouts.length,
+      hourlyCount: hourlyPayouts.length,
+      projectAmount: projectPayouts.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0),
+      hourlyAmount: hourlyPayouts.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0),
+    };
+  }, [payouts]);
 
-  // Filter payouts
-  const filteredPayouts = payouts.filter((payout) => {
-    if (filters.employee !== 'all' && String(payout.employee) !== String(filters.employee)) {
-      return false;
-    }
-    if (filters.type !== 'all' && payout.payout_type !== filters.type) {
-      return false;
-    }
-    if (filters.projectTitle && !payout.project_title?.toLowerCase().includes(filters.projectTitle.toLowerCase())) {
-      return false;
-    }
-    if (filters.fromDate && new Date(payout.created_at) < new Date(filters.fromDate)) {
-      return false;
-    }
-    if (filters.toDate && new Date(payout.created_at) > new Date(filters.toDate)) {
-      return false;
-    }
-    return true;
-  });
+  const showNotification = (type, message) => {
+    setNotification({ open: true, type, message });
+    setTimeout(() => setNotification({ open: false, type: '', message: '' }), 5000);
+  };
 
-  // Calculate totals
-  const totalAmount = filteredPayouts.reduce((sum, payout) => sum + parseFloat(payout.amount || 0), 0);
-  const totalHours = filteredPayouts.reduce((sum, payout) => {
-    if (payout.time_entry?.total_hours) {
-      return sum + parseFloat(payout.time_entry.total_hours);
+  const handleFilterChange = (field, value) => {
+    setFilters(prev => ({ ...prev, [field]: value }));
+    setPage(1);
+  };
+
+  const handlePageChange = (event, newPage) => {
+    setPage(newPage);
+  };
+  
+  const handleClearFilters = () => {
+    setFilters({
+      employee: '',
+      type: '',
+      project_title: '',
+      start_date: '',
+      end_date: '',
+    });
+  };
+
+  const validateEditForm = () => {
+    const errors = {};
+    
+    if (!editFormData.amount || parseFloat(editFormData.amount) <= 0) {
+      errors.amount = 'Amount must be greater than 0';
     }
-    return sum;
-  }, 0);
+    
+    if (editFormData.rate_percentage && 
+        (parseFloat(editFormData.rate_percentage) < 0 || parseFloat(editFormData.rate_percentage) > 100)) {
+      errors.rate_percentage = 'Rate must be between 0 and 100';
+    }
+    
+    if (editFormData.project_value && parseFloat(editFormData.project_value) < 0) {
+      errors.project_value = 'Project value cannot be negative';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleEdit = (payout) => {
     setSelectedPayout(payout);
     setEditFormData({
-      amount: payout.amount,
+      amount: payout.amount || '',
       rate_percentage: payout.rate_percentage || '',
       project_value: payout.project_value || '',
-      collaborators_count: payout.collaborators_count || 1,
+      notes: payout.notes || '',
     });
+    setFormErrors({});
     setEditDialogOpen(true);
   };
 
   const handleSaveEdit = async () => {
-    setError(null);
+    if (!validateEditForm()) {
+      return;
+    }
+
     try {
+      const updateData = {
+        amount: parseFloat(editFormData.amount),
+      };
+      
+      if (editFormData.rate_percentage) {
+        updateData.rate_percentage = parseFloat(editFormData.rate_percentage);
+      }
+      
+      if (editFormData.project_value) {
+        updateData.project_value = parseFloat(editFormData.project_value);
+      }
+      
+      if (editFormData.notes) {
+        updateData.notes = editFormData.notes;
+      }
+
       await updatePayout({
         id: selectedPayout.id,
-        ...editFormData,
+        ...updateData,
       }).unwrap();
+      
       setEditDialogOpen(false);
-      setSuccess('Payout updated successfully!');
-      setTimeout(() => setSuccess(null), 3000);
+      showNotification('success', 'Payout updated successfully');
+      refetch();
     } catch (err) {
-      setError(err.data?.detail || 'Failed to update payout');
+      showNotification('error', err.data?.detail || err.data?.message || 'Failed to update payout');
     }
+  };
+
+  const handleDeleteConfirm = (payout) => {
+    setSelectedPayout(payout);
+    setDeleteDialogOpen(true);
   };
 
   const handleDelete = async () => {
-    setError(null);
     try {
       await deletePayout(selectedPayout.id).unwrap();
       setDeleteDialogOpen(false);
-      setSuccess('Payout deleted successfully!');
-      setTimeout(() => setSuccess(null), 3000);
+      showNotification('success', 'Payout deleted successfully');
+      refetch();
     } catch (err) {
-      setError(err.data?.detail || 'Failed to delete payout');
+      showNotification('error', err.data?.detail || err.data?.message || 'Failed to delete payout');
     }
   };
 
-  const handleClearFilters = () => {
-    setFilters({
-      employee: 'all',
-      type: 'all',
-      projectTitle: '',
-      fromDate: '',
-      toDate: '',
-    });
+  const handleExport = () => {
+    // Prepare CSV data
+    const headers = ['Employee', 'Type', 'Project/Description', 'Amount', 'Rate %', 'Project Value', 'Date', 'Notes'];
+    const rows = payouts.map(p => [
+      p.employee_name || 'N/A',
+      p.payout_type || 'project',
+      p.project_title || 'N/A',
+      p.amount || '0',
+      p.rate_percentage || 'N/A',
+      p.project_value || 'N/A',
+      formatDate(p.created_at),
+      p.notes || '',
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `payroll-report-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
     return date.toLocaleString('en-US', {
-      month: '2-digit',
+      month: 'short',
       day: '2-digit',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit',
     });
   };
 
-  const getEmployeeName = (employeeId) => {
-    const employee = employees.find((emp) => emp.id === employeeId);
-    return employee?.full_name || 'Unknown';
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+    }).format(value || 0);
   };
 
   return (
-    <Box>
+    <Box sx={{ p: 3 }}>
       {/* Header */}
       <Box mb={4}>
-        <Typography variant="h4" fontWeight={600} mb={1}>
-          Payroll Reports
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {filteredPayouts.length} of {payouts.length} entries • Total ${totalAmount.toFixed(2)} • Total Hours: {totalHours.toFixed(2)}
-        </Typography>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+          <Box>
+            <Typography variant="h4" fontWeight={600} gutterBottom>
+              Payroll Reports
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Comprehensive view of all employee payouts and earnings
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={1}>
+            <Tooltip title="Refresh data">
+              <IconButton onClick={() => refetch()} disabled={isFetching}>
+                <RefreshIcon />
+              </IconButton>
+            </Tooltip>
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              onClick={handleExport}
+              disabled={payouts.length === 0}
+            >
+              Export
+            </Button>
+          </Stack>
+        </Box>
+
+        {/* Summary Cards */}
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card variant="outlined">
+              <CardContent>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Total Payouts
+                </Typography>
+                <Typography variant="h5" fontWeight={600}>
+                  {formatCurrency(summary.totalAmount)}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {summary.totalCount} transactions
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card variant="outlined">
+              <CardContent>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Project Payouts
+                </Typography>
+                <Typography variant="h5" fontWeight={600}>
+                  {formatCurrency(summary.projectAmount)}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {summary.projectCount} projects
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card variant="outlined">
+              <CardContent>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Hourly Payouts
+                </Typography>
+                <Typography variant="h5" fontWeight={600}>
+                  {formatCurrency(summary.hourlyAmount)}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {summary.hourlyCount} entries
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card variant="outlined">
+              <CardContent>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Average Payout
+                </Typography>
+                <Typography variant="h5" fontWeight={600}>
+                  {formatCurrency(summary.totalCount > 0 ? summary.totalAmount / summary.totalCount : 0)}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  per transaction
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
       </Box>
 
-      {/* Alerts */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
-      {success && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
-          {success}
+      {/* Notification */}
+      {notification.open && (
+        <Alert 
+          severity={notification.type} 
+          sx={{ mb: 2 }} 
+          onClose={() => setNotification({ open: false, type: '', message: '' })}
+        >
+          {notification.message}
         </Alert>
       )}
 
       {/* Filters */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Box display="flex" alignItems="center" gap={1} mb={2}>
-            <FilterIcon />
-            <Typography variant="h6" fontWeight={600}>
-              Filter Reports
-            </Typography>
+          <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+            <Box display="flex" alignItems="center" gap={1}>
+              <FilterIcon />
+              <Typography variant="h6" fontWeight={600}>
+                Filters
+              </Typography>
+            </Box>
+            <Button
+              variant="text"
+              size="small"
+              startIcon={<ClearIcon />}
+              onClick={handleClearFilters}
+              disabled={!Object.values(filters).some(v => v)}
+            >
+              Clear All
+            </Button>
           </Box>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6} md={2.4}>
-              <FormControl fullWidth>
+              <FormControl fullWidth size="small">
                 <InputLabel>Employee</InputLabel>
                 <Select
                   value={filters.employee}
-                  onChange={(e) => setFilters({ ...filters, employee: e.target.value })}
+                  onChange={(e) => handleFilterChange('employee', e.target.value)}
                   label="Employee"
+                  disabled={loadingEmployees}
                 >
-                  <MenuItem value="all">All employees</MenuItem>
+                  <MenuItem value="">All Employees</MenuItem>
                   {employees.map((emp) => (
                     <MenuItem key={emp.id} value={emp.id}>
                       {emp.full_name}
@@ -211,14 +409,14 @@ const PayrollReports = () => {
               </FormControl>
             </Grid>
             <Grid item xs={12} sm={6} md={2.4}>
-              <FormControl fullWidth>
+              <FormControl fullWidth size="small">
                 <InputLabel>Type</InputLabel>
                 <Select
                   value={filters.type}
-                  onChange={(e) => setFilters({ ...filters, type: e.target.value })}
+                  onChange={(e) => handleFilterChange('type', e.target.value)}
                   label="Type"
                 >
-                  <MenuItem value="all">All types</MenuItem>
+                  <MenuItem value="">All Types</MenuItem>
                   <MenuItem value="project">Project</MenuItem>
                   <MenuItem value="hourly">Hourly</MenuItem>
                 </Select>
@@ -227,41 +425,34 @@ const PayrollReports = () => {
             <Grid item xs={12} sm={6} md={2.4}>
               <TextField
                 fullWidth
+                size="small"
                 label="Project Title"
-                value={filters.projectTitle}
-                onChange={(e) => setFilters({ ...filters, projectTitle: e.target.value })}
-                placeholder="Search project..."
+                value={filters.project_title}
+                onChange={(e) => handleFilterChange('project_title', e.target.value)}
+                placeholder="Search projects..."
               />
             </Grid>
             <Grid item xs={12} sm={6} md={2.4}>
               <TextField
                 fullWidth
-                label="From Date"
+                size="small"
+                label="Start Date"
                 type="date"
-                value={filters.fromDate}
-                onChange={(e) => setFilters({ ...filters, fromDate: e.target.value })}
+                value={filters.start_date}
+                onChange={(e) => handleFilterChange('start_date', e.target.value)}
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
             <Grid item xs={12} sm={6} md={2.4}>
-              <Box display="flex" gap={1}>
-                <TextField
-                  fullWidth
-                  label="To Date"
-                  type="date"
-                  value={filters.toDate}
-                  onChange={(e) => setFilters({ ...filters, toDate: e.target.value })}
-                  InputLabelProps={{ shrink: true }}
-                />
-                <Button
-                  variant="outlined"
-                  startIcon={<ClearIcon />}
-                  onClick={handleClearFilters}
-                  sx={{ minWidth: 'auto', px: 2 }}
-                >
-                  Clear All
-                </Button>
-              </Box>
+              <TextField
+                fullWidth
+                size="small"
+                label="End Date"
+                type="date"
+                value={filters.end_date}
+                onChange={(e) => handleFilterChange('end_date', e.target.value)}
+                InputLabelProps={{ shrink: true }}
+              />
             </Grid>
           </Grid>
         </CardContent>
@@ -269,91 +460,132 @@ const PayrollReports = () => {
 
       {/* Table */}
       <Card>
-        <CardContent>
-          <TableContainer component={Paper} variant="outlined">
-            <Table>
+        <CardContent sx={{ p: 0 }}>
+          <TableContainer>
+            <Table sx={{ minWidth: 1200 }}>
               <TableHead>
-                <TableRow>
-                  <TableCell>Employee</TableCell>
-                  <TableCell>Source</TableCell>
-                  <TableCell>Type</TableCell>
-                  <TableCell>Project/Time Period</TableCell>
-                  <TableCell align="right">Amount ($)</TableCell>
-                  <TableCell>Rate</TableCell>
-                  <TableCell>Hours/Value</TableCell>
-                  <TableCell>Date</TableCell>
-                  <TableCell align="center">Actions</TableCell>
+                <TableRow sx={{ backgroundColor: 'action.hover' }}>
+                  <TableCell sx={{ fontWeight: 600 }}>Employee</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Type</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Project/Description</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600 }}>Amount</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600 }}>Rate %</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600 }}>Project Value</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600 }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {isLoading ? (
+                {isLoading || isFetching ? (
                   <TableRow>
-                    <TableCell colSpan={9} align="center">
-                      <CircularProgress />
+                    <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
+                      <CircularProgress size={40} />
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                        Loading payouts...
+                      </Typography>
                     </TableCell>
                   </TableRow>
-                ) : filteredPayouts.length === 0 ? (
+                ) : payouts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} align="center">
-                      <Typography variant="body2" color="text.secondary" py={2}>
+                    <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
+                      <Typography variant="body1" color="text.secondary">
                         No payouts found
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        {Object.values(filters).some(v => v) 
+                          ? 'Try adjusting your filters'
+                          : 'No payout records available'}
                       </Typography>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredPayouts.map((payout) => (
+                  payouts.map((payout) => (
                     <TableRow key={payout.id} hover>
                       <TableCell>
-                        {getEmployeeName(payout.employee)}
-                        {payout.notes?.includes('Quoted By Bonus') && (
-                          <Typography variant="caption" display="block" color="text.secondary">
-                            (Quoted By Bonus)
+                        <Typography variant="body2" fontWeight={500}>
+                          {payout.employee_name || 'Unknown'}
+                        </Typography>
+                        {payout.employee_email && (
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            {payout.employee_email}
                           </Typography>
                         )}
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={payout.time_entry ? 'Auto' : 'Manual'}
+                          label={payout.payout_type || 'project'}
                           size="small"
-                          color={payout.time_entry ? 'default' : 'secondary'}
+                          color={payout.payout_type === 'hourly' ? 'primary' : 'default'}
+                          sx={{ textTransform: 'capitalize' }}
                         />
                       </TableCell>
-                      <TableCell>{payout.payout_type || 'project'}</TableCell>
                       <TableCell>
-                        {payout.project_title || payout.time_entry?.total_hours
-                          ? `${payout.time_entry?.total_hours || ''} hours`
-                          : 'N/A'}
+                        <Tooltip title={payout.project_title || 'N/A'}>
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              maxWidth: 250, 
+                              overflow: 'hidden', 
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {payout.project_title || 'N/A'}
+                          </Typography>
+                        </Tooltip>
+                        {payout.notes && (
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            {payout.notes}
+                          </Typography>
+                        )}
                       </TableCell>
-                      <TableCell align="right">${parseFloat(payout.amount || 0).toFixed(2)}</TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body2" fontWeight={600}>
+                          {formatCurrency(payout.amount)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        {payout.rate_percentage ? (
+                          <Typography variant="body2">
+                            {parseFloat(payout.rate_percentage).toFixed(2)}%
+                          </Typography>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">—</Typography>
+                        )}
+                      </TableCell>
+                      <TableCell align="right">
+                        {payout.project_value ? (
+                          <Typography variant="body2">
+                            {formatCurrency(payout.project_value)}
+                          </Typography>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">—</Typography>
+                        )}
+                      </TableCell>
                       <TableCell>
-                        {payout.rate_percentage ? `${payout.rate_percentage}%` : 'N/A'}
+                        <Typography variant="body2">
+                          {formatDate(payout.created_at)}
+                        </Typography>
                       </TableCell>
-                      <TableCell>
-                        {payout.project_value
-                          ? `$${parseFloat(payout.project_value).toFixed(2)}`
-                          : payout.time_entry?.total_hours
-                          ? `${parseFloat(payout.time_entry.total_hours).toFixed(2)} hrs`
-                          : 'N/A'}
-                      </TableCell>
-                      <TableCell>{formatDate(payout.created_at)}</TableCell>
                       <TableCell align="center">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleEdit(payout)}
-                          color="primary"
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() => {
-                            setSelectedPayout(payout);
-                            setDeleteDialogOpen(true);
-                          }}
-                          color="error"
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
+                        <Tooltip title="Edit payout">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleEdit(payout)}
+                            color="primary"
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete payout">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDeleteConfirm(payout)}
+                            color="error"
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                       </TableCell>
                     </TableRow>
                   ))
@@ -361,94 +593,186 @@ const PayrollReports = () => {
               </TableBody>
             </Table>
           </TableContainer>
+
+          {!isLoading && !isFetching && payouts.length > 0 && (
+            <>
+              <Divider />
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  p: 2,
+                  flexWrap: 'wrap',
+                  gap: 2,
+                }}
+              > 
+                <Pagination
+                  count={totalPages}
+                  page={page}
+                  onChange={handlePageChange}
+                  color="primary"
+                  shape="rounded"
+                  showFirstButton
+                  showLastButton
+                />
+              </Box>
+            </>
+          )}
         </CardContent>
       </Card>
 
       {/* Edit Dialog */}
-      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Edit Payout</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" mb={2}>
-            Update payout details for {selectedPayout && getEmployeeName(selectedPayout.employee)}
+      <Dialog 
+        open={editDialogOpen} 
+        onClose={() => !updating && setEditDialogOpen(false)} 
+        maxWidth="sm" 
+        fullWidth
+      >
+        <DialogTitle>
+          <Typography variant="h6" fontWeight={600}>
+            Edit Payout
           </Typography>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
+        </DialogTitle>
+        <Divider />
+        <DialogContent sx={{ pt: 3 }}>
+          {selectedPayout && (
+            <Alert severity="info" sx={{ mb: 3 }}>
+              Editing payout for <strong>{selectedPayout.employee_name}</strong>
+              {selectedPayout.project_title && (
+                <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+                  Project: {selectedPayout.project_title}
+                </Typography>
+              )}
+            </Alert>
+          )}
+          <Grid container spacing={2}>
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Amount ($)"
+                label="Amount"
                 type="number"
-                value={editFormData.amount || ''}
+                value={editFormData.amount}
                 onChange={(e) => setEditFormData({ ...editFormData, amount: e.target.value })}
+                error={!!formErrors.amount}
+                helperText={formErrors.amount}
+                InputProps={{
+                  startAdornment: <Typography sx={{ mr: 1 }}>$</Typography>,
+                }}
                 inputProps={{ min: 0, step: 0.01 }}
+                required
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Rate (%)"
+                label="Rate Percentage"
                 type="number"
-                value={editFormData.rate_percentage || ''}
+                value={editFormData.rate_percentage}
                 onChange={(e) => setEditFormData({ ...editFormData, rate_percentage: e.target.value })}
+                error={!!formErrors.rate_percentage}
+                helperText={formErrors.rate_percentage || 'Optional: 0-100'}
+                InputProps={{
+                  endAdornment: <Typography>%</Typography>,
+                }}
                 inputProps={{ min: 0, max: 100, step: 0.01 }}
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Project Value ($)"
+                label="Project Value"
                 type="number"
-                value={editFormData.project_value || ''}
+                value={editFormData.project_value}
                 onChange={(e) => setEditFormData({ ...editFormData, project_value: e.target.value })}
+                error={!!formErrors.project_value}
+                helperText={formErrors.project_value || 'Optional'}
+                InputProps={{
+                  startAdornment: <Typography sx={{ mr: 1 }}>$</Typography>,
+                }}
                 inputProps={{ min: 0, step: 0.01 }}
               />
             </Grid>
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Collaborators Count"
-                type="number"
-                value={editFormData.collaborators_count || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, collaborators_count: e.target.value })}
-                inputProps={{ min: 1 }}
+                label="Notes"
+                multiline
+                rows={3}
+                value={editFormData.notes}
+                onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
+                placeholder="Add any additional notes..."
               />
             </Grid>
           </Grid>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+        <Divider />
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setEditDialogOpen(false)} disabled={updating}>
+            Cancel
+          </Button>
           <Button
             onClick={handleSaveEdit}
             variant="contained"
             disabled={updating}
-            sx={{
-              backgroundColor: 'hsl(var(--primary))',
-              '&:hover': {
-                backgroundColor: 'hsl(var(--primary) / 0.9)',
-              },
-            }}
+            startIcon={updating && <CircularProgress size={16} />}
           >
-            {updating ? <CircularProgress size={20} /> : 'Save Changes'}
+            {updating ? 'Saving...' : 'Save Changes'}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Delete Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>Confirm Delete</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to delete this payout? This action cannot be undone.
+      {/* Delete Confirmation Dialog */}
+      <Dialog 
+        open={deleteDialogOpen} 
+        onClose={() => !deleting && setDeleteDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>
+          <Typography variant="h6" fontWeight={600}>
+            Confirm Deletion
           </Typography>
+        </DialogTitle>
+        <Divider />
+        <DialogContent sx={{ pt: 3 }}>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            This action cannot be undone
+          </Alert>
+          {selectedPayout && (
+            <Box>
+              <Typography variant="body2" gutterBottom>
+                Are you sure you want to delete this payout?
+              </Typography>
+              <Box sx={{ mt: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Employee:</strong> {selectedPayout.employee_name}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Amount:</strong> {formatCurrency(selectedPayout.amount)}
+                </Typography>
+                {selectedPayout.project_title && (
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Project:</strong> {selectedPayout.project_title}
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+          )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+        <Divider />
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
+            Cancel
+          </Button>
           <Button
             onClick={handleDelete}
             color="error"
             variant="contained"
             disabled={deleting}
+            startIcon={deleting && <CircularProgress size={16} />}
           >
-            {deleting ? <CircularProgress size={20} /> : 'Delete'}
+            {deleting ? 'Deleting...' : 'Delete Payout'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -457,4 +781,3 @@ const PayrollReports = () => {
 };
 
 export default PayrollReports;
-
