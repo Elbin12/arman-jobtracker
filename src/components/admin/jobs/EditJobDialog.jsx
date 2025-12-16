@@ -78,10 +78,10 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
   // Initialize form data directly from job
   useEffect(() => {
     if (open && job) {
-      // Parse scheduled date
+      // Parse scheduled date (parse as UTC to show time directly from API)
       let parsedTimeData = { date: "", hour: "12", minute: "00", period: "PM" };
       if (job.scheduled_at) {
-        const m = moment.utc(job.scheduled_at).tz(accountTimezone);
+        const m = moment.utc(job.scheduled_at);
         const dateStr = m.format("YYYY-MM-DD");
 
         let hours = m.hour();

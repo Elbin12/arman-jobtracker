@@ -33,15 +33,40 @@ export const jobsApi = createApi({
       invalidatesTags: ['Job'],
     }),
 
-    //Calendar jobs
+    //Calendar jobs - uses occurrences endpoint for flattened calendar events
     getCalendarJobs: builder.query({
-      query: (params = {}) => ({ url: 'jobs/', params }),
+      query: (params = {}) => {
+        // Build query params for occurrences API
+        const queryParams = {};
+        if (params.start) queryParams.start = params.start;
+        if (params.end) queryParams.end = params.end;
+        if (params.status) queryParams.status = params.status;
+        if (params.job_ids) queryParams.job_ids = params.job_ids;
+        if (params.assignee_ids) queryParams.assignee_ids = params.assignee_ids;
+        if (params.search) queryParams.search = params.search;
+        return { url: 'occurrences/', params: queryParams };
+      },
       providesTags: ['Job'],
+    }),
+
+    // Get full job details by job_id (used when clicking on calendar event)
+    getJobDetails: builder.query({
+      query: (jobId) => ({ url: `jobs/${jobId}/` }),
+      providesTags: (r, e, jobId) => [{ type: 'Job', id: jobId }],
     }),
 
     // Appointments
     getAppointmentsCalendar: builder.query({
-      query: (params = {}) => ({ url: 'appointments-calendar/', params }),
+      query: (params = {}) => {
+        // Build query params for appointments API
+        const queryParams = {};
+        if (params.start) queryParams.start = params.start;
+        if (params.end) queryParams.end = params.end;
+        if (params.status) queryParams.status = params.status;
+        if (params.assigned_user_ids) queryParams.assigned_user_ids = params.assigned_user_ids;
+        if (params.search) queryParams.search = params.search;
+        return { url: 'appointments-calendar/', params: queryParams };
+      },
       providesTags: ['Appointment'],
     }),
     createAppointment: builder.mutation({
@@ -62,6 +87,7 @@ export const jobsApi = createApi({
 export const {
   useGetJobsQuery,
   useGetJobByIdQuery,
+  useGetJobDetailsQuery,
   useCreateJobMutation,
   useUpdateJobMutation,
   useDeleteJobMutation,

@@ -154,9 +154,8 @@ const calendarStyles = `
   }
 `;
 import { JobCard } from "../jobs/JobCard";
-import { jobsApi, useGetCalendarJobsQuery, useGetAppointmentsCalendarQuery } from "../../../store/api/jobsApi";
+import { jobsApi, useGetCalendarJobsQuery, useGetAppointmentsCalendarQuery, useGetJobDetailsQuery, useUpdateAppointmentMutation } from "../../../store/api/jobsApi";
 import { useSelector, useDispatch } from "react-redux";
-import { FilterSidebar } from "../../../pages/admin/FilterSibdebar";
 import { EditJobDialog } from "../jobs/EditJobDialog";
 import { TimelineSidebar } from "./TimelineSidebar";
 import { useUpdateJobMutation } from "../../../store/api/jobsApi";
@@ -320,6 +319,7 @@ function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, ...pr
 export function NewCalendar({ users = [], isLoadingUsers = false }) {
   const dispatch = useDispatch();
   const [updateJob] = useUpdateJobMutation();
+  const [updateAppointment, { isLoading: isUpdatingAppointment }] = useUpdateAppointmentMutation();
   const [events, setEvents] = useState([]);
   const [originalEvents, setOriginalEvents] = useState([]); // Store original events for height calculation
   const [selectedJob, setSelectedJob] = useState(null);
@@ -329,9 +329,12 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
   const [monthRowHeight, setMonthRowHeight] = useState(140);
   const [expandedDays, setExpandedDays] = useState(new Set()); // Track which days are expanded
   const [showSidebar, setShowSidebar] = useState(true);
-  const [selectedCategories, setSelectedCategories] = useState({});
+  // Initialize categories - both jobs and appointments checked by default
+  const [selectedCategories, setSelectedCategories] = useState({
+    jobs: true,
+    appointments: true,
+  });
   const [selectedAssignees, setSelectedAssignees] = useState({});
-  const [filterSidebarOpen, setFilterSidebarOpen] = useState(false);
   const [filterParams, setFilterParams] = useState({});
   
   const [editDialogOpen, setEditDialogOpen] = useState(false)
@@ -356,26 +359,36 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
       });
       setSelectedAssignees(initialAssignees);
       // Set filterParams to empty assignee_ids so no jobs show initially
-      setFilterParams({ assignee_ids: "[]" });
+      setFilterParams({ assignee_ids: '' });
       isInitialized.current = true;
     }
   }, [users.length]); // Only run when users array length changes
 
-  // Sync selectedAssignees when filterParams.assignee_ids changes (from FilterSidebar)
+  // Sync selectedAssignees when filterParams.assignee_ids changes (from external sources)
   // Skip if this change came from our own handleAssigneeToggle
   const isInternalUpdate = useRef(false);
   useEffect(() => {
     if (filterParams.assignee_ids && users.length > 0 && !isInternalUpdate.current) {
-      // Parse assignee_ids from filterParams (format: "[1,2,3]" or "[]")
-      const assigneeIdsStr = filterParams.assignee_ids.replace(/[\[\]]/g, '');
+      // Parse assignee_ids from filterParams (format: "1,2,3" or comma-separated string)
+      const assigneeIdsStr = typeof filterParams.assignee_ids === 'string' 
+        ? filterParams.assignee_ids.replace(/[\[\]]/g, '') 
+        : '';
       const assigneeIds = assigneeIdsStr 
-        ? assigneeIdsStr.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id))
+        ? assigneeIdsStr.split(',').map(id => {
+            const trimmed = id.trim();
+            // Support both numeric IDs and UUIDs/emails
+            const numId = parseInt(trimmed);
+            return isNaN(numId) ? trimmed : numId;
+          }).filter(id => id !== '' && id !== null && id !== undefined)
         : [];
       
       // Update selectedAssignees based on filterParams
       const updatedAssignees = {};
       users.forEach((user) => {
-        updatedAssignees[user.id] = assigneeIds.includes(user.id);
+        const userId = user.id || user.email;
+        updatedAssignees[user.id] = assigneeIds.some(id => 
+          id === user.id || id === userId || id === user.email
+        );
       });
       setSelectedAssignees(updatedAssignees);
     }
@@ -404,8 +417,11 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
       start = weekStart;
       end = weekEnd;
     } else if (view === "day") {
-      start = new Date(currentDate.setHours(0, 0, 0));
-      end = new Date(currentDate.setHours(23, 59, 59));
+      // Create new Date objects to avoid mutating currentDate
+      start = new Date(currentDate);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(currentDate);
+      end.setHours(23, 59, 59, 999);
     }
 
     return {
@@ -415,61 +431,159 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
   };
 
   const { start, end } = getDateRange();
-  const { data: calendarJobs, isLoading, isFetching } = useGetCalendarJobsQuery({ ...filterParams, start, end });
-  const { data: appointments, isLoading: isLoadingAppointments, isFetching: isFetchingAppointments } = useGetAppointmentsCalendarQuery({ start, end });
-  const jobs = calendarJobs?.results ?? [];
-  // Handle both array response and results-wrapped response
+  
+  // Build filter params for calendar jobs API
+  // API expects: start, end, status (comma-separated), job_ids, assignee_ids (comma-separated), search
+  const calendarJobsParams = {
+    start,
+    end,
+  };
+  
+  // Job status - support both single and comma-separated values
+  if (filterParams.job_status && filterParams.job_status.trim()) {
+    calendarJobsParams.status = filterParams.job_status;
+  } else if (filterParams.status && filterParams.status.trim()) {
+    // Legacy support
+    calendarJobsParams.status = filterParams.status;
+  }
+  
+  // Job IDs filter
+  if (filterParams.job_ids && filterParams.job_ids.trim()) {
+    calendarJobsParams.job_ids = filterParams.job_ids;
+  }
+  
+  // Assignee IDs - convert from array format to comma-separated string
+  if (filterParams.assignee_ids) {
+    if (typeof filterParams.assignee_ids === 'string') {
+      const cleaned = filterParams.assignee_ids.replace(/[\[\]]/g, '');
+      if (cleaned.trim()) {
+        calendarJobsParams.assignee_ids = cleaned;
+      }
+    } else if (Array.isArray(filterParams.assignee_ids) && filterParams.assignee_ids.length > 0) {
+      calendarJobsParams.assignee_ids = filterParams.assignee_ids.join(',');
+    }
+  }
+  
+  // Search - prioritize job_search, fallback to general search
+  if (filterParams.job_search && filterParams.job_search.trim()) {
+    calendarJobsParams.search = filterParams.job_search;
+  } else if (filterParams.search && filterParams.search.trim()) {
+    calendarJobsParams.search = filterParams.search;
+  }
+  
+  // Build filter params for appointments API
+  // API expects: start, end, status (comma-separated), assigned_user_ids (comma-separated), search
+  const appointmentsParams = {
+    start,
+    end,
+  };
+  
+  // Appointment status - support comma-separated values
+  if (filterParams.appointment_status && filterParams.appointment_status.trim()) {
+    appointmentsParams.status = filterParams.appointment_status;
+  }
+  
+  // Assigned user IDs - convert from array format to comma-separated string
+  if (filterParams.assigned_user_ids) {
+    if (typeof filterParams.assigned_user_ids === 'string') {
+      const cleaned = filterParams.assigned_user_ids.replace(/[\[\]]/g, '');
+      if (cleaned.trim()) {
+        appointmentsParams.assigned_user_ids = cleaned;
+      }
+    } else if (Array.isArray(filterParams.assigned_user_ids) && filterParams.assigned_user_ids.length > 0) {
+      appointmentsParams.assigned_user_ids = filterParams.assigned_user_ids.join(',');
+    }
+  }
+  
+  // Search - prioritize appointment_search
+  if (filterParams.appointment_search && filterParams.appointment_search.trim()) {
+    appointmentsParams.search = filterParams.appointment_search;
+  } else if (filterParams.search && filterParams.search.trim()) {
+    // Only use general search for appointments if no appointment_search is set
+    appointmentsParams.search = filterParams.search;
+  }
+  
+  const { data: calendarJobs, isLoading, isFetching } = useGetCalendarJobsQuery(calendarJobsParams);
+  const { data: appointments, isLoading: isLoadingAppointments, isFetching: isFetchingAppointments } = useGetAppointmentsCalendarQuery(appointmentsParams);
+  
+  // New API returns array directly, not wrapped in results
+  const jobs = Array.isArray(calendarJobs) ? calendarJobs : [];
+  
+  // Handle both array response and results-wrapped response for appointments
   const appointmentsList = Array.isArray(appointments) 
     ? appointments 
     : (appointments?.results ?? []);
+  
+  // State for fetching job details when clicked
+  const [selectedJobId, setSelectedJobId] = useState(null);
+  const { data: jobDetails, isLoading: isLoadingJobDetails } = useGetJobDetailsQuery(
+    selectedJobId,
+    { skip: !selectedJobId }
+  );
 
   useEffect(() => {
-    // Transform jobs to events
-    const jobEvents = jobs
-      .filter((job) => {
-        if (!job.scheduled_at) return false;
-        return true;
-      })
-      .map((job) => {
-        const m = moment.utc(job.scheduled_at).tz(accountTimezone);
-        const startDate = new Date(m.year(), m.month(), m.date(), m.hour(), m.minute());
-        const duration = parseFloat(job.duration_hours) || 2;
-        const endDate = new Date(m.year(), m.month(), m.date(), m.hour() + duration, m.minute());
-        const timeStr = m.format("h A");
-        const recurringIndicator = job.job_type === "recurring" ? " (R)" : "";
+    // Check if categories are enabled (default to true if not set)
+    const showJobs = selectedCategories.jobs !== false;
+    const showAppointments = selectedCategories.appointments !== false;
 
-        return {
-          id: job.id,
-          title: `${timeStr} ${job.customer_name || "Customer"}${recurringIndicator}`,
-          start: startDate,
-          end: endDate,
-          resource: job,
-          type: 'job',
-        };
-      });
+    // Transform jobs to events (only if jobs category is enabled)
+    // New API returns job_id instead of id, and includes series_id
+    const jobEvents = showJobs
+      ? jobs
+          .filter((job) => {
+            if (!job.scheduled_at) return false;
+            return true;
+          })
+          .map((job) => {
+            // Parse as UTC and create Date object with UTC time components as local time
+            // This ensures the calendar displays the UTC time directly without conversion
+            const m = moment.utc(job.scheduled_at);
+            const startDate = new Date(m.year(), m.month(), m.date(), m.hour(), m.minute(), m.second());
+            const duration = parseFloat(job.duration_hours) || 2;
+            const endDate = new Date(m.year(), m.month(), m.date(), m.hour() + duration, m.minute(), m.second());
+            const timeStr = m.format("h A");
+            // Check if it's part of a recurring series
+            const recurringIndicator = job.series_id ? " (R)" : "";
 
-    // Transform appointments to events
-    const appointmentEvents = appointmentsList
-      .filter((appointment) => {
-        if (!appointment.start_time) return false;
-        return true;
-      })
-      .map((appointment) => {
-        const startM = moment.utc(appointment.start_time).tz(accountTimezone);
-        const endM = moment.utc(appointment.end_time).tz(accountTimezone);
-        const startDate = new Date(startM.year(), startM.month(), startM.date(), startM.hour(), startM.minute());
-        const endDate = new Date(endM.year(), endM.month(), endM.date(), endM.hour(), endM.minute());
-        const timeStr = startM.format("h A");
+            return {
+              id: job.job_id, // Use job_id from new API
+              title: `${timeStr} ${job.customer_name || "Customer"}${recurringIndicator}`,
+              start: startDate,
+              end: endDate,
+              resource: {
+                ...job,
+                id: job.job_id, // Map job_id to id for compatibility
+              },
+              type: 'job',
+            };
+          })
+      : [];
 
-        return {
-          id: appointment.appointment_id,
-          title: `${timeStr} ${appointment.title || appointment.contact_name || "Appointment"}`,
-          start: startDate,
-          end: endDate,
-          resource: appointment,
-          type: 'appointment',
-        };
-      });
+    // Transform appointments to events (only if appointments category is enabled)
+    const appointmentEvents = showAppointments
+      ? appointmentsList
+          .filter((appointment) => {
+            if (!appointment.start_time) return false;
+            return true;
+          })
+          .map((appointment) => {
+            // Parse as UTC and convert to America/Chicago timezone for display
+            const startM = moment.utc(appointment.start_time).tz("America/Chicago");
+            const endM = moment.utc(appointment.end_time).tz("America/Chicago");
+            const startDate = new Date(startM.year(), startM.month(), startM.date(), startM.hour(), startM.minute(), startM.second());
+            const endDate = new Date(endM.year(), endM.month(), endM.date(), endM.hour(), endM.minute(), endM.second());
+            const timeStr = startM.format("h A");
+
+            return {
+              id: appointment.appointment_id,
+              title: `${timeStr} ${appointment.title || appointment.contact_name || "Appointment"}`,
+              start: startDate,
+              end: endDate,
+              resource: appointment,
+              type: 'appointment',
+            };
+          })
+      : [];
 
     // Merge both events
     const allEvents = [...jobEvents, ...appointmentEvents];
@@ -477,48 +591,9 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
     // Store original events for height calculation
     setOriginalEvents(allEvents);
     
-    // For month view, limit events per day to 6 (unless expanded)
-    // Group events by day
-    const eventsByDay = {};
-    allEvents.forEach((ev) => {
-      const dayKey = ev.start.toISOString().slice(0, 10);
-      if (!eventsByDay[dayKey]) {
-        eventsByDay[dayKey] = [];
-      }
-      eventsByDay[dayKey].push(ev);
-    });
-    
-    // Process events: limit to 6 per day unless expanded, add "+X more" event if needed
-    const processedEvents = [];
-    Object.keys(eventsByDay).forEach((dayKey) => {
-      const dayEvents = eventsByDay[dayKey];
-      const isExpanded = expandedDays.has(dayKey);
-      const maxVisible = 6;
-      
-      if (dayEvents.length <= maxVisible || isExpanded) {
-        // Show all events
-        processedEvents.push(...dayEvents);
-      } else {
-        // Show first 6 events + "+X more" event
-        processedEvents.push(...dayEvents.slice(0, maxVisible));
-        const remainingCount = dayEvents.length - maxVisible;
-        
-        // Create a special "+X more" event
-        const firstEvent = dayEvents[0];
-        const moreEvent = {
-          id: `more-${dayKey}`,
-          title: `+${remainingCount} more`,
-          start: firstEvent.start,
-          end: firstEvent.start,
-          resource: { type: 'more', dayKey, count: remainingCount, allEvents: dayEvents },
-          type: 'more',
-        };
-        processedEvents.push(moreEvent);
-      }
-    });
-    
-    setEvents(processedEvents);
-  }, [jobs, appointmentsList, accountTimezone, expandedDays]);
+    // Show all events - no limiting, height will adjust dynamically
+    setEvents(allEvents);
+  }, [jobs, appointmentsList, accountTimezone, selectedCategories]);
 
   // Dynamically set month row height so all events fit
   useEffect(() => {
@@ -527,14 +602,16 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
     const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999);
 
-    // Count actual events per day (excluding "+X more" events)
-    // Use originalEvents which contains all actual events, not the processed ones with "+X more"
+    // Count actual events per day using local date components
     const counts = {};
     originalEvents.forEach((ev) => {
       const d = ev.start;
       if (d >= monthStart && d <= monthEnd) {
-        const key = d.toISOString().slice(0, 10);
-        counts[key] = (counts[key] || 0) + 1;
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const date = String(d.getDate()).padStart(2, '0');
+        const dayKey = `${year}-${month}-${date}`;
+        counts[dayKey] = (counts[dayKey] || 0) + 1;
       }
     });
 
@@ -542,37 +619,17 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
     const maxCount = Object.values(counts).reduce((a, b) => Math.max(a, b), 0);
     
     // Calculate height dynamically based on number of events
-    // Show max 6 events initially, or all if expanded
     // Each event needs: padding (6px top + 6px bottom = 12px) + content height (~20px) = ~32px per event
     const eventHeight = 32; // Height per event
     const baseHeight = 44; // Base height for day cell (date number + padding)
-    const maxVisibleEvents = 6; // Maximum events to show before "+X more"
     
-    // Calculate height needed: check each day and determine if it's expanded
-    // If expanded, use actual count; if not, use min(actual count, 6 + 1 for "+X more")
-    let maxEventsToShow = 0;
-    Object.keys(counts).forEach((dayKey) => {
-      const dayEventCount = counts[dayKey];
-      const isExpanded = expandedDays.has(dayKey);
-      
-      if (isExpanded) {
-        // Expanded day - show all events
-        maxEventsToShow = Math.max(maxEventsToShow, dayEventCount);
-      } else {
-        // Not expanded - show max 6 + 1 for "+X more" if needed
-        const eventsToShow = dayEventCount > maxVisibleEvents 
-          ? maxVisibleEvents + 1  // 6 events + "+X more" button
-          : dayEventCount;
-        maxEventsToShow = Math.max(maxEventsToShow, eventsToShow);
-      }
-    });
-    
-    const calculatedHeight = baseHeight + (Math.max(maxEventsToShow, 1) * eventHeight);
+    // Use the maximum event count to calculate height - show all events
+    const calculatedHeight = baseHeight + (Math.max(maxCount, 1) * eventHeight);
     
     // Set minimum height, but always use calculated height if it's larger
     const minHeight = 140;
     setMonthRowHeight(Math.max(minHeight, calculatedHeight));
-  }, [originalEvents, view, currentDate, expandedDays]);
+  }, [originalEvents, view, currentDate]);
 
   const weeksInMonth =
     view === "month"
@@ -595,21 +652,26 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
   const monthTotalHeight = weekDayHeight();
 
   const handleSelectEvent = (event) => {
-    // Handle "+X more" click
-    if (event.type === 'more') {
-      const dayKey = event.resource.dayKey;
-      handleToggleExpand(dayKey);
-      return;
-    }
-    
     if (event.type === 'appointment') {
       setSelectedAppointment(event.resource);
       setSelectedJob(null);
+      setSelectedJobId(null);
     } else {
-      setSelectedJob(event.resource);
-      setSelectedAppointment(null);
+      // For jobs, fetch full job details using job_id
+      const jobId = event.resource.job_id || event.resource.id;
+      if (jobId) {
+        setSelectedJobId(jobId);
+        setSelectedAppointment(null);
+      }
     }
   };
+  
+  // Update selectedJob when jobDetails is loaded
+  useEffect(() => {
+    if (jobDetails && selectedJobId) {
+      setSelectedJob(jobDetails);
+    }
+  }, [jobDetails, selectedJobId]);
 
   const handleToggleExpand = (dayKey) => {
     setExpandedDays((prev) => {
@@ -684,24 +746,6 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
   };
 
   const eventStyleGetter = (event) => {
-    // Handle "+X more" event
-    if (event.type === 'more') {
-      return {
-        style: {
-          backgroundColor: "transparent",
-          borderRadius: "8px",
-          opacity: 1,
-          color: "#374151",
-          border: "none",
-          outline: "none",
-          fontSize: "13px",
-          fontWeight: "500",
-          padding: "0",
-          boxShadow: "none",
-        },
-      };
-    }
-    
     // Handle appointments differently
     if (event.type === 'appointment') {
       const appointment = event.resource;
@@ -799,24 +843,29 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
 
   const handleJobUpdate = (result) => {
     // Update the cache for the calendar jobs query
+    // New API returns array directly, not wrapped in results
     dispatch(
       jobsApi.util.updateQueryData(
         "getCalendarJobs",
-        { ...filterParams, start, end },
+        calendarJobsParams,
         (draft) => {
-          const index = draft.results.findIndex(j => j.id === result.id);
-          if (index !== -1) {
-            draft.results[index] = result;
-          } else {
-            // If not found, add it (in case it's a new job)
-            draft.results.push(result);
+          if (Array.isArray(draft)) {
+            const index = draft.findIndex(j => j.job_id === result.id || j.job_id === result.job_id);
+            if (index !== -1) {
+              // Update the occurrence with new data
+              draft[index] = {
+                ...draft[index],
+                ...result,
+                job_id: result.id || result.job_id,
+              };
+            }
           }
         }
       )
     );
     
     // If this is the selected job, update it
-    if (selectedJob && selectedJob.id === result.id) {
+    if (selectedJob && (selectedJob.id === result.id || selectedJob.job_id === result.id || selectedJob.job_id === result.job_id)) {
       setSelectedJob(result);
     }
   }
@@ -829,8 +878,12 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
     const job = event.resource;
     if (!job) return;
 
-    // Get original job date
-    const originalMoment = moment.utc(job.scheduled_at).tz(accountTimezone);
+    // Get job_id from the resource (new API uses job_id)
+    const jobId = job.job_id || job.id;
+    if (!jobId) return;
+
+    // Get original job date (parse as UTC to show time directly from API)
+    const originalMoment = moment.utc(job.scheduled_at);
     const originalDate = originalMoment.format("YYYY-MM-DD");
     const newDateStr = moment(start).format("YYYY-MM-DD");
 
@@ -847,12 +900,12 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
     // In month view, show time picker when dragging to different date
     if (view === "week" || view === "day") {
       // Week/day view: directly update with the new time (store original for undo)
-      updateJobTime(job, newScheduledAt, job.scheduled_at);
+      updateJobTime({ ...job, id: jobId }, newScheduledAt, job.scheduled_at);
     } else {
       // Month view: show time picker if dropped on different date
       if (originalDate !== newDateStr) {
         // Show time picker dialog
-        setDraggedJob(job);
+        setDraggedJob({ ...job, id: jobId });
         setNewDate(moment(start).toDate());
         // Set initial time from the drop position
         const hours = localMoment.hour();
@@ -865,7 +918,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
         setTimePickerOpen(true);
       } else {
         // Same date in month view, just update time (store original for undo)
-        updateJobTime(job, newScheduledAt, job.scheduled_at);
+        updateJobTime({ ...job, id: jobId }, newScheduledAt, job.scheduled_at);
       }
     }
   };
@@ -878,6 +931,10 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
     const job = event.resource;
     if (!job) return;
 
+    // Get job_id from the resource (new API uses job_id)
+    const jobId = job.job_id || job.id;
+    if (!jobId) return;
+
     // Calculate duration in hours from start and end times
     const startDate = new Date(start);
     const endDate = new Date(end);
@@ -887,8 +944,8 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
     // Round to 2 decimal places for cleaner values
     const roundedDuration = Math.round(durationHours * 100) / 100;
 
-    // Check if start time changed (resizing from left edge)
-    const originalMoment = moment.utc(job.scheduled_at).tz(accountTimezone);
+    // Check if start time changed (resizing from left edge) - parse as UTC to show time directly from API
+    const originalMoment = moment.utc(job.scheduled_at);
     const originalStart = originalMoment.toDate();
     const startChanged = Math.abs(startDate.getTime() - originalStart.getTime()) > 60000; // More than 1 minute difference
 
@@ -899,10 +956,10 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
       const localMoment = moment.tz(`${dateStr} ${timeStr}`, "YYYY-MM-DD HH:mm:ss", accountTimezone);
       const newScheduledAt = localMoment.utc().toISOString();
       
-      updateJobTimeAndDuration(job, newScheduledAt, roundedDuration);
+      updateJobTimeAndDuration({ ...job, id: jobId }, newScheduledAt, roundedDuration);
     } else {
       // Only duration changed (resizing from right edge)
-      updateJobDuration(job, roundedDuration);
+      updateJobDuration({ ...job, id: jobId }, roundedDuration);
     }
   };
 
@@ -1115,6 +1172,10 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
     // Don't allow staff drops on appointments
     if (job.appointment_id) return;
 
+    // Get job_id from the resource (new API uses job_id)
+    const jobId = job.job_id || job.id;
+    if (!jobId) return;
+
     // Check if user is already assigned
     const isAlreadyAssigned = job.assignments?.some(
       (assignment) => assignment.user === user.id
@@ -1135,9 +1196,9 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
         { user: user.id, role: "worker" },
       ];
 
-      // Update job with new assignments
+      // Update job with new assignments using job_id
       const result = await updateJob({
-        id: job.id,
+        id: jobId,
         assignments: newAssignments,
       }).unwrap();
 
@@ -1170,19 +1231,74 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
     };
     setSelectedAssignees(updatedAssignees);
     
-    // Convert selectedAssignees to assignee_ids array for filterParams
+    // Convert selectedAssignees to assignee_ids - API expects comma-separated string
     const selectedIds = Object.keys(updatedAssignees)
       .filter((id) => updatedAssignees[id] === true)
-      .map((id) => parseInt(id));
+      .map((id) => {
+        // Support both numeric IDs and UUIDs/emails
+        const numId = parseInt(id);
+        return isNaN(numId) ? id : numId;
+      });
     
     // Mark as internal update to prevent sync loop
     isInternalUpdate.current = true;
     
-    // Update filterParams with assignee_ids
+    const assigneeIdsString = selectedIds.length > 0 ? selectedIds.join(',') : '';
+    
+    // Update filterParams with assignee_ids for jobs AND assigned_user_ids for appointments
+    // Both APIs should use the same selected team members
     setFilterParams((prev) => ({
       ...prev,
-      assignee_ids: selectedIds.length > 0 ? `[${selectedIds.join(',')}]` : "[]",
+      assignee_ids: assigneeIdsString,
+      assigned_user_ids: assigneeIdsString, // Also update appointments filter
     }));
+  };
+
+  // Handle appointment status update
+  const handleAppointmentStatusChange = async (newStatus) => {
+    if (!selectedAppointment || !selectedAppointment.appointment_id) return;
+    
+    try {
+      const result = await updateAppointment({
+        id: selectedAppointment.appointment_id,
+        appointment_status: newStatus,
+      }).unwrap();
+      
+      // Update the local state with the new status
+      setSelectedAppointment({
+        ...selectedAppointment,
+        appointment_status: newStatus,
+      });
+      
+      // Manually update the appointments cache for immediate calendar update
+      dispatch(
+        jobsApi.util.updateQueryData(
+          "getAppointmentsCalendar",
+          appointmentsParams,
+          (draft) => {
+            if (Array.isArray(draft)) {
+              const index = draft.findIndex(a => a.appointment_id === selectedAppointment.appointment_id);
+              if (index !== -1) {
+                draft[index] = {
+                  ...draft[index],
+                  appointment_status: newStatus,
+                };
+              }
+            } else if (draft?.results) {
+              const index = draft.results.findIndex(a => a.appointment_id === selectedAppointment.appointment_id);
+              if (index !== -1) {
+                draft.results[index] = {
+                  ...draft.results[index],
+                  appointment_status: newStatus,
+                };
+              }
+            }
+          }
+        )
+      );
+    } catch (error) {
+      console.error("Failed to update appointment status:", error);
+    }
   };
 
   return (
@@ -1200,6 +1316,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
               users={users}
               isLoadingUsers={isLoadingUsers}
               canViewStaff={canViewStaff}
+              userRole={userRole}
               selectedCategories={selectedCategories}
               onCategoryToggle={handleCategoryToggle}
               selectedAssignees={selectedAssignees}
@@ -1343,64 +1460,32 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
       </div>
     </DndProvider>
 
-    <div className="space-y-2 px-2 sm:px-0">
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 sm:w-4 sm:h-4 bg-purple-500 rounded"></div>
-          <span className="text-xs sm:text-sm">Scheduled</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 sm:w-4 sm:h-4 bg-yellow-500 rounded"></div>
-          <span className="text-xs sm:text-sm">Pending</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 sm:w-4 sm:h-4 bg-blue-500 rounded"></div>
-          <span className="text-xs sm:text-sm">In Progress</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 sm:w-4 sm:h-4 bg-green-500 rounded"></div>
-          <span className="text-xs sm:text-sm">Completed</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 sm:w-4 sm:h-4 bg-red-500 rounded"></div>
-          <span className="text-xs sm:text-sm">Cancelled</span>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 sm:w-4 sm:h-4 bg-indigo-500 rounded border-2 border-white"></div>
-          <span className="text-xs sm:text-sm">Appointment (New)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 sm:w-4 sm:h-4 bg-cyan-500 rounded border-2 border-white"></div>
-          <span className="text-xs sm:text-sm">Appointment (Confirmed)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 sm:w-4 sm:h-4 bg-green-500 rounded border-2 border-white"></div>
-          <span className="text-xs sm:text-sm">Appointment (Completed)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 sm:w-4 sm:h-4 bg-red-500 rounded border-2 border-white"></div>
-          <span className="text-xs sm:text-sm">Appointment (Cancelled)</span>
-        </div>
-      </div>
-    </div>
-
-      <Dialog open={!!selectedJob} onOpenChange={() => setSelectedJob(null)}>
+      <Dialog open={!!selectedJob || !!selectedJobId} onOpenChange={() => {
+        setSelectedJob(null);
+        setSelectedJobId(null);
+      }}>
         <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Job Details</DialogTitle>
             <DialogDescription>View and manage job information</DialogDescription>
           </DialogHeader>
-          {selectedJob && (
+          {isLoadingJobDetails ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="flex flex-col items-center gap-2">
+                <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-sm text-muted-foreground">Loading job details...</span>
+              </div>
+            </div>
+          ) : selectedJob ? (
             <JobCard
               job={selectedJob}
               onEdit={handleEdit}
               onDelete={handleDeleteJob}
+              onUpdate={handleJobUpdate}
               users={users}
               accountTimezone={accountTimezone}
             />
-          )}
+          ) : null}
         </DialogContent>
       </Dialog>
 
@@ -1428,21 +1513,27 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
                 </div>
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-semibold">Status</Label>
-                  <span className={cn(
-                    "text-sm px-2 py-1 rounded",
-                    selectedAppointment.appointment_status === "new" && "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
-                    selectedAppointment.appointment_status === "confirmed" && "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
-                    selectedAppointment.appointment_status === "cancelled" && "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-                    selectedAppointment.appointment_status === "completed" && "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                  )}>
-                    {selectedAppointment.appointment_status || "N/A"}
-                  </span>
+                  <Select
+                    value={selectedAppointment.appointment_status || "new"}
+                    onValueChange={handleAppointmentStatusChange}
+                    disabled={isUpdatingAppointment}
+                  >
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="new">New</SelectItem>
+                      <SelectItem value="confirmed">Confirmed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1">
                   <Label className="text-sm font-semibold">Start Time</Label>
                   <div className="text-sm">
                     {selectedAppointment.start_time 
-                      ? moment.utc(selectedAppointment.start_time).tz(accountTimezone).format("MMMM D, YYYY h:mm A")
+                      ? moment.utc(selectedAppointment.start_time).tz("America/Chicago").format("MMMM D, YYYY h:mm A")
                       : "N/A"}
                   </div>
                 </div>
@@ -1450,7 +1541,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
                   <Label className="text-sm font-semibold">End Time</Label>
                   <div className="text-sm">
                     {selectedAppointment.end_time 
-                      ? moment.utc(selectedAppointment.end_time).tz(accountTimezone).format("MMMM D, YYYY h:mm A")
+                      ? moment.utc(selectedAppointment.end_time).tz("America/Chicago").format("MMMM D, YYYY h:mm A")
                       : "N/A"}
                   </div>
                 </div>
@@ -1481,16 +1572,6 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
           )}
         </DialogContent>
       </Dialog>
-      <FilterSidebar
-        open={filterSidebarOpen}
-        onClose={() => setFilterSidebarOpen(false)}
-        onApplyFilters={(filters) => {
-          setFilterParams(filters);
-          setFilterSidebarOpen(false);
-        }}
-        assignees={users}
-        initialFilters={filterParams}
-      />
 
       {/* Edit Dialog */}
         <EditJobDialog

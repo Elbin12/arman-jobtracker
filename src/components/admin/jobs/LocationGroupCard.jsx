@@ -59,15 +59,33 @@ export const LocationGroupCard = ({ locationInfo, users }) => {
   };
 
   const handleJobUpdate = (result)=>{
-    console.log(selectedJob, 'selected job')
+    // Use the job ID from the result (supports both id and job_id)
+    const jobId = result.id || result.job_id;
+    if (!jobId) {
+      console.error("Job ID not found in result");
+      return;
+    }
+    
+    // Get the address from the result or use the locationInfo address
+    const jobAddress = result.customer_address || address;
+    
     dispatch(
       jobsApi.util.updateQueryData(
         "getJobsByLocation",
-        { address: selectedJob?.customer_address },   // MUST match the original query args
+        { address: jobAddress },
         (draft) => {
-          const index = draft.results.findIndex(j => j.id === selectedJob.id);
+          // Find the job by id or job_id
+          const index = draft.results.findIndex(j => 
+            j.id === jobId || j.job_id === jobId || j.id === result.job_id || j.job_id === result.id
+          );
           if (index !== -1) {
-            draft.results[index] = result;
+            // Update the job with the new data from the API response
+            draft.results[index] = {
+              ...draft.results[index],
+              ...result,
+              id: result.id || result.job_id || draft.results[index].id,
+              job_id: result.job_id || result.id || draft.results[index].job_id,
+            };
           }
         }
       )
@@ -164,6 +182,7 @@ export const LocationGroupCard = ({ locationInfo, users }) => {
         users={users}
         handleEdit={handleEdit}
         handleDeleteJob={handleDeleteJob}
+        handleJobUpdate={handleJobUpdate}
       />
       {selectedJob && (
         <EditJobDialog
@@ -185,6 +204,7 @@ export const JobsModal = ({
   users,
   handleEdit,
   handleDeleteJob,
+  handleJobUpdate,
 }) => {
   const { data, isLoading } = useGetJobsByLocationQuery(
     { address },
@@ -232,10 +252,11 @@ export const JobsModal = ({
           >
             {data?.results.map((job) => (
               <JobCard
-                key={job.id}
+                key={job.id || job.job_id}
                 job={job}
                 onEdit={handleEdit}
                 onDelete={handleDeleteJob}
+                onUpdate={handleJobUpdate}
                 users={users}
               />
             ))}

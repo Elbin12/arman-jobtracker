@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import moment from "moment-timezone"
+import { useUpdateJobMutation } from "../../../store/api/jobsApi"
 import {
   Card,
   CardHeader,
@@ -10,11 +11,10 @@ import {
   Box,
   Chip,
   IconButton,
-  Select,
-  MenuItem,
   Alert,
   Stack,
 } from "@mui/material"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -32,6 +32,7 @@ import DeleteJobDialog from "./DeleteJobDialog" // Import DeleteJobDialog compon
 export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTimezone = "America/Chicago" }) {
   const [updating, setUpdating] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [updateJob] = useUpdateJobMutation()
 
   const getStatusColor = (status) => {
     const colors = {
@@ -47,21 +48,25 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
   }
 
   const getPriorityColor = (priority) => {
-    if (priority >= 3) return "error"
-    if (priority === 2) return "warning"
+    // Handle both string and numeric priority values
+    const priorityStr = String(priority).toLowerCase()
+    if (priorityStr === "high" || priority >= 3) return "error"
+    if (priorityStr === "medium" || priority === 2) return "warning"
     return "success"
   }
 
   const getPriorityLabel = (priority) => {
-    if (priority >= 3) return "High"
-    if (priority === 2) return "Medium"
+    // Handle both string and numeric priority values
+    const priorityStr = String(priority).toLowerCase()
+    if (priorityStr === "high" || priority >= 3) return "High"
+    if (priorityStr === "medium" || priority === 2) return "Medium"
     return "Low"
   }
 
   const formatDate = (dateString) => {
     if (!dateString) return "Not scheduled"
-    // Parse as UTC (explicitly) and convert to account timezone
-    const m = moment.utc(dateString).tz(accountTimezone);
+    // Parse as UTC and format in UTC to show time directly from API without conversion
+    const m = moment.utc(dateString);
     return m.format("MM/DD/YYYY h:mm A");
   }
 
@@ -74,10 +79,29 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
   }
 
   const updateJobStatus = async (newStatus) => {
+    if (!job) return
+    
+    // Get job ID - support both job_id and id fields
+    const jobId = job.job_id || job.id
+    if (!jobId) {
+      console.error("Job ID not found")
+      return
+    }
+    
     setUpdating(true)
     try {
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 300))
+      const result = await updateJob({
+        id: jobId,
+        status: newStatus,
+      }).unwrap()
+      
+      // Call onUpdate callback if provided to update parent component state
+      if (onUpdate) {
+        onUpdate(result)
+      }
+    } catch (error) {
+      console.error("Failed to update job status:", error)
+      // Optionally show error message to user
     } finally {
       setUpdating(false)
     }
@@ -274,19 +298,22 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
             )}
 
             <Select
-              fullWidth
-              size="small"
               value={job.status}
-              onChange={(e) => updateJobStatus(e.target.value)}
+              onValueChange={updateJobStatus}
               disabled={updating}
             >
-              <MenuItem value="pending">Pending</MenuItem>
-              <MenuItem value="confirmed">Confirmed</MenuItem>
-              <MenuItem value="service_due">Service Due</MenuItem>
-              <MenuItem value="on_the_way">On The Way</MenuItem>
-              <MenuItem value="in_progress">In Progress</MenuItem>
-              <MenuItem value="completed">Completed</MenuItem>
-              <MenuItem value="cancelled">Cancelled</MenuItem>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="confirmed">Confirmed</SelectItem>
+                <SelectItem value="service_due">Service Due</SelectItem>
+                <SelectItem value="on_the_way">On The Way</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
             </Select>
           </Box>
         </CardContent>

@@ -73,15 +73,30 @@ export function Jobs() {
   }
 
   const handleJobUpdate = (result)=>{
-    console.log(selectedJob, 'selected job')
+    // Use the job ID from the result (supports both id and job_id)
+    const jobId = result.id || result.job_id;
+    if (!jobId) {
+      console.error("Job ID not found in result");
+      return;
+    }
+    
     dispatch(
       jobsApi.util.updateQueryData(
         "getJobs",
         { ...filterParams, page },
         (draft) => {
-          const index = draft.results.findIndex(j => j.id === selectedJob.id);
+          // Find the job by id or job_id
+          const index = draft.results.findIndex(j => 
+            j.id === jobId || j.job_id === jobId || j.id === result.job_id || j.job_id === result.id
+          );
           if (index !== -1) {
-            draft.results[index] = result;
+            // Update the job with the new data from the API response
+            draft.results[index] = {
+              ...draft.results[index],
+              ...result,
+              id: result.id || result.job_id || draft.results[index].id,
+              job_id: result.job_id || result.id || draft.results[index].job_id,
+            };
           }
         }
       )
@@ -213,9 +228,11 @@ export function Jobs() {
             >
               {jobsData?.results.map((job) => (
                 <JobCard
+                  key={job.id || job.job_id}
                   job={job}
                   onEdit={handleEdit}
                   onDelete={handleDeleteJob}
+                  onUpdate={handleJobUpdate}
                   users={users}
                 />
               ))}

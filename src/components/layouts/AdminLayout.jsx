@@ -236,7 +236,7 @@ export const AdminLayout = ({ children }) => {
           backgroundColor: "white",
           borderBottom: "1px solid",
           borderColor: "divider",
-          zIndex: 2,
+          zIndex: 1200,
         }}
       >
         <Toolbar sx={{ gap: 1 }}>

@@ -1,29 +1,63 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import moment from "moment-timezone";
 import { Calendar as DatePicker } from "@/components/ui/calendar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, Search } from "lucide-react";
+import { ChevronDown, ChevronRight, Search, Briefcase, Calendar as CalendarIcon, Info, Users, Move, UserPlus, Monitor } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useDrag } from "react-dnd";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 
-const STATUS_CHOICES = [
+// Job status options
+const JOB_STATUS_CHOICES = [
+  { value: 'scheduled', label: 'Scheduled' },
   { value: 'pending', label: 'Pending' },
-  { value: 'confirmed', label: 'Confirmed' },
-  { value: 'service_due', label: 'Service Due' },
-  { value: 'on_the_way', label: 'On The Way' },
   { value: 'in_progress', label: 'In Progress' },
   { value: 'completed', label: 'Completed' },
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
-const JOB_TYPE_CHOICES = [
-  { value: 'one_time', label: 'One Time' },
-  { value: 'recurring', label: 'Recurring' },
+// Appointment status options
+const APPOINTMENT_STATUS_CHOICES = [
+  { value: 'new', label: 'New' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'cancelled', label: 'Cancelled' },
 ];
+
+// Helper function to parse comma-separated string or array to array
+const parseIds = (ids) => {
+  if (Array.isArray(ids)) {
+    return ids;
+  }
+  if (typeof ids === 'string') {
+    const cleaned = ids.replace(/[\[\]]/g, '');
+    return cleaned 
+      ? cleaned.split(',').map(id => {
+          const trimmed = id.trim();
+          const numId = parseInt(trimmed);
+          return isNaN(numId) ? trimmed : numId;
+        }).filter(id => id !== '' && id !== null && id !== undefined)
+      : [];
+  }
+  return [];
+};
+
+// Helper function to parse comma-separated status string to array
+const parseStatuses = (statuses) => {
+  if (Array.isArray(statuses)) {
+    return statuses;
+  }
+  if (typeof statuses === 'string' && statuses) {
+    return statuses.split(',').map(s => s.trim()).filter(s => s);
+  }
+  return [];
+};
 
 export function TimelineSidebar({
   currentDate,
@@ -31,6 +65,7 @@ export function TimelineSidebar({
   users = [],
   isLoadingUsers = false,
   canViewStaff = true,
+  userRole = "worker", // User role for dynamic visibility rules
   selectedCategories = {},
   onCategoryToggle,
   selectedAssignees = {},
@@ -41,14 +76,90 @@ export function TimelineSidebar({
 }) {
   const [calendarsOpen, setCalendarsOpen] = useState(true);
   const [staffOpen, setStaffOpen] = useState(true);
-  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(true);
+  const [jobsFilterOpen, setJobsFilterOpen] = useState(true);
+  const [appointmentsFilterOpen, setAppointmentsFilterOpen] = useState(true);
+  const [statusLegendOpen, setStatusLegendOpen] = useState(true);
+  const [jobsLegendOpen, setJobsLegendOpen] = useState(true);
+  const [appointmentsLegendOpen, setAppointmentsLegendOpen] = useState(true);
   const [aboutOpen, setAboutOpen] = useState(false);
 
-  // Get unique job statuses/categories from jobs (we'll pass this as prop later)
+  // Parse filter params for local state
+  const jobStatuses = parseStatuses(filterParams.job_status || filterParams.status || '');
+  const appointmentStatuses = parseStatuses(filterParams.appointment_status || '');
+  
+  // Local state for filters
+  const [localFilters, setLocalFilters] = useState({
+    job_search: filterParams.job_search || filterParams.search || '',
+    appointment_search: filterParams.appointment_search || '',
+    job_status: jobStatuses,
+    appointment_status: appointmentStatuses,
+  });
+
+  // Update local filters when filterParams change
+  useEffect(() => {
+    setLocalFilters({
+      job_search: filterParams.job_search || filterParams.search || '',
+      appointment_search: filterParams.appointment_search || '',
+      job_status: parseStatuses(filterParams.job_status || filterParams.status || ''),
+      appointment_status: parseStatuses(filterParams.appointment_status || ''),
+    });
+  }, [filterParams]);
+
+  // Handle filter changes and apply immediately
+  const handleFilterChange = (field, value) => {
+    const newFilters = { ...localFilters, [field]: value };
+    setLocalFilters(newFilters);
+    
+    // Update filterParams through onFilterChange callback
+    if (field === 'job_search') {
+      onFilterChange?.('job_search', value);
+      // Clear general search if job_search is set
+      if (value && filterParams.search) {
+        onFilterChange?.('search', '');
+      }
+    } else if (field === 'appointment_search') {
+      onFilterChange?.('appointment_search', value);
+      // Clear general search if appointment_search is set
+      if (value && filterParams.search) {
+        onFilterChange?.('search', '');
+      }
+    } else if (field === 'job_status') {
+      if (Array.isArray(value) && value.length > 0) {
+        onFilterChange?.('job_status', value.join(','));
+        // Clear legacy status
+        if (filterParams.status) {
+          onFilterChange?.('status', '');
+        }
+      } else {
+        onFilterChange?.('job_status', '');
+      }
+    } else if (field === 'appointment_status') {
+      if (Array.isArray(value) && value.length > 0) {
+        onFilterChange?.('appointment_status', value.join(','));
+      } else {
+        onFilterChange?.('appointment_status', '');
+      }
+    }
+  };
+
+  // Calculate active filter counts
+  const jobFilterCount = [
+    localFilters.job_search,
+    localFilters.job_status.length,
+    parseIds(filterParams.assignee_ids || []).length
+  ].filter(Boolean).length;
+
+  const appointmentFilterCount = [
+    localFilters.appointment_search,
+    localFilters.appointment_status.length,
+    parseIds(filterParams.assigned_user_ids || []).length
+  ].filter(Boolean).length;
+
+  // Categories for filtering events
   const categories = [
-    { id: "clients", label: "Clients", color: "#10b981" },
-    { id: "internal", label: "Internal Projects", color: "#ef4444" },
-    { id: "meetings", label: "Meetings", color: "#f59e0b" },
+    { id: "jobs", label: "Jobs", color: "#9ca3ef" },
+    { id: "appointments", label: "Appointments", color: "#06b6d4" },
   ];
 
   // Generate mini calendar days
@@ -101,7 +212,7 @@ export function TimelineSidebar({
 
       {/* Calendars Section */}
       <Collapsible open={calendarsOpen} onOpenChange={setCalendarsOpen}>
-        <CollapsibleTrigger className="w-full px-4 py-2 flex items-center justify-between hover:bg-gray-50">
+        <CollapsibleTrigger className="w-full px-4 py-2 flex items-center justify-between hover:bg-gray-50 border-t">
           <span className="text-sm font-semibold">Calendars</span>
           {calendarsOpen ? (
             <ChevronDown className="h-4 w-4" />
@@ -112,9 +223,8 @@ export function TimelineSidebar({
         <CollapsibleContent className="px-4 pb-2">
           {/* Categories */}
           <div className="mb-3">
-            <div className="text-xs font-medium text-gray-600 mb-2">Clients</div>
             {categories.map((cat) => (
-              <div key={cat.id} className="flex items-center gap-2 mb-1">
+              <div key={cat.id} className="flex items-center gap-2 mb-2">
                 <div
                   className="w-4 h-4 rounded"
                   style={{ backgroundColor: cat.color }}
@@ -137,7 +247,7 @@ export function TimelineSidebar({
       {canViewStaff && (
         <Collapsible open={staffOpen} onOpenChange={setStaffOpen}>
           <CollapsibleTrigger className="w-full px-4 py-2 flex items-center justify-between hover:bg-gray-50 border-t">
-            <span className="text-sm font-semibold">TEAM MEMBERS</span>
+            <span className="text-sm font-semibold">Team Members</span>
             {staffOpen ? (
               <ChevronDown className="h-4 w-4" />
             ) : (
@@ -192,7 +302,7 @@ export function TimelineSidebar({
         </Collapsible>
       )}
 
-      {/* Filter Section */}
+      {/* Filters Section */}
       <Collapsible open={filterOpen} onOpenChange={setFilterOpen}>
         <CollapsibleTrigger className="w-full px-4 py-2 flex items-center justify-between hover:bg-gray-50 border-t">
           <span className="text-sm font-semibold">Filters</span>
@@ -202,76 +312,312 @@ export function TimelineSidebar({
             <ChevronRight className="h-4 w-4" />
           )}
         </CollapsibleTrigger>
-        <CollapsibleContent className="px-4 pb-4 space-y-4">
-          {/* Search Filter */}
-          <div className="space-y-2">
-            <Label className="text-xs font-medium text-gray-700">Search</Label>
+        <CollapsibleContent className="px-4 pb-4 space-y-3">
+          
+          {/* Jobs Filter Section */}
+          <Collapsible open={jobsFilterOpen} onOpenChange={setJobsFilterOpen}>
+            <CollapsibleTrigger className="w-full flex items-center justify-between py-1.5">
+              <div className="flex items-center gap-2">
+                <Briefcase className="h-3.5 w-3.5 text-gray-600" />
+                <span className="text-xs font-semibold text-gray-700">Jobs</span>
+                {jobFilterCount > 0 && (
+                  <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
+                    {jobFilterCount}
+                  </Badge>
+                )}
+              </div>
+              {jobsFilterOpen ? (
+                <ChevronDown className="h-3 w-3 text-gray-500" />
+              ) : (
+                <ChevronRight className="h-3 w-3 text-gray-500" />
+              )}
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-2 space-y-3 pl-5">
+              {/* Job Search */}
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-medium text-gray-600">Search Jobs</Label>
             <div className="relative">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
               <Input
-                placeholder="Search jobs, customers..."
-                value={filterParams.search || ''}
-                onChange={(e) => onFilterChange?.('search', e.target.value)}
-                className="pl-8 h-8 text-xs"
+                    placeholder="Title, description, customer..."
+                    value={localFilters.job_search}
+                    onChange={(e) => handleFilterChange('job_search', e.target.value)}
+                    className="pl-7 h-7 text-xs"
               />
             </div>
           </div>
 
-          {/* Status Filter */}
+              {/* Job Status - Multi-select */}
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-medium text-gray-600">Status</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="h-7 text-xs justify-between w-full"
+                    >
+                      <span>
+                        {localFilters.job_status.length === 0
+                          ? 'All Statuses'
+                          : localFilters.job_status.length === 1
+                          ? JOB_STATUS_CHOICES.find(s => s.value === localFilters.job_status[0])?.label || 'Selected'
+                          : `${localFilters.job_status.length} Selected`}
+                      </span>
+                      <ChevronDown className="h-3 w-3 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-2" align="start">
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-gray-700">Status</Label>
-            <Select
-              value={filterParams.status || 'all'}
-              onValueChange={(value) => onFilterChange?.('status', value === 'all' ? '' : value)}
-            >
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {STATUS_CHOICES.map((status) => (
-                  <SelectItem key={status.value} value={status.value}>
+                      {JOB_STATUS_CHOICES.map((status) => (
+                        <div
+                          key={status.value}
+                          className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1.5 rounded"
+                          onClick={() => {
+                            const current = localFilters.job_status;
+                            const newStatuses = current.includes(status.value)
+                              ? current.filter(s => s !== status.value)
+                              : [...current, status.value];
+                            handleFilterChange('job_status', newStatuses);
+                          }}
+                        >
+                          <Checkbox
+                            checked={localFilters.job_status.includes(status.value)}
+                            className="h-3.5 w-3.5"
+                          />
+                          <Label className="text-xs cursor-pointer flex-1">
                     {status.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                {localFilters.job_status.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {localFilters.job_status.map((statusValue) => {
+                      const status = JOB_STATUS_CHOICES.find(s => s.value === statusValue);
+                      return status ? (
+                        <Badge
+                          key={statusValue}
+                          variant="secondary"
+                          className="h-5 px-1.5 text-[10px] cursor-pointer hover:bg-gray-200"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleFilterChange('job_status', localFilters.job_status.filter(s => s !== statusValue));
+                          }}
+                        >
+                          {status.label} ×
+                        </Badge>
+                      ) : null;
+                    })}
+                  </div>
+                )}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+
+          {/* Appointments Filter Section */}
+          <Collapsible open={appointmentsFilterOpen} onOpenChange={setAppointmentsFilterOpen}>
+            <CollapsibleTrigger className="w-full flex items-center justify-between py-1.5">
+              <div className="flex items-center gap-2">
+                <CalendarIcon className="h-3.5 w-3.5 text-gray-600" />
+                <span className="text-xs font-semibold text-gray-700">Appointments</span>
+                {appointmentFilterCount > 0 && (
+                  <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
+                    {appointmentFilterCount}
+                  </Badge>
+                )}
+              </div>
+              {appointmentsFilterOpen ? (
+                <ChevronDown className="h-3 w-3 text-gray-500" />
+              ) : (
+                <ChevronRight className="h-3 w-3 text-gray-500" />
+              )}
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-2 space-y-3 pl-5">
+              {/* Appointment Search */}
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-medium text-gray-600">Search Appointments</Label>
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                  <Input
+                    placeholder="Title, notes..."
+                    value={localFilters.appointment_search}
+                    onChange={(e) => handleFilterChange('appointment_search', e.target.value)}
+                    className="pl-7 h-7 text-xs"
+                  />
+                </div>
           </div>
 
-          {/* Job Type Filter */}
+              {/* Appointment Status - Multi-select */}
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-medium text-gray-600">Status</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="h-7 text-xs justify-between w-full"
+                    >
+                      <span>
+                        {localFilters.appointment_status.length === 0
+                          ? 'All Statuses'
+                          : localFilters.appointment_status.length === 1
+                          ? APPOINTMENT_STATUS_CHOICES.find(s => s.value === localFilters.appointment_status[0])?.label || 'Selected'
+                          : `${localFilters.appointment_status.length} Selected`}
+                      </span>
+                      <ChevronDown className="h-3 w-3 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-2" align="start">
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-gray-700">Job Type</Label>
-            <Select
-              value={filterParams.job_type || 'all'}
-              onValueChange={(value) => onFilterChange?.('job_type', value === 'all' ? '' : value)}
-            >
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="All Types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                {JOB_TYPE_CHOICES.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                      {APPOINTMENT_STATUS_CHOICES.map((status) => (
+                        <div
+                          key={status.value}
+                          className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1.5 rounded"
+                          onClick={() => {
+                            const current = localFilters.appointment_status;
+                            const newStatuses = current.includes(status.value)
+                              ? current.filter(s => s !== status.value)
+                              : [...current, status.value];
+                            handleFilterChange('appointment_status', newStatuses);
+                          }}
+                        >
+                          <Checkbox
+                            checked={localFilters.appointment_status.includes(status.value)}
+                            className="h-3.5 w-3.5"
+                          />
+                          <Label className="text-xs cursor-pointer flex-1">
+                            {status.label}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                {localFilters.appointment_status.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {localFilters.appointment_status.map((statusValue) => {
+                      const status = APPOINTMENT_STATUS_CHOICES.find(s => s.value === statusValue);
+                      return status ? (
+                        <Badge
+                          key={statusValue}
+                          variant="secondary"
+                          className="h-5 px-1.5 text-[10px] cursor-pointer hover:bg-gray-200"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleFilterChange('appointment_status', localFilters.appointment_status.filter(s => s !== statusValue));
+                          }}
+                        >
+                          {status.label} ×
+                        </Badge>
+                      ) : null;
+                    })}
+                  </div>
+                )}
           </div>
+            </CollapsibleContent>
+          </Collapsible>
 
-          {/* Clear Filters Button */}
-          {(filterParams.search || filterParams.status || filterParams.job_type) && (
+          {/* Clear All Filters Button */}
+          {(jobFilterCount > 0 || appointmentFilterCount > 0) && (
             <button
               onClick={() => {
-                onFilterChange?.('search', '');
-                onFilterChange?.('status', '');
-                onFilterChange?.('job_type', '');
+                handleFilterChange('job_search', '');
+                handleFilterChange('appointment_search', '');
+                handleFilterChange('job_status', []);
+                handleFilterChange('appointment_status', []);
+                // Clear assignee filters
+                onFilterChange?.('assignee_ids', '');
+                onFilterChange?.('assigned_user_ids', '');
               }}
-              className="w-full text-xs text-gray-600 hover:text-gray-900 underline py-1"
+              className="w-full text-xs text-gray-600 hover:text-gray-900 underline py-1.5 mt-2"
             >
-              Clear Filters
+              Clear All Filters
             </button>
           )}
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Status Legend - Read-only */}
+      <Collapsible open={statusLegendOpen} onOpenChange={setStatusLegendOpen}>
+        <CollapsibleTrigger className="w-full px-4 py-2 flex items-center justify-between hover:bg-gray-50 border-t">
+          <span className="text-sm font-semibold">Status Legend</span>
+          {statusLegendOpen ? (
+            <ChevronDown className="h-4 w-4" />
+          ) : (
+            <ChevronRight className="h-4 w-4" />
+          )}
+        </CollapsibleTrigger>
+        <CollapsibleContent className="px-4 pb-3">
+          <div className="space-y-3">
+            {/* Job Statuses - Collapsible */}
+            <Collapsible open={jobsLegendOpen} onOpenChange={setJobsLegendOpen}>
+              <CollapsibleTrigger className="w-full flex items-center justify-between py-1">
+                <div className="text-xs font-semibold text-gray-700">Jobs</div>
+                {jobsLegendOpen ? (
+                  <ChevronDown className="h-3 w-3 text-gray-500" />
+                ) : (
+                  <ChevronRight className="h-3 w-3 text-gray-500" />
+                )}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: "#9ca3ef" }}></div>
+                    <span className="text-xs text-gray-600">Scheduled</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: "#f59e0b" }}></div>
+                    <span className="text-xs text-gray-600">Pending</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: "#3b82f6" }}></div>
+                    <span className="text-xs text-gray-600">In Progress</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: "#10b981" }}></div>
+                    <span className="text-xs text-gray-600">Completed</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: "#ef4444" }}></div>
+                    <span className="text-xs text-gray-600">Cancelled</span>
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Appointment Statuses - Collapsible */}
+            <Collapsible open={appointmentsLegendOpen} onOpenChange={setAppointmentsLegendOpen}>
+              <CollapsibleTrigger className="w-full flex items-center justify-between py-1">
+                <div className="text-xs font-semibold text-gray-700">Appointments</div>
+                {appointmentsLegendOpen ? (
+                  <ChevronDown className="h-3 w-3 text-gray-500" />
+                ) : (
+                  <ChevronRight className="h-3 w-3 text-gray-500" />
+                )}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0 border border-white" style={{ backgroundColor: "#9ca3ef" }}></div>
+                    <span className="text-xs text-gray-600">New</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0 border border-white" style={{ backgroundColor: "#06b6d4" }}></div>
+                    <span className="text-xs text-gray-600">Confirmed</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0 border border-white" style={{ backgroundColor: "#10b981" }}></div>
+                    <span className="text-xs text-gray-600">Completed</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0 border border-white" style={{ backgroundColor: "#ef4444" }}></div>
+                    <span className="text-xs text-gray-600">Cancelled</span>
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
         </CollapsibleContent>
       </Collapsible>
 
@@ -285,9 +631,77 @@ export function TimelineSidebar({
             <ChevronRight className="h-4 w-4" />
           )}
         </CollapsibleTrigger>
-        <CollapsibleContent className="px-4 pb-2">
-          <div className="text-xs text-gray-600">
-            Internal Company Calendar
+        <CollapsibleContent className="px-4 pb-3">
+          <div className="space-y-4 text-xs text-gray-600">
+            {/* Calendar Overview */}
+            <div className="space-y-1.5">
+              <div className="flex items-start gap-2">
+                <CalendarIcon className="h-3.5 w-3.5 text-gray-500 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <div className="font-medium text-gray-700 mb-1">Calendar Overview</div>
+                  <div className="text-gray-600 leading-relaxed">
+                    This calendar displays Jobs and Appointments scheduled within your organization.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Visibility Rules */}
+            <div className="space-y-1.5">
+              <div className="flex items-start gap-2">
+                <Users className="h-3.5 w-3.5 text-gray-500 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <div className="font-medium text-gray-700 mb-1">Visibility Rules</div>
+                  <div className="text-gray-600 leading-relaxed">
+                    {["admin", "manager", "supervisor"].includes(userRole) ? (
+                      "You can view all jobs and appointments across all team members."
+                    ) : (
+                      "You can view only the jobs and appointments assigned to you."
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Drag & Drop */}
+            <div className="space-y-1.5">
+              <div className="flex items-start gap-2">
+                <Move className="h-3.5 w-3.5 text-gray-500 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <div className="font-medium text-gray-700 mb-1">Drag & Drop</div>
+                  <div className="text-gray-600 leading-relaxed">
+                    Jobs can be rescheduled by dragging them to another day.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Staff Assignment - Only for admins */}
+            {["admin", "manager", "supervisor"].includes(userRole) && (
+              <div className="space-y-1.5">
+                <div className="flex items-start gap-2">
+                  <UserPlus className="h-3.5 w-3.5 text-gray-500 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-700 mb-1">Staff Assignment</div>
+                    <div className="text-gray-600 leading-relaxed">
+                      Team members can be assigned to jobs directly from the calendar.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Device Note */}
+            <div className="space-y-1.5 pt-2 border-t border-gray-200">
+              <div className="flex items-start gap-2">
+                <Monitor className="h-3.5 w-3.5 text-gray-500 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <div className="text-gray-500 leading-relaxed italic">
+                    Drag & drop rescheduling and staff assignment are currently supported on desktop. Mobile support is coming soon.
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </CollapsibleContent>
       </Collapsible>

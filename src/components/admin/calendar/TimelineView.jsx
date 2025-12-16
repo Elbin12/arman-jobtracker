@@ -107,7 +107,8 @@ export function TimelineView({
     const grouped = {};
     displayJobs.forEach((job) => {
       if (!job.scheduled_at) return;
-      const jobMoment = moment.parseZone(job.scheduled_at).tz(accountTimezone, true);
+      // Parse as UTC to show time directly from API without conversion
+      const jobMoment = moment.utc(job.scheduled_at);
       const dateKey = jobMoment.format("YYYY-MM-DD");
       if (!grouped[dateKey]) {
         grouped[dateKey] = [];
@@ -115,13 +116,14 @@ export function TimelineView({
       grouped[dateKey].push(job);
     });
     return grouped;
-  }, [displayJobs, accountTimezone]);
+  }, [displayJobs]);
 
   // Get job position and width
   const getJobPosition = (job) => {
     if (!job.scheduled_at) return null;
 
-    const startMoment = moment.parseZone(job.scheduled_at).tz(accountTimezone, true);
+    // Parse as UTC to show time directly from API without conversion
+    const startMoment = moment.utc(job.scheduled_at);
     const duration = parseFloat(job.duration_hours) || 2;
     const endMoment = moment(startMoment).add(duration, "hours");
 
@@ -262,13 +264,13 @@ export function TimelineView({
       const dateMatch = destination.droppableId.match(/day-(\d{4}-\d{2}-\d{2})/);
       if (dateMatch) {
         const newDateStr = dateMatch[1];
-        // Get the original time from the job
-        const originalMoment = moment.parseZone(job.scheduled_at).tz(accountTimezone, true);
+        // Get the original time from the job (parse as UTC to show time directly from API)
+        const originalMoment = moment.utc(job.scheduled_at);
         const hours = originalMoment.hour();
         const minutes = originalMoment.minute();
         
-        // Create new datetime with same time but new date
-        const newDate = moment(newDateStr).tz(accountTimezone).hour(hours).minute(minutes).second(0);
+        // Create new datetime with same time but new date (use UTC to match API format)
+        const newDate = moment.utc(`${newDateStr} ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`);
         const newScheduledAt = newDate.format();
         await updateJobDate(job, newScheduledAt);
       }
@@ -331,15 +333,16 @@ export function TimelineView({
         // Resizing from left edge - change start time
         const hoursPerPixel = 24 / DAY_WIDTH;
         const hoursDelta = (deltaX * hoursPerPixel);
-        const currentMoment = moment.parseZone(resizingJob.job.scheduled_at).tz(accountTimezone, true);
-        const newStartMoment = moment(currentMoment).add(hoursDelta, "hours");
+        // Parse as UTC to show time directly from API
+        const currentMoment = moment.utc(resizingJob.job.scheduled_at);
+        const newStartMoment = moment.utc(currentMoment).add(hoursDelta, "hours");
         const newDuration = parseFloat(resizingJob.job.duration_hours) - hoursDelta;
         
         if (newDuration > 0.5 && newStartMoment.isValid()) {
           try {
             const result = await updateJob({
               id: resizingJob.job.id,
-              scheduled_at: newStartMoment.tz(accountTimezone).format(),
+              scheduled_at: newStartMoment.toISOString(),
               duration_hours: Math.max(0.5, newDuration),
             }).unwrap();
             if (onJobUpdate) onJobUpdate(result);
@@ -500,7 +503,8 @@ export function TimelineView({
                                 {/* Jobs for this day */}
                                 <div className="flex flex-col gap-1">
                                   {dayJobs.map((job, jobIdx) => {
-                                    const jobMoment = moment.parseZone(job.scheduled_at).tz(accountTimezone, true);
+                                    // Parse as UTC to show time directly from API without conversion
+                                    const jobMoment = moment.utc(job.scheduled_at);
                                     const timeStr = jobMoment.format("h:mm A");
                                     
                                     return (
