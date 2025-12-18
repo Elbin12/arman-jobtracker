@@ -7,14 +7,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@mui/material";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarDays, Users, RotateCcw, Plus } from "lucide-react";
 import moment from "moment-timezone";
-import { useGetAssigneesQuery } from "../../../store/api/assigneesApi";
+import { useGetEmployeesQuery } from "../../../store/api/payrollApi";
 import { useCreateJobMutation } from "../../../store/api/jobsApi";
+import { useGetServicesQuery } from "../../../store/api/servicesApi";
 
 export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, onJobCreatedError }) {
-  const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [customServices, setCustomServices] = useState([]);
   const [showCustomServiceForm, setShowCustomServiceForm] = useState(false);
@@ -60,10 +61,50 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
   
   const { toast } = useToast();
 
-  const { data: usersData, isLoading: usersLoading } = useGetAssigneesQuery();
+  const { data: employeesData, isLoading: employeesLoading } = useGetEmployeesQuery({ pay_scale_type: 'project' });
+  const { data: servicesData, isLoading: servicesLoading } = useGetServicesQuery(1);
   const [createJob] = useCreateJobMutation();
+  
+  // Get services from API
+  const services = servicesData?.results || [];
 
-  const users = usersData?.results;
+  const employees = employeesData?.results || [];
+
+  // Reset form function
+  const resetForm = () => {
+    setFormData({
+      title: "",
+      description: "",
+      job_type: "one_time",
+      priority: "medium",
+      duration_hours: 2,
+      scheduled_at: "",
+      customer_name: "",
+      customer_address: "",
+      customer_phone: "",
+      customer_email: "",
+      notes: "",
+      ghl_contact_id: "",
+      quoted_by: null,
+      created_by: null,
+      repeat_every: null,
+      repeat_unit: null,
+      day_of_week: null,
+      occurrences: null,
+      items: [],
+      assignments: [],
+      total_price: 0,
+    });
+    setCustomServices([]);
+    setShowCustomServiceForm(false);
+    setCustomServiceData({ name: "", duration: "", price: "" });
+    setTimeData({
+      date: "",
+      hour: "12",
+      minute: "00",
+      period: "PM"
+    });
+  };
 
   useEffect(() => {
     if (initialData) {
@@ -119,8 +160,8 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
           if (matchedService) {
             items.push({
               service: matchedService.id,
-              price: job.price || matchedService.default_price || 0,
-              duration_hours: job.duration ? Math.round(job.duration / 60) : matchedService.default_duration || 0
+              price: job.price || parseFloat(matchedService.price) || 0,
+              duration_hours: job.duration ? Math.round(job.duration / 60) : parseFloat(matchedService.hours) || 0
             });
           } else {
             const customService = {
@@ -197,8 +238,8 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
           ...prev,
           items: [...prev.items, {
             service: dbService.id,
-            price: dbService.default_price || 0,
-            duration_hours: dbService.default_duration || 1
+            price: parseFloat(dbService.price) || 0,
+            duration_hours: parseFloat(dbService.hours) || 1
           }]
         }));
       } else if (customService) {
@@ -393,6 +434,9 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
         description: `Job ${formData.job_type === "recurring" ? "series" : ""} created successfully`,
       });
 
+      // Reset form state after successful creation
+      resetForm();
+
       if (onSuccess) {
         onSuccess();
       }
@@ -463,8 +507,25 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
             <CardContent className="pt-4 px-4">
               <ScrollArea className="h-[300px]">
                 <div className="space-y-3 pr-4">
+                  {/* Loading Skeleton */}
+                  {servicesLoading && (
+                    <>
+                      {[1, 2, 3, 4].map((i) => (
+                        <div key={i} className="border rounded-lg p-3">
+                          <div className="flex items-start space-x-3">
+                            <Skeleton className="h-4 w-4 rounded mt-1" />
+                            <div className="flex-1 min-w-0 space-y-2">
+                              <Skeleton className="h-4 w-3/4" />
+                              <Skeleton className="h-3 w-1/2" />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                  
                   {/* Database Services */}
-                  {services.map(service => (
+                  {!servicesLoading && services.map(service => (
                     <div key={service.id} className="border rounded-lg p-3">
                       <div className="flex items-start space-x-3">
                         <Checkbox
@@ -481,9 +542,9 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
                             {service.name}
                           </Label>
                           <div className="text-xs text-muted-foreground mt-1">
-                            {service.default_duration && `${service.default_duration}h`}
-                            {service.default_duration && service.default_price && " • "}
-                            {service.default_price && `$${service.default_price}`}
+                            {service.hours && `${service.hours}h`}
+                            {service.hours && service.price && " • "}
+                            {service.price && `$${service.price}`}
                           </div>
                           {isServiceSelected(service.id) && (
                             <div className="mt-2">
@@ -504,7 +565,7 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
                   ))}
 
                   {/* Custom Services */}
-                  {customServices.length > 0 && (
+                  {!servicesLoading && customServices.length > 0 && (
                     <div className="border-t pt-3 mt-3">
                       <h4 className="text-sm font-medium mb-3">Custom Services</h4>
                       {customServices.map(service => (
@@ -861,9 +922,9 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
               label="Quoted By"
               onChange={(e) => setFormData(prev => ({ ...prev, quoted_by: e.target.value || null }))}
             >
-              {users?.map((user) => (
-                <MenuItem key={user.id} value={user.id}>
-                  {user.first_name} {user.last_name}
+              {employees?.map((employee) => (
+                <MenuItem key={employee.id} value={employee.user_id || employee.id}>
+                  {employee.full_name}
                 </MenuItem>
               ))}
             </Select>
@@ -871,20 +932,29 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
 
           <div className="space-y-2">
             <Label>Assign Team Members</Label>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {users?.map(user => (
-                <div key={user.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`user-${user.id}`}
-                    checked={isUserAssigned(user.id)}
-                    onCheckedChange={(checked) => handleUserAssignment(user.id, checked)}
-                  />
-                  <Label htmlFor={`user-${user.id}`} className="flex-1 cursor-pointer">
-                    {user.first_name} {user.last_name}
-                  </Label>
+            {employeesLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-sm text-muted-foreground">Loading employees...</span>
                 </div>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {employees?.map(employee => (
+                  <div key={employee.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`employee-${employee.id}`}
+                      checked={isUserAssigned(employee.user_id || employee.id)}
+                      onCheckedChange={(checked) => handleUserAssignment(employee.user_id || employee.id, checked)}
+                    />
+                    <Label htmlFor={`employee-${employee.id}`} className="flex-1 cursor-pointer">
+                      {employee.full_name}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

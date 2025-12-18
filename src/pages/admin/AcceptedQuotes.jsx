@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Grid, CircularProgress, Alert, Card, CardContent, TextField } from '@mui/material';
+import { Box, Typography, Grid, Alert, Card, CardContent, TextField } from '@mui/material';
 import AcceptedQuote from '../../components/admin/quotes/AcceptedQuote.jsx';
 import { useGetJobsQuery } from '../../store/api/jobsApi.js';
 import { EditJobDialog } from '../../components/admin/jobs/EditJobDialog.jsx';
+import { QuoteCardSkeleton } from '../../components/ui/skeletons';
 
 const AcceptedQuotes = () => {
   const [selectedJob, setSelectedJob] = useState(null)
@@ -24,7 +25,7 @@ const AcceptedQuotes = () => {
     return () => clearTimeout(handler);
   }, [filters]);
 
-  const { data: jobsData, isLoading: isFetching, isError, error } = useGetJobsQuery({ ...debouncedFilters });
+  const { data: jobsData, isLoading: isFetching, isError, error, refetch } = useGetJobsQuery({ ...debouncedFilters });
 
   const handleSearchChange = (e) => {
     const value = e.target.value;
@@ -37,6 +38,15 @@ const AcceptedQuotes = () => {
   const handleEdit = (job) => {
     setSelectedJob(job)
     setEditDialogOpen(true)
+  }
+
+  const handleJobUpdate = (result) => {
+    // Refetch the quotes list after successful conversion
+    // The quote should no longer appear in the list (status changed from to_convert)
+    refetch();
+    // Close the dialog and clear selected job
+    setEditDialogOpen(false);
+    setSelectedJob(null);
   }
 
   return (
@@ -62,9 +72,7 @@ const AcceptedQuotes = () => {
 
       {/* Loading State */}
       {isFetching && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-          <CircularProgress />
-        </Box>
+        <QuoteCardSkeleton count={6} />
       )}
 
       {/* Error State */}
@@ -114,8 +122,12 @@ const AcceptedQuotes = () => {
         <EditJobDialog
           job={selectedJob}
           open={editDialogOpen}
-          onClose={() => setEditDialogOpen(false)}
+          onClose={() => {
+            setEditDialogOpen(false);
+            setSelectedJob(null);
+          }}
           objective={"convert"}
+          handleJobUpdate={handleJobUpdate}
         />
       )}
     </Box>

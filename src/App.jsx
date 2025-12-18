@@ -98,7 +98,11 @@ function App() {
                       </AdminLayout>
                     </AdminProtectedRoute>
                   }>
-                    <Route path="dashboard" element={<AdminDashboard />} />
+                    <Route path="dashboard" element={
+                      <RoleProtectedRoute allowedRoles={['admin', 'manager']}>
+                        <AdminDashboard />
+                      </RoleProtectedRoute>
+                    } />
                     <Route path="jobs" element={<Jobs />} />
                     {/* <Route path="jobs/:id" element={<JobDetails />} /> */}
                     <Route path="accepted-quotes" element={

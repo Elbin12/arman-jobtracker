@@ -20,7 +20,6 @@ import {
   DialogContent,
   DialogActions,
   DialogContentText,
-  CircularProgress,
   TextField,
   Switch,
   Pagination,
@@ -48,6 +47,7 @@ import {
   clearEditingService,
 } from '../../store/slices/servicesSlice';
 import { useCreateGlobalBasePriceMutation, useGetGlobalBasePriceQuery, useUpdateGlobalBasePriceMutation } from '../../store/api/globalPriceApi.js';
+import { TableSkeleton } from '../../components/ui/skeletons';
 
 const ServicesManagement = () => {
   const dispatch = useDispatch();
@@ -234,14 +234,6 @@ const ServicesManagement = () => {
     }
   };
 
-  if (isLoading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
-  }
-
   if (error) {
     return (
       <Box>
@@ -294,29 +286,36 @@ const ServicesManagement = () => {
         </Button>
       </Box>
 
-      <Card>
-        <CardContent>
-          <TableContainer component={Paper} variant="outlined">
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell width="40px"></TableCell>
-                  <TableCell>Service Name</TableCell>
-                  <TableCell>Description</TableCell>
-                  <TableCell>Questions</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Created</TableCell>
-                  <TableCell align="right">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <DragDropContext onDragEnd={handleDragEnd}>
-                <Droppable droppableId="services-table">
-                  {(provided, snapshot) => (
-                    <TableBody
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                    >
-                      {orderedServices.map((service, index) => (
+      {isLoading ? (
+        <Card>
+          <CardContent>
+            <TableSkeleton rows={8} columns={7} />
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent>
+            <TableContainer component={Paper} variant="outlined">
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell width="40px"></TableCell>
+                    <TableCell>Service Name</TableCell>
+                    <TableCell>Description</TableCell>
+                    <TableCell>Questions</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Created</TableCell>
+                    <TableCell align="right">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <DragDropContext onDragEnd={handleDragEnd}>
+                  <Droppable droppableId="services-table">
+                    {(provided, snapshot) => (
+                      <TableBody
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                      >
+                        {orderedServices.map((service, index) => (
                         <Draggable
                           key={service.id}
                           draggableId={service.id.toString()}
@@ -410,6 +409,7 @@ const ServicesManagement = () => {
           </TableContainer>
         </CardContent>
       </Card>
+      )}
 
       {servicesData.count > 0 && (
         <Box display="flex" justifyContent="center" mt={3}>

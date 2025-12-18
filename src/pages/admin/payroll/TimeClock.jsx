@@ -61,7 +61,47 @@ const TimeClock = () => {
   const activeEntries = todayEntries?.entries?.filter((entry) => entry.status === 'checked_in') || [];
   const completedEntries = todayEntries?.entries?.filter((entry) => entry.status === 'checked_out') || [];
 
-  const isManagerOrSupervisor = user?.role === 'manager' || user?.role === 'supervisor';
+  const isManagerOrSupervisor = user?.role === 'manager' || user?.role === 'supervisor' || user?.role === 'admin';
+  
+  // For admins/managers, find the selected employee's active session from today's entries
+  // If no employee is selected, show the first active entry
+  // For regular workers, use the activeSession query result
+  const selectedEmployeeActiveEntry = isManagerOrSupervisor && selectedEmployee
+    ? activeEntries.find((entry) => entry.employee === selectedEmployee || entry.employee_id === selectedEmployee)
+    : null;
+  
+  // For admins, if no employee is selected but there are active entries, use the first one
+  const firstActiveEntry = isManagerOrSupervisor && !selectedEmployee && activeEntries.length > 0
+    ? activeEntries[0]
+    : null;
+  
+  // Calculate elapsed hours for selected employee's active entry if not provided
+  const calculateElapsedHours = (entry) => {
+    if (!entry || !entry.check_in_time) return 0;
+    if (entry.elapsed_hours) return entry.elapsed_hours;
+    const checkInTime = new Date(entry.check_in_time);
+    const now = new Date();
+    const diffMs = now - checkInTime;
+    return diffMs / (1000 * 60 * 60); // Convert to hours
+  };
+  
+  // Determine which active session to show
+  // Priority: 1) Selected employee's active entry, 2) First active entry (for admins), 3) User's own active session
+  const displayActiveSession = isManagerOrSupervisor
+    ? (selectedEmployeeActiveEntry
+        ? {
+            active: true,
+            entry: selectedEmployeeActiveEntry,
+            elapsed_hours: calculateElapsedHours(selectedEmployeeActiveEntry)
+          }
+        : firstActiveEntry
+          ? {
+              active: true,
+              entry: firstActiveEntry,
+              elapsed_hours: calculateElapsedHours(firstActiveEntry)
+            }
+          : null)
+    : activeSession;
 
   // Auto-select employee based on role
   useEffect(() => {
@@ -69,10 +109,41 @@ const TimeClock = () => {
       if (isManagerOrSupervisor) {
         return;
       } else {
-        setSelectedEmployee(user.id);
+        // For workers, find their employee record and use the user_id
+        // Try to match by user.id or user.user_id
+        let employeeIdToUse = null;
+        
+        if (employees.length > 0) {
+          const currentUserEmployee = employees.find(
+            (emp) => 
+              emp.user_id === user.id || 
+              emp.user_id === user.user_id || 
+              emp.id === user.id ||
+              String(emp.user_id) === String(user.id) ||
+              String(emp.user_id) === String(user.user_id)
+          );
+          
+          if (currentUserEmployee) {
+            // Use the employee's user_id for check-in
+            employeeIdToUse = currentUserEmployee.user_id || currentUserEmployee.id;
+          }
+        }
+        
+        // Fallback options if employee record not found
+        if (!employeeIdToUse) {
+          if (user.user_id) {
+            employeeIdToUse = user.user_id;
+          } else if (user.id) {
+            employeeIdToUse = user.id;
+          }
+        }
+        
+        if (employeeIdToUse) {
+          setSelectedEmployee(String(employeeIdToUse));
+        }
       }
     }
-  }, [user, isManagerOrSupervisor, selectedEmployee]);
+  }, [user, employees, isManagerOrSupervisor, selectedEmployee]);
   
   // Poll for active session updates
   useEffect(() => {
@@ -88,7 +159,10 @@ const TimeClock = () => {
     if (!selectedEmployee) return;
     
     try {
-      await checkIn({ notes }).unwrap();
+      await checkIn({ 
+        employee_id: selectedEmployee,
+        notes 
+      }).unwrap();
       setNotes('');
       refetchActive();
       refetchToday();
@@ -431,7 +505,7 @@ const TimeClock = () => {
                       sx={{ borderRadius: 2 }}
                     >
                       {employees.map((emp) => (
-                        <MenuItem key={emp.id} value={emp.id}>
+                        <MenuItem key={emp.id} value={emp.user_id}>
                           <Box display="flex" alignItems="center" gap={1.5}>
                             <Avatar sx={{ width: 32, height: 32, fontSize: '0.875rem' }}>
                               {getInitials(emp.full_name)}
@@ -492,7 +566,12 @@ const TimeClock = () => {
                   disabled={
                     !selectedEmployee || 
                     checkingIn || 
-                    (activeSession?.active && activeSession?.entry?.employee === selectedEmployee)
+                    (displayActiveSession?.active && displayActiveSession?.entry && (
+                      displayActiveSession.entry.employee === selectedEmployee || 
+                      displayActiveSession.entry.employee_id === selectedEmployee ||
+                      displayActiveSession.entry.employee === String(selectedEmployee) ||
+                      displayActiveSession.entry.employee_id === String(selectedEmployee)
+                    ))
                   }
                   startIcon={checkingIn ? <CircularProgress size={22} color="inherit" /> : <PlayCircleIcon sx={{ fontSize: 24 }} />}
                   sx={{
@@ -520,7 +599,7 @@ const TimeClock = () => {
                   {checkingIn ? 'Checking In...' : 'Clock In'}
                 </Button>
 
-                {activeSession?.active && activeSession?.entry?.employee === selectedEmployee && (
+                {displayActiveSession?.active && (displayActiveSession?.entry?.employee === selectedEmployee || displayActiveSession?.entry?.employee_id === selectedEmployee) && (
                   <Box 
                     sx={{ 
                       p: 1.5, 
@@ -540,7 +619,7 @@ const TimeClock = () => {
         </Grid>
 
         {/* Active Session Card */}
-        {activeSession?.active && (
+        {displayActiveSession?.active && (
           <Grid item xs={12} md={6} lg={7} sx={{ width: '100%' }}>
             <Card 
               elevation={0} 
@@ -596,17 +675,17 @@ const TimeClock = () => {
                         </Box>
                         <Box display="flex" alignItems="center" gap={2} flexWrap="wrap">
                           <Avatar sx={{ width: 40, height: 40, bgcolor: '#3b82f6' }}>
-                            {getInitials(activeSession.entry.employee_name)}
+                            {getInitials(displayActiveSession.entry.employee_name)}
                           </Avatar>
                           <Box minWidth={0}>
                             <Typography variant="body1" fontWeight={600} color="#0f172a" noWrap>
-                              {activeSession.entry.employee_name}
+                              {displayActiveSession.entry.employee_name}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                              Started at {formatTime(activeSession.entry.check_in_time)}
+                              Started at {formatTime(displayActiveSession.entry.check_in_time)}
                             </Typography>
                           </Box>
-                          {activeSession.elapsed_hours && (
+                          {displayActiveSession.elapsed_hours && (
                             <Box 
                               sx={{ 
                                 px: 2.5, 
@@ -619,7 +698,7 @@ const TimeClock = () => {
                               }}
                             >
                               <Typography variant="h6" fontWeight={700} color="#3b82f6" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
-                                {formatElapsedTime(activeSession.elapsed_hours)}
+                                {formatElapsedTime(displayActiveSession.elapsed_hours)}
                               </Typography>
                             </Box>
                           )}
@@ -631,7 +710,7 @@ const TimeClock = () => {
                       size="large"
                       fullWidth={{ xs: true, sm: false }}
                       startIcon={checkingOut ? <CircularProgress size={18} color="inherit" /> : <StopCircleIcon sx={{ fontSize: 20 }} />}
-                      onClick={() => handleCheckOut(activeSession.entry.id)}
+                      onClick={() => handleCheckOut(displayActiveSession.entry.id)}
                       disabled={checkingOut}
                       sx={{
                         bgcolor: '#ef4444',
@@ -772,22 +851,48 @@ const TimeClock = () => {
                                 )}
                               </TableCell>
                               <TableCell>
-                                <Chip
-                                  label={entry.status === 'checked_in' ? 'Active' : 'Completed'}
-                                  size="small"
-                                  sx={{
-                                    bgcolor: entry.status === 'checked_in' 
-                                      ? alpha('#3b82f6', 0.1) 
-                                      : alpha('#10b981', 0.1),
-                                    color: entry.status === 'checked_in' 
-                                      ? '#3b82f6' 
-                                      : '#10b981',
-                                    fontWeight: 600,
-                                    fontSize: '0.75rem',
-                                    height: 26,
-                                    border: `1px solid ${entry.status === 'checked_in' ? alpha('#3b82f6', 0.2) : alpha('#10b981', 0.2)}`
-                                  }}
-                                />
+                                <Box display="flex" alignItems="center" gap={1.5}>
+                                  <Chip
+                                    label={entry.status === 'checked_in' ? 'Active' : 'Completed'}
+                                    size="small"
+                                    sx={{
+                                      bgcolor: entry.status === 'checked_in' 
+                                        ? alpha('#3b82f6', 0.1) 
+                                        : alpha('#10b981', 0.1),
+                                      color: entry.status === 'checked_in' 
+                                        ? '#3b82f6' 
+                                        : '#10b981',
+                                      fontWeight: 600,
+                                      fontSize: '0.75rem',
+                                      height: 26,
+                                      border: `1px solid ${entry.status === 'checked_in' ? alpha('#3b82f6', 0.2) : alpha('#10b981', 0.2)}`
+                                    }}
+                                  />
+                                  {entry.status === 'checked_in' && isManagerOrSupervisor && (
+                                    <Button
+                                      variant="outlined"
+                                      size="small"
+                                      startIcon={<StopCircleIcon sx={{ fontSize: 16 }} />}
+                                      onClick={() => handleCheckOut(entry.id)}
+                                      disabled={checkingOut}
+                                      sx={{
+                                        borderColor: '#ef4444',
+                                        color: '#ef4444',
+                                        textTransform: 'none',
+                                        fontSize: '0.75rem',
+                                        py: 0.5,
+                                        px: 1.5,
+                                        minWidth: 'auto',
+                                        '&:hover': {
+                                          borderColor: '#dc2626',
+                                          bgcolor: alpha('#ef4444', 0.1)
+                                        }
+                                      }}
+                                    >
+                                      Clock Out
+                                    </Button>
+                                  )}
+                                </Box>
                               </TableCell>
                             </TableRow>
                           ))}

@@ -228,9 +228,14 @@ function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, ...pr
   const eventStyle = style || {};
   const eventTitle = title || event?.title || "";
   
+  // Check if job is recurring
+  const resource = event?.resource;
+  const isRecurring = resource && (
+    resource.job_type === "recurring"
+  );
+  
   // Get the background color from the event style (set by eventStyleGetter)
   // We need to extract it from the parent wrapper's computed style or pass it differently
-  const resource = event?.resource;
   let backgroundColor = "#9ca3ef"; // Default
   
   if (event?.type === 'appointment') {
@@ -296,7 +301,6 @@ function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, ...pr
       {...props}
     >
       <div 
-        className="truncate" 
         style={{ 
           lineHeight: "1.4",
           backgroundColor: backgroundColor,
@@ -308,9 +312,25 @@ function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, ...pr
           boxShadow: isOver ? "0 2px 6px rgba(0, 0, 0, 0.15)" : "0 1px 3px rgba(0, 0, 0, 0.1)",
           transition: "all 0.2s ease",
           border: isOver ? "2px dashed rgba(255, 255, 255, 0.8)" : "none",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "6px",
         }}
       >
-        {eventTitle}
+        <span className="truncate" style={{ flex: 1, minWidth: 0 }}>
+          {eventTitle}
+        </span>
+        {isRecurring && (
+          <span style={{ 
+            flexShrink: 0,
+            fontWeight: "600",
+            fontSize: "12px",
+            opacity: 0.9,
+          }}>
+            (R)
+          </span>
+        )}
       </div>
     </div>
   );
@@ -542,12 +562,10 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
             const duration = parseFloat(job.duration_hours) || 2;
             const endDate = new Date(m.year(), m.month(), m.date(), m.hour() + duration, m.minute(), m.second());
             const timeStr = m.format("h A");
-            // Check if it's part of a recurring series
-            const recurringIndicator = job.series_id ? " (R)" : "";
 
             return {
               id: job.job_id, // Use job_id from new API
-              title: `${timeStr} ${job.customer_name || "Customer"}${recurringIndicator}`,
+              title: `${timeStr} ${job.customer_name || "Customer"}`,
               start: startDate,
               end: endDate,
               resource: {
@@ -660,11 +678,21 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
       // For jobs, fetch full job details using job_id
       const jobId = event.resource.job_id || event.resource.id;
       if (jobId) {
+        // Clear previous job data immediately when selecting a new job
+        setSelectedJob(null);
         setSelectedJobId(jobId);
         setSelectedAppointment(null);
       }
     }
   };
+  
+  // Clear selectedJob when selectedJobId changes (new job selected)
+  useEffect(() => {
+    if (selectedJobId) {
+      // Clear previous job data when a new job ID is set
+      setSelectedJob(null);
+    }
+  }, [selectedJobId]);
   
   // Update selectedJob when jobDetails is loaded
   useEffect(() => {
@@ -824,21 +852,65 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
 
   const handleEdit = () => {
     setEditingJob(selectedJob);
-    setEditDialogOpen(true)
-    setSelectedJob(null)
+    // Close the parent Job Details dialog first
+    setSelectedJob(null);
+    setSelectedJobId(null);
+    // Small delay to ensure parent dialog closes before opening edit dialog
+    setTimeout(() => {
+      setEditDialogOpen(true);
+    }, 100);
   }
 
   const handleDeleteJob = (jobToDelete, option) => {
-    // let updatedJobs = jobs
-
-    // if (option === "sequence" && jobToDelete.is_recurring) {
-    //   updatedJobs = jobs.filter(
-    //     (j) =>
-    //       !(j.customer_name === jobToDelete.customer_name && j.job_type === jobToDelete.job_type && j.is_recurring),
-    //   )
-    // } else {
-    //   updatedJobs = jobs.filter((j) => j.id !== jobToDelete.id)
-    // }
+    if (!jobToDelete) return
+    
+    // Get job ID - support both job_id and id fields
+    const jobId = jobToDelete.job_id || jobToDelete.id
+    if (!jobId) {
+      console.error("Job ID not found")
+      return
+    }
+    
+    // Update the calendar jobs cache to remove the deleted job
+    dispatch(
+      jobsApi.util.updateQueryData(
+        "getCalendarJobs",
+        calendarJobsParams,
+        (draft) => {
+          if (Array.isArray(draft)) {
+            if (option === "sequence" && jobToDelete.is_recurring) {
+              // Remove all jobs in the recurring sequence
+              const filtered = draft.filter(
+                (j) => !(
+                  (j.customer_name === jobToDelete.customer_name && 
+                   j.job_type === jobToDelete.job_type && 
+                   j.is_recurring) ||
+                  j.series_id === jobToDelete.series_id
+                )
+              )
+              // Clear and repopulate the array
+              draft.length = 0
+              draft.push(...filtered)
+            } else {
+              // Remove only the single job
+              const index = draft.findIndex(j => 
+                j.job_id === jobId || j.id === jobId ||
+                j.job_id === jobToDelete.job_id || j.id === jobToDelete.job_id
+              )
+              if (index !== -1) {
+                draft.splice(index, 1)
+              }
+            }
+          }
+        }
+      )
+    )
+    
+    // Close the job details dialog if the deleted job was selected
+    if (selectedJob && (selectedJob.id === jobId || selectedJob.job_id === jobId)) {
+      setSelectedJob(null)
+      setSelectedJobId(null)
+    }
   }
 
   const handleJobUpdate = (result) => {
@@ -1469,23 +1541,41 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
             <DialogTitle>Job Details</DialogTitle>
             <DialogDescription>View and manage job information</DialogDescription>
           </DialogHeader>
-          {isLoadingJobDetails ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="flex flex-col items-center gap-2">
-                <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                <span className="text-sm text-muted-foreground">Loading job details...</span>
-              </div>
-            </div>
-          ) : selectedJob ? (
-            <JobCard
-              job={selectedJob}
-              onEdit={handleEdit}
-              onDelete={handleDeleteJob}
-              onUpdate={handleJobUpdate}
-              users={users}
-              accountTimezone={accountTimezone}
-            />
-          ) : null}
+          {(() => {
+            // Check if selectedJob matches selectedJobId
+            const jobMatches = selectedJob && selectedJobId && (
+              selectedJob.id === selectedJobId || 
+              selectedJob.job_id === selectedJobId
+            );
+            
+            // Show loading if: API is loading OR we have a jobId but no matching job data
+            if (isLoadingJobDetails || (selectedJobId && !jobMatches)) {
+              return (
+                <div className="flex items-center justify-center py-8">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-sm text-muted-foreground">Loading job details...</span>
+                  </div>
+                </div>
+              );
+            }
+            
+            // Show job details only if we have matching job data
+            if (selectedJob && jobMatches) {
+              return (
+                <JobCard
+                  job={selectedJob}
+                  onEdit={handleEdit}
+                  onDelete={handleDeleteJob}
+                  onUpdate={handleJobUpdate}
+                  users={users}
+                  accountTimezone={accountTimezone}
+                />
+              );
+            }
+            
+            return null;
+          })()}
         </DialogContent>
       </Dialog>
 
@@ -1581,6 +1671,8 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
             setEditDialogOpen(false);
             setSelectedJob(editingJob);  // reopen JobCard
             setEditingJob(null);         // clear temporary
+            // Reopen the parent Job Details dialog
+            setSelectedJobId(editingJob?.id || editingJob?.job_id);
           }}
           users={users}
           handleJobUpdate={handleJobUpdate}

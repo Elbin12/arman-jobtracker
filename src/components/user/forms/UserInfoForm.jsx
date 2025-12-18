@@ -200,6 +200,9 @@
       }
     }, [initialData]);
 
+    // Get project employees from initialData
+    const projectEmployees = initialData?.project_employees || [];
+
     const handleChange = (field) => (event) => {
       onUpdate({
         userInfo: {
@@ -318,34 +321,52 @@
             label="Is first time"
           />
 
-          {/* ✅ New Select for "Quoted by" */}
+          {/* ✅ Select for "Quoted by" - using project_employees from API */}
           <TextField
             select
             fullWidth
             label="Quoted By"
-            value={data.userInfo?.quoted_by || ""}
-            onChange={(e) =>
+            value={(() => {
+              // Ensure value is always the employee ID (number)
+              const currentValue = data.userInfo?.quoted_by;
+              if (!currentValue) return "";
+              
+              // If it's already a number, use it
+              if (typeof currentValue === 'number') return currentValue;
+              
+              // If it's a string that's a number, convert it
+              if (typeof currentValue === 'string' && !isNaN(Number(currentValue))) {
+                return Number(currentValue);
+              }
+              
+              // If it's a name (string), try to find matching employee ID
+              const matchingEmployee = projectEmployees.find(emp => 
+                emp.name === currentValue || 
+                `${emp.first_name || ''} ${emp.last_name || ''}`.trim() === currentValue ||
+                emp.username === currentValue ||
+                emp.email === currentValue
+              );
+              
+              return matchingEmployee ? matchingEmployee.id : "";
+            })()}
+            onChange={(e) => {
+              // Ensure we store the ID as a number
+              const employeeId = typeof e.target.value === 'string' ? Number(e.target.value) : e.target.value;
               onUpdate({
                 userInfo: {
                   ...data.userInfo,
-                  quoted_by: e.target.value,
+                  quoted_by: employeeId, // Store employee ID as number
                 },
-              })
-            }
+              });
+            }}
+            disabled={isLoading || projectEmployees.length === 0}
+            helperText={isLoading ? "Loading employees..." : projectEmployees.length === 0 ? "No employees available" : ""}
           >
-            {/* Static Users */}
-            <MenuItem value="Anthony Valles">Anthony Valles</MenuItem>
-            <MenuItem value="Arman Khalili">Arman Khalili</MenuItem>
-            <MenuItem value="Elias Hoover">Elias Hoover</MenuItem>
-            <MenuItem value="Harold Garcia">Harold Garcia</MenuItem>
-            <MenuItem value="Jay Dugman">Jay Dugman</MenuItem>
-            <MenuItem value="Jim Suazo">Jim Suazo</MenuItem>
-            <MenuItem value="Josh Fulfer">Josh Fulfer</MenuItem>
-            <MenuItem value="Juan Carlos Suazo">Juan Carlos Suazo</MenuItem>
-            <MenuItem value="Mandy Castaneda">Mandy Castaneda</MenuItem>
-            <MenuItem value="Reza Yousefian">Reza Yousefian</MenuItem>
-            <MenuItem value="Roshan Raj">Roshan Raj</MenuItem>
-            <MenuItem value="Serena Gallegos">Serena Gallegos</MenuItem>
+            {projectEmployees.map((employee) => (
+              <MenuItem key={employee.id} value={employee.id}>
+                {employee.name || `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || employee.username || employee.email}
+              </MenuItem>
+            ))}
           </TextField>
         </Box>
       </Box>

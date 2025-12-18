@@ -1,31 +1,43 @@
 "use client"
 
 import { useState } from "react"
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Typography,
-  Box,
-  FormControlLabel,
-  Radio,
-  RadioGroup,
-  Alert,
-} from "@mui/material"
-import { Delete as DeleteIcon, RotateRight as RotateIcon, EventNote as EventIcon } from "@mui/icons-material"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Label } from "@/components/ui/label"
+import { Trash2, RotateCw, Calendar } from "lucide-react"
+import { useDeleteJobMutation } from "../../../store/api/jobsApi"
 
 export function DeleteJobDialog({ job, open, onClose, onDelete, disabled = false }) {
   const [deleteOption, setDeleteOption] = useState("single")
   const [deleting, setDeleting] = useState(false)
+  const [deleteJob] = useDeleteJobMutation()
 
   const handleDelete = async () => {
+    if (!job) return
+    
+    // Get job ID - support both job_id and id fields
+    const jobId = job.job_id || job.id
+    if (!jobId) {
+      console.error("Job ID not found")
+      return
+    }
+    
     setDeleting(true)
     try {
-      await new Promise((resolve) => setTimeout(resolve, 300))
-      onDelete(job, deleteOption)
+      // Call the delete API
+      await deleteJob(jobId).unwrap()
+      
+      // Call the onDelete callback with the job and option for cache updates
+      if (onDelete) {
+        onDelete(job, deleteOption)
+      }
+      
       onClose()
+    } catch (error) {
+      console.error("Failed to delete job:", error)
+      // Optionally show error message to user
     } finally {
       setDeleting(false)
     }
@@ -44,96 +56,68 @@ export function DeleteJobDialog({ job, open, onClose, onDelete, disabled = false
   }
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <DeleteIcon sx={{ color: "error.main" }} />
-        Delete Job
-      </DialogTitle>
-
-      <DialogContent>
-        <Box sx={{ mt: 2 }}>
-          <Typography variant="body2" gutterBottom>
+    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && !deleting && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Trash2 className="h-5 w-5 text-destructive" />
+            Delete Job
+          </DialogTitle>
+          <DialogDescription>
             You're about to delete "{job?.title}"
-          </Typography>
+          </DialogDescription>
+        </DialogHeader>
 
+        <div className="space-y-4 py-4">
           {job?.is_recurring && (
-            <Box sx={{ mt: 3, mb: 2 }}>
-              <Typography variant="subtitle2" gutterBottom>
-                Choose deletion option:
-              </Typography>
-              <RadioGroup value={deleteOption} onChange={(e) => setDeleteOption(e.target.value)}>
-                <Box
-                  sx={{
-                    border: "1px solid",
-                    borderColor: "divider",
-                    borderRadius: 1,
-                    p: 2,
-                    mb: 2,
-                  }}
-                >
-                  <FormControlLabel
-                    value="single"
-                    control={<Radio />}
-                    label={
-                      <Box>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                          <EventIcon fontSize="small" />
-                          <Typography variant="body2" fontWeight="bold">
-                            Delete this job only
-                          </Typography>
-                        </Box>
-                        <Typography variant="caption" color="text.secondary">
-                          Remove only this scheduled occurrence. The recurring pattern continues.
-                        </Typography>
-                      </Box>
-                    }
-                  />
-                </Box>
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold">Choose deletion option:</Label>
+              <RadioGroup value={deleteOption} onValueChange={setDeleteOption}>
+                <div className="flex items-start space-x-2 rounded-lg border p-4">
+                  <RadioGroupItem value="single" id="single" className="mt-1" />
+                  <div className="flex-1 space-y-1">
+                    <Label htmlFor="single" className="flex items-center gap-2 font-semibold cursor-pointer">
+                      <Calendar className="h-4 w-4" />
+                      Delete this job only
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Remove only this scheduled occurrence. The recurring pattern continues.
+                    </p>
+                  </div>
+                </div>
 
-                <Box
-                  sx={{
-                    border: "1px solid",
-                    borderColor: "divider",
-                    borderRadius: 1,
-                    p: 2,
-                  }}
-                >
-                  <FormControlLabel
-                    value="sequence"
-                    control={<Radio />}
-                    label={
-                      <Box>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                          <RotateIcon fontSize="small" />
-                          <Typography variant="body2" fontWeight="bold">
-                            Delete entire sequence
-                          </Typography>
-                        </Box>
-                        <Typography variant="caption" color="text.secondary">
-                          Remove all jobs in this recurring sequence permanently.
-                        </Typography>
-                      </Box>
-                    }
-                  />
-                </Box>
+                <div className="flex items-start space-x-2 rounded-lg border p-4">
+                  <RadioGroupItem value="sequence" id="sequence" className="mt-1" />
+                  <div className="flex-1 space-y-1">
+                    <Label htmlFor="sequence" className="flex items-center gap-2 font-semibold cursor-pointer">
+                      <RotateCw className="h-4 w-4" />
+                      Delete entire sequence
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Remove all jobs in this recurring sequence permanently.
+                    </p>
+                  </div>
+                </div>
               </RadioGroup>
-            </Box>
+            </div>
           )}
 
-          <Alert severity="warning" sx={{ mt: 2 }}>
-            {getDeleteDescription()}
+          <Alert variant="destructive">
+            <AlertDescription>
+              {getDeleteDescription()}
+            </AlertDescription>
           </Alert>
-        </Box>
-      </DialogContent>
+        </div>
 
-      <DialogActions>
-        <Button onClick={onClose} disabled={deleting}>
-          Cancel
-        </Button>
-        <Button variant="contained" color="error" onClick={handleDelete} disabled={deleting}>
-          {deleting ? "Deleting..." : "Delete Job"}
-        </Button>
-      </DialogActions>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+            {deleting ? "Deleting..." : "Delete Job"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
   )
 }

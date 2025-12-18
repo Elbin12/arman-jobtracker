@@ -20,10 +20,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 import { Users, RotateCcw, Plus, XSquare } from "lucide-react";
 import moment from "moment-timezone";
 import { jobsApi, useUpdateJobMutation } from "../../../store/api/jobsApi";
-import { useGetAssigneesQuery } from "../../../store/api/assigneesApi";
+import { useGetEmployeesQuery } from "../../../store/api/payrollApi";
+import { useGetServicesQuery } from "../../../store/api/servicesApi";
 import { useDispatch } from "react-redux";
 
 export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, accountTimezone = "America/Chicago" }) {
@@ -35,14 +39,19 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
     duration: "",
     price: ""
   });
-  const [services, setServices] = useState([]);
+  const [jobServices, setJobServices] = useState([]);
   const customServiceSectionRef = useRef(null);
 
-  const { data: usersData, isLoading: usersLoading } = useGetAssigneesQuery();
+  const { data: employeesData, isLoading: employeesLoading } = useGetEmployeesQuery({ pay_scale_type: 'project' });
+  const { data: servicesData, isLoading: servicesLoading } = useGetServicesQuery(1);
 
-  const users = usersData?.results || [];
+  const employees = employeesData?.results || [];
+  
+  // Get services from API
+  const apiServices = servicesData?.results || [];
 
   const dispatch = useDispatch();
+  const { toast } = useToast();
 
   // Store form data in the same structure as the job object
   const [formData, setFormData] = useState({
@@ -100,7 +109,7 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
 
       // Extract custom services from items
       const extractedCustomServices = [];
-      const services = [];
+      const servicesFromJob = [];
       if (job.items && job.items.length > 0) {
         job.items.forEach(item => {
           if (item.custom_name) {
@@ -111,12 +120,12 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
               price: parseFloat(item.price) || 0
             });
           } else {
-            services.push(item);
+            servicesFromJob.push(item);
           }
         });
       }
       setCustomServices(extractedCustomServices);
-      setServices(services);
+      setJobServices(servicesFromJob);
 
       // Set form data directly from job structure
       setFormData({
@@ -190,13 +199,35 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
     const serviceId = service.service || service.id;
     if (checked) {
       // Add service to items
-      const service = services.find(s => s.service === serviceId);
+      const apiService = apiServices.find(s => s.id === serviceId);
+      const jobService = jobServices.find(s => s.service === serviceId);
       const customService = customServices.find(s => s.id === serviceId);
 
-      setFormData(prev => ({
-        ...prev,
-        items: [...prev.items, service ? service : customService]
-      }));
+      if (apiService) {
+        setFormData(prev => ({
+          ...prev,
+          items: [...prev.items, {
+            service: apiService.id,
+            price: parseFloat(apiService.price) || 0,
+            duration_hours: parseFloat(apiService.hours) || 1
+          }]
+        }));
+      } else if (jobService) {
+        setFormData(prev => ({
+          ...prev,
+          items: [...prev.items, jobService]
+        }));
+      } else if (customService) {
+        setFormData(prev => ({
+          ...prev,
+          items: [...prev.items, {
+            id: customService.id,
+            custom_name: customService.name,
+            price: customService.price,
+            duration_hours: customService.duration
+          }]
+        }));
+      }
     } else {
       // Remove service from items
       setFormData(prev => ({
@@ -318,12 +349,31 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
 
       console.log("RTK update using address:", job.customer_address);
 
-      handleJobUpdate(result);
+      // Show success message
+      if (objective === 'convert') {
+        toast({
+          title: "Success",
+          description: "Quote converted to job successfully!",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Job updated successfully!",
+        });
+      }
 
+      if (handleJobUpdate) {
+        handleJobUpdate(result);
+      }
 
       onClose();
     } catch (err) {
       console.error("Failed to update job:", err);
+      toast({
+        title: "Error",
+        description: err?.data?.message || (objective === 'convert' ? "Failed to convert quote to job. Please try again." : "Failed to update job. Please try again."),
+        variant: "destructive",
+      });
     }
   };
 
@@ -352,7 +402,26 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
   console.log(formData);
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      maxWidth="lg" 
+      fullWidth
+      PaperProps={{
+        sx: {
+          zIndex: 1400, // Higher than navbar (1200) and parent dialog (1300)
+        }
+      }}
+      BackdropProps={{
+        sx: {
+          zIndex: 1399, // Just below the dialog content
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        }
+      }}
+      disableEnforceFocus={true}
+      disableAutoFocus={false}
+      disableRestoreFocus={false}
+    >
       <DialogTitle
         sx={{
           display: "flex",
@@ -392,49 +461,67 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
               <Label htmlFor="services">Services *</Label>
               <Card className="border">
                 <CardContent className="pt-4 px-4">
-                  <div className="space-y-3 pr-4">
-                    {/* Database Services */}
-                    {services.map(service => (
-                      <div key={service.service} className="border rounded-lg p-3">
-                        <div className="flex items-start space-x-3">
-                          <Checkbox
-                            id={service.service}
-                            checked={isServiceSelected(service.service)}
-                            onCheckedChange={(checked) => handleServiceChange(service, checked)}
-                            className="mt-1"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <Label
-                              htmlFor={service.service}
-                              className="text-sm font-medium cursor-pointer"
-                            >
-                              {service.service_name}
-                            </Label>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {service.duration_hours && `${service.duration_hours}h`}
-                              {service.duration_hours && service.price && " • "}
-                              {service.price && `$ ${service.price}`}
-                            </div>
-                            {isServiceSelected(service.id) && (
-                              <div className="mt-2">
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={getServicePrice(service.id) || ''}
-                                  onChange={(e) => handleServicePriceChange(service.id, e.target.value)}
-                                  placeholder="Price"
-                                  className="h-8 text-sm"
-                                />
+                  <ScrollArea className="h-[300px]">
+                    <div className="space-y-3 pr-4">
+                      {/* Loading Skeleton */}
+                      {servicesLoading && (
+                        <>
+                          {[1, 2, 3, 4].map((i) => (
+                            <div key={i} className="border rounded-lg p-3">
+                              <div className="flex items-start space-x-3">
+                                <Skeleton className="h-4 w-4 rounded mt-1" />
+                                <div className="flex-1 min-w-0 space-y-2">
+                                  <Skeleton className="h-4 w-3/4" />
+                                  <Skeleton className="h-3 w-1/2" />
+                                </div>
                               </div>
-                            )}
+                            </div>
+                          ))}
+                        </>
+                      )}
+                      
+                      {/* Database Services from API */}
+                      {!servicesLoading && apiServices.map(service => (
+                        <div key={service.id} className="border rounded-lg p-3">
+                          <div className="flex items-start space-x-3">
+                            <Checkbox
+                              id={`service-${service.id}`}
+                              checked={isServiceSelected(service.id)}
+                              onCheckedChange={(checked) => handleServiceChange(service, checked)}
+                              className="mt-1"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <Label
+                                htmlFor={`service-${service.id}`}
+                                className="text-sm font-medium cursor-pointer"
+                              >
+                                {service.name}
+                              </Label>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {service.hours && `${service.hours}h`}
+                                {service.hours && service.price && " • "}
+                                {service.price && `$${service.price}`}
+                              </div>
+                              {isServiceSelected(service.id) && (
+                                <div className="mt-2">
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={getServicePrice(service.id) || ''}
+                                    onChange={(e) => handleServicePriceChange(service.id, e.target.value)}
+                                    placeholder="Price"
+                                    className="h-8 text-sm"
+                                  />
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
 
                     {/* Custom Services */}
-                    {customServices.length > 0 && (
+                    {!servicesLoading && customServices.length > 0 && (
                       <div className="border-t pt-3 mt-3">
                         <h4 className="text-sm font-medium mb-3">Custom Services</h4>
                         {customServices.map(service => (
@@ -488,6 +575,7 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
                       </div>
                     )}
                   </div>
+                </ScrollArea>
 
                   {/* Add Custom Service Section */}
                   <div ref={customServiceSectionRef} className="mt-4 pt-4 border-t">
@@ -806,9 +894,9 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
                   displayEmpty
                   onChange={(e) => setFormData(prev => ({ ...prev, quoted_by: e.target.value || null }))}
                 >
-                  {users.map((user) => (
-                    <MenuItem key={user.id} value={user.id}>
-                      {user.first_name} ({user.role})
+                  {employees.map((employee) => (
+                    <MenuItem key={employee.id} value={employee.user_id || employee.id}>
+                      {employee.full_name}
                     </MenuItem>
                   ))}
                 </Select>
@@ -816,20 +904,29 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
 
               <div className="space-y-2">
                 <Label>Assign Team Members</Label>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {users.map(user => (
-                    <div key={user.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`user-${user.id}`}
-                        checked={isUserAssigned(user.id)}
-                        onCheckedChange={(checked) => handleUserAssignment(user.id, checked)}
-                      />
-                      <Label htmlFor={`user-${user.id}`} className="flex-1 cursor-pointer">
-                        {user.first_name} ({user.role})
-                      </Label>
+                {employeesLoading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-sm text-muted-foreground">Loading employees...</span>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {employees.map(employee => (
+                      <div key={employee.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`employee-${employee.id}`}
+                          checked={isUserAssigned(employee.user_id || employee.id)}
+                          onCheckedChange={(checked) => handleUserAssignment(employee.user_id || employee.id, checked)}
+                        />
+                        <Label htmlFor={`employee-${employee.id}`} className="flex-1 cursor-pointer">
+                          {employee.full_name}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -843,11 +940,11 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
             <CardContent className="space-y-4">
               <div className="flex items-center space-x-2">
                 <Checkbox
-                  id="first_time"
-                  checked={formData.first_time}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, first_time: checked }))}
+                  id="one_time"
+                  checked={formData.job_type==='one_time'}
+                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, job_type: checked ? "one_time" : "recurring" }))}
                 />
-                <Label htmlFor="first_time" className="cursor-pointer">This is a first time job</Label>
+                <Label htmlFor="one_time" className="cursor-pointer">This is a first time job</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox

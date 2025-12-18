@@ -1,28 +1,27 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Badge, Box, Button, Card, CardContent, CircularProgress, FormControlLabel, Pagination, Switch, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material"
+import { Badge, Box, Button, Card, CardContent, FormControlLabel, Pagination, Switch, Typography } from "@mui/material"
 import { useGetLocationsQuery, useGetJobsQuery, jobsApi } from "../../store/api/jobsApi"
 import { useGetAssigneesQuery } from "../../store/api/assigneesApi"
-import { CalendarIcon, FilterIcon, ListIcon } from "lucide-react"
-import { NewCalendar } from "../../components/admin/calendar/Calendar"
+import { FilterIcon } from "lucide-react"
 import { LocationGroupCard } from "../../components/admin/jobs/LocationGroupCard"
 import { FilterSidebar } from "./FilterSibdebar"
 import { LocationOn } from "@mui/icons-material"
 import { JobCard } from "../../components/admin/jobs/JobCard"
 import DeleteJobDialog from "../../components/admin/jobs/DeleteJobDialog"
 import { EditJobDialog } from "../../components/admin/jobs/EditJobDialog"
-import { useDispatch } from "react-redux"
+import { useDispatch, useSelector } from "react-redux"
+import { JobCardSkeleton, CardGridSkeleton } from "../../components/ui/skeletons"
 
 export function Jobs() {
-  const [viewMode, setViewMode] = useState("list")
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [selectedJob, setSelectedJob] = useState(null)
   const [filterSidebarOpen, setFilterSidebarOpen] = useState(false)
   
   const [filterParams, setFilterParams] = useState({})
-  const [groupByLocation, setGroupByLocation] = useState(false)
+  const [groupByLocation, setGroupByLocation] = useState(true)
 
   const [page, setPage] = useState(1);
 
@@ -35,6 +34,8 @@ export function Jobs() {
   const { data: assigneesData, isLoading: assigneesLoading } = useGetAssigneesQuery()
 
   const dispatch = useDispatch();
+  const user = useSelector((state) => state.auth.user);
+  const userRole = user?.role || "worker";
 
   const totalJobs = jobsData?.count || 0;
   const totalLocations = locationData?.count || 0;
@@ -60,16 +61,52 @@ export function Jobs() {
   }
 
   const handleDeleteJob = (jobToDelete, option) => {
-    // let updatedJobs = jobs
-
-    // if (option === "sequence" && jobToDelete.is_recurring) {
-    //   updatedJobs = jobs.filter(
-    //     (j) =>
-    //       !(j.customer_name === jobToDelete.customer_name && j.job_type === jobToDelete.job_type && j.is_recurring),
-    //   )
-    // } else {
-    //   updatedJobs = jobs.filter((j) => j.id !== jobToDelete.id)
-    // }
+    if (!jobToDelete) return
+    
+    // Get job ID - support both job_id and id fields
+    const jobId = jobToDelete.job_id || jobToDelete.id
+    if (!jobId) {
+      console.error("Job ID not found")
+      return
+    }
+    
+    // Update the cache to remove the deleted job
+    dispatch(
+      jobsApi.util.updateQueryData(
+        "getJobs",
+        { ...filterParams, page },
+        (draft) => {
+          if (option === "sequence" && jobToDelete.is_recurring) {
+            // Remove all jobs in the recurring sequence
+            draft.results = draft.results.filter(
+              (j) => !(
+                (j.customer_name === jobToDelete.customer_name && 
+                 j.job_type === jobToDelete.job_type && 
+                 j.is_recurring) ||
+                j.series_id === jobToDelete.series_id
+              )
+            )
+            // Update count
+            if (draft.count) {
+              const deletedCount = draft.results.length - (draft.count - 1)
+              draft.count = Math.max(0, draft.count - deletedCount)
+            }
+          } else {
+            // Remove only the single job
+            const index = draft.results.findIndex(j => 
+              j.id === jobId || j.job_id === jobId
+            )
+            if (index !== -1) {
+              draft.results.splice(index, 1)
+              // Update count
+              if (draft.count) {
+                draft.count = Math.max(0, draft.count - 1)
+              }
+            }
+          }
+        }
+      )
+    )
   }
 
   const handleJobUpdate = (result)=>{
@@ -104,13 +141,7 @@ export function Jobs() {
   }
 
 
-  if (isFetching || isLocationsFetching || assigneesLoading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "400px" }}>
-        <CircularProgress />
-      </Box>
-    )
-  }
+  const isLoading = isFetching || isLocationsFetching || assigneesLoading;
 
   return (
     <Box>
@@ -148,27 +179,11 @@ export function Jobs() {
       <Box
         sx={{
           display: "flex",
-          justifyContent: "space-between",
+          justifyContent: "flex-end",
           alignItems: "center",
           mb: 3,
         }}
       >
-        <ToggleButtonGroup
-          value={viewMode}
-          exclusive
-          onChange={(e, newView) => newView && setViewMode(newView)}
-          size="small"
-        >
-          <ToggleButton value="list">
-            <ListIcon sx={{ mr: 1 }} />
-            List
-          </ToggleButton>
-          <ToggleButton value="calendar">
-            <CalendarIcon sx={{ mr: 1 }} />
-            Calendar
-          </ToggleButton>
-        </ToggleButtonGroup>
-
         <FormControlLabel
           control={<Switch checked={groupByLocation} onChange={(e) => setGroupByLocation(e.target.checked)} />}
           label={
@@ -180,64 +195,67 @@ export function Jobs() {
         />
       </Box>
 
-      {viewMode === "calendar" ? (
-        <NewCalendar jobs={jobsData?.results} users={users} />
+      {/* Results Count */}
+      {!isLoading && (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          {jobsData?.count || 0} job{(jobsData?.results?.length || 0) !== 1 ? "s" : ""} found
+        </Typography>
+      )}
+
+      {/* Loading State */}
+      {isLoading ? (
+        <JobCardSkeleton count={8} />
       ) : (
         <>
-          {/* Results Count */}
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {jobsData?.results.length} job{jobsData?.results.length !== 1 ? "s" : ""} found
-          </Typography>
-
           {/* Jobs Display */}
           {jobsData?.results.length === 0 ? (
-            <Card>
-              <CardContent sx={{ textAlign: "center", py: 6 }}>
-                <Typography variant="h6" gutterBottom>
-                  No jobs found
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Try adjusting your search criteria or create a new job.
-                </Typography>
-              </CardContent>
-            </Card>):
-          groupByLocation && locationData?.results ? (
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(min(400px, 100%), 1fr))',
-                gap: 2, // 16px gap between cards
-                width: '100%',
-                alignItems:"stretch",
-              }}
-            >
-              {locationData?.results.map((locationInfo, index) => (
-                <LocationGroupCard locationInfo={locationInfo} users={users}/>
-              ))}
-            </Box>
-          ) : 
-          (
-            <Box
-              sx={{
-                width: '100%',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))',
-                gap: 2,
-                alignItems: 'stretch',
-              }}
-            >
-              {jobsData?.results.map((job) => (
-                <JobCard
-                  key={job.id || job.job_id}
-                  job={job}
-                  onEdit={handleEdit}
-                  onDelete={handleDeleteJob}
-                  onUpdate={handleJobUpdate}
-                  users={users}
-                />
-              ))}
-            </Box>
-          )}
+        <Card>
+          <CardContent sx={{ textAlign: "center", py: 6 }}>
+            <Typography variant="h6" gutterBottom>
+              No jobs found
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Try adjusting your search criteria or create a new job.
+            </Typography>
+          </CardContent>
+        </Card>):
+      groupByLocation && locationData?.results ? (
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(400px, 100%), 1fr))',
+            gap: 2, // 16px gap between cards
+            width: '100%',
+            alignItems:"stretch",
+          }}
+        >
+          {locationData?.results.map((locationInfo, index) => (
+            <LocationGroupCard locationInfo={locationInfo} users={users}/>
+          ))}
+        </Box>
+      ) : 
+      (
+        <Box
+          sx={{
+            width: '100%',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))',
+            gap: 2,
+            alignItems: 'stretch',
+          }}
+        >
+          {jobsData?.results.map((job) => (
+            <JobCard
+              key={job.id || job.job_id}
+              job={job}
+              onEdit={handleEdit}
+              onDelete={handleDeleteJob}
+              onUpdate={handleJobUpdate}
+              users={users}
+            />
+          ))}
+        </Box>
+      )}
         </>
       )}
 
@@ -247,6 +265,7 @@ export function Jobs() {
         onApplyFilters={(filters)=>{setFilterParams(filters)}}
         assignees={users}
         initialFilters={filterParams}
+        userRole={userRole}
       />
 
       {!groupByLocation && jobTotalPages > 1 && (

@@ -90,10 +90,12 @@ const authSlice = createSlice({
         state.access = action.payload.access;
         state.refresh = action.payload.refresh;
         state.user = action.payload.user;
-        state.user_profile = action.payload.user_profile;
+        // Use employee_profile if available, otherwise fallback to user_profile
+        const profileData = action.payload.employee_profile || action.payload.user_profile;
+        state.user_profile = profileData;
         localStorage.setItem('access', action.payload.access);
         localStorage.setItem('refresh', action.payload.refresh);
-        localStorage.setItem('user_profile', JSON.stringify(action.payload.employee_profile));
+        localStorage.setItem('user_profile', JSON.stringify(profileData));
         localStorage.setItem('user', JSON.stringify(action.payload.user));
 
         state.isAuthenticated = true;

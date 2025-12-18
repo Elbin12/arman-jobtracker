@@ -15,6 +15,7 @@ import { assigneesApi, useCreateAssigneeMutation, useDeleteAssigneeMutation, use
 import { Pagination } from '@mui/material';
 import { useDispatch } from 'react-redux';
 import { USER_PASSWORD } from '../../store/axios/axios';
+import { TeamMemberCardSkeleton } from '../../components/ui/skeletons';
 
 const TeamManagement = () => {
   const [page, setPage] = useState(1);
@@ -153,10 +154,6 @@ const TeamManagement = () => {
     return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
   };
 
-  if (isLoading) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
-  }
-
   return (
     <div className="mx-auto">
       {/* Header */}
@@ -174,8 +171,13 @@ const TeamManagement = () => {
         </button>
       </div>
 
-      {/* Team Members Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mb-8">
+      {/* Loading State */}
+      {isLoading ? (
+        <TeamMemberCardSkeleton count={8} />
+      ) : (
+        <>
+          {/* Team Members Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mb-8">
         {teamData?.results.map((member) => (
           <div 
             key={member.id}
@@ -249,6 +251,8 @@ const TeamManagement = () => {
           </div>
         ))}
       </div>
+        </>
+      )}
 
       {/* Pagination */}
       {totalCount > itemsPerPage && (

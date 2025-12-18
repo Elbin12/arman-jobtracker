@@ -22,7 +22,6 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  CircularProgress,
   List,
   ListItem,
   ListItemText,
@@ -40,6 +39,7 @@ import {
   locationsApi,
 } from "../../store/api/locationsApi"
 import { setDialogOpen, setEditingLocation, setFormData, resetFormData } from "../../store/slices/locationsSlice"
+import { TableSkeleton } from "../../components/ui/skeletons"
 
 // Custom Google Places Autocomplete Component
 const PlacesAutocomplete = ({ value, onChange, error, helperText }) => {
@@ -349,14 +349,6 @@ const LocationsManagement = () => {
     )
   }
 
-  if (isLoading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    )
-  }
-
   if (error) {
     return (
       <Box>
@@ -381,23 +373,30 @@ const LocationsManagement = () => {
         </Button>
       </Box>
 
-      <Card>
-        <CardContent>
-          <TableContainer component={Paper} variant="outlined">
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Location Name</TableCell>
-                  <TableCell>Address</TableCell>
-                  <TableCell>Coordinates</TableCell>
-                  <TableCell>Trip Surcharge</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Created</TableCell>
-                  <TableCell align="right">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {locations.map((location) => (
+      {isLoading ? (
+        <Card>
+          <CardContent>
+            <TableSkeleton rows={6} columns={7} />
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent>
+            <TableContainer component={Paper} variant="outlined">
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Location Name</TableCell>
+                    <TableCell>Address</TableCell>
+                    <TableCell>Coordinates</TableCell>
+                    <TableCell>Trip Surcharge</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Created</TableCell>
+                    <TableCell align="right">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {locations.map((location) => (
                   <TableRow key={location.id}>
                     <TableCell>
                       <Box display="flex" alignItems="center">
@@ -460,6 +459,7 @@ const LocationsManagement = () => {
           </TableContainer>
         </CardContent>
       </Card>
+      )}
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>

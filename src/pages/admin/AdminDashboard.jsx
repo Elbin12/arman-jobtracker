@@ -143,22 +143,112 @@ export const AdminDashboard = () => {
   if (analyticsLoading) {
     return (
       <Box sx={{ p: { xs: 2, sm: 3 } }}>
-        <Typography variant="h4" gutterBottom>
-          Dashboard
-        </Typography>
-        <Grid container spacing={2}>
+        {/* Header */}
+        <Box sx={{ 
+          mb: 3,
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          justifyContent: 'space-between',
+          alignItems: { xs: 'flex-start', sm: 'center' },
+          gap: 2
+        }}>
+          <Box>
+            <Typography variant={isMobile ? 'h5' : 'h4'} gutterBottom>
+              Dashboard
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Invoice analytics and technician workload overview
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* Summary Cards Skeleton - Matching actual design */}
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 mb-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Grid item xs={6} sm={4} md={4} lg={2} key={i}>
-              <Card>
-                <CardContent>
-                  <Skeleton variant="text" width="60%" height={20} />
-                  <Skeleton variant="text" width="80%" height={36} />
-                  <Skeleton variant="text" width="50%" height={16} />
-                </CardContent>
-              </Card>
-            </Grid>
+            <div key={i} className="shadow-sm bg-gradient-to-br from-gray-100/60 to-gray-100/10 rounded-lg">
+              <Box className="flex items-center justify-between px-4 pt-4">
+                <Skeleton variant="text" width="60%" height={16} sx={{ bgcolor: 'rgba(0,0,0,0.1)' }} />
+                <Skeleton variant="circular" width={32} height={32} sx={{ bgcolor: 'rgba(0,0,0,0.1)' }} />
+              </Box>
+              <CardContent>
+                <Skeleton variant="text" width="70%" height={36} sx={{ bgcolor: 'rgba(0,0,0,0.1)', mb: 1 }} />
+                <Skeleton variant="text" width="80%" height={20} sx={{ bgcolor: 'rgba(0,0,0,0.08)', mb: 2 }} />
+                <Skeleton variant="rectangular" width="100%" height={6} sx={{ borderRadius: 1, bgcolor: 'rgba(0,0,0,0.08)', mb: 1 }} />
+                <Skeleton variant="text" width="60%" height={14} sx={{ bgcolor: 'rgba(0,0,0,0.08)' }} />
+              </CardContent>
+            </div>
           ))}
-        </Grid>
+        </div>
+
+        {/* Charts Section Skeleton */}
+        <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 mb-4">
+          <Card sx={{ boxShadow: 1 }}>
+            <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+              <Skeleton variant="text" width="40%" height={24} sx={{ mb: 1, bgcolor: 'rgba(0,0,0,0.1)' }} />
+              <Skeleton variant="text" width="60%" height={16} sx={{ mb: 3, bgcolor: 'rgba(0,0,0,0.08)' }} />
+              <Skeleton variant="rectangular" width="100%" height={300} sx={{ borderRadius: 1, bgcolor: 'rgba(0,0,0,0.08)' }} />
+            </CardContent>
+          </Card>
+          <Card sx={{ boxShadow: 1 }}>
+            <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+              <Skeleton variant="text" width="50%" height={24} sx={{ mb: 1, bgcolor: 'rgba(0,0,0,0.1)' }} />
+              <Skeleton variant="text" width="40%" height={16} sx={{ mb: 3, bgcolor: 'rgba(0,0,0,0.08)' }} />
+              <Skeleton variant="rectangular" width="100%" height={300} sx={{ borderRadius: 1, bgcolor: 'rgba(0,0,0,0.08)' }} />
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Top Customers Table Skeleton */}
+        <Card sx={{ mb: 3, boxShadow: 1 }}>
+          <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+            <Skeleton variant="text" width="30%" height={24} sx={{ mb: 1, bgcolor: 'rgba(0,0,0,0.1)' }} />
+            <Skeleton variant="text" width="50%" height={16} sx={{ mb: 2, bgcolor: 'rgba(0,0,0,0.08)' }} />
+            <Box sx={{ mt: 2 }}>
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Box key={i} sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
+                  <Skeleton variant="text" width="25%" height={20} sx={{ bgcolor: 'rgba(0,0,0,0.08)' }} />
+                  <Skeleton variant="text" width="30%" height={20} sx={{ bgcolor: 'rgba(0,0,0,0.08)' }} />
+                  <Skeleton variant="text" width="15%" height={20} sx={{ bgcolor: 'rgba(0,0,0,0.08)' }} />
+                  <Skeleton variant="text" width="10%" height={20} sx={{ bgcolor: 'rgba(0,0,0,0.08)' }} />
+                  <Skeleton variant="text" width="15%" height={20} sx={{ bgcolor: 'rgba(0,0,0,0.08)' }} />
+                </Box>
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
+
+        {/* Heatmap Skeleton */}
+        <Card sx={{ boxShadow: 1 }}>
+          <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+            <Skeleton variant="text" width="50%" height={24} sx={{ mb: 1, bgcolor: 'rgba(0,0,0,0.1)' }} />
+            <Skeleton variant="text" width="60%" height={16} sx={{ mb: 3, bgcolor: 'rgba(0,0,0,0.08)' }} />
+            <Box sx={{ mt: 3 }}>
+              {[1, 2, 3, 4].map((i) => (
+                <Box key={i} sx={{ mb: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Skeleton variant="text" width="20%" height={20} sx={{ bgcolor: 'rgba(0,0,0,0.08)' }} />
+                    <Skeleton variant="text" width="15%" height={20} sx={{ bgcolor: 'rgba(0,0,0,0.08)' }} />
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    {[1, 2, 3, 4, 5, 6, 7].map((j) => (
+                      <Skeleton 
+                        key={j} 
+                        variant="rectangular" 
+                        width="100%" 
+                        height={60} 
+                        sx={{ 
+                          borderRadius: 1, 
+                          bgcolor: 'rgba(0,0,0,0.08)',
+                          flex: 1
+                        }} 
+                      />
+                    ))}
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
       </Box>
     );
   }

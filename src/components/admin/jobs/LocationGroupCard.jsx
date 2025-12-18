@@ -33,14 +33,24 @@ export const LocationGroupCard = ({ locationInfo, users }) => {
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
-    const date = new Date(dateString);
-    const month = date.toLocaleDateString('en-US', { month: 'short' });
-    const day = date.getDate();
-    const time = date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit'
-    });
-    return `${month} ${day}, ${time}`;
+    
+    // Parse UTC date string manually to avoid timezone conversion
+    const [datePart, timePart] = dateString.split('T');
+    const [year, month, day] = datePart.split('-');
+    const [hourStr, minuteStr] = timePart.replace('Z', '').split(':');
+    
+    let hour = parseInt(hourStr, 10);
+    const minute = minuteStr.padStart(2, '0');
+    
+    // Convert to 12-hour format
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    hour = hour % 12 || 12; // 0 -> 12
+    
+    // Get month name
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthName = months[parseInt(month, 10) - 1];
+    
+    return `${monthName} ${day}, ${hour}:${minute} ${ampm}`;
   };
 
   const formatStatus = (status) => {
@@ -54,8 +64,55 @@ export const LocationGroupCard = ({ locationInfo, users }) => {
     setEditDialogOpen(true)
   }
 
-  const handleDeleteJob = (jobId) => {
-    console.log('Delete job:', jobId);
+  const handleDeleteJob = (jobToDelete, option) => {
+    if (!jobToDelete) return
+    
+    // Get job ID - support both job_id and id fields
+    const jobId = jobToDelete.job_id || jobToDelete.id
+    if (!jobId) {
+      console.error("Job ID not found")
+      return
+    }
+    
+    // Update the jobs by location cache to remove the deleted job
+    const jobAddress = jobToDelete.customer_address || address
+    
+    dispatch(
+      jobsApi.util.updateQueryData(
+        "getJobsByLocation",
+        { address: jobAddress },
+        (draft) => {
+          if (option === "sequence" && jobToDelete.is_recurring) {
+            // Remove all jobs in the recurring sequence
+            draft.results = draft.results.filter(
+              (j) => !(
+                (j.customer_name === jobToDelete.customer_name && 
+                 j.job_type === jobToDelete.job_type && 
+                 j.is_recurring) ||
+                j.series_id === jobToDelete.series_id
+              )
+            )
+            // Update count
+            if (draft.count) {
+              const deletedCount = draft.results.length - (draft.count - 1)
+              draft.count = Math.max(0, draft.count - deletedCount)
+            }
+          } else {
+            // Remove only the single job
+            const index = draft.results.findIndex(j => 
+              j.id === jobId || j.job_id === jobId
+            )
+            if (index !== -1) {
+              draft.results.splice(index, 1)
+              // Update count
+              if (draft.count) {
+                draft.count = Math.max(0, draft.count - 1)
+              }
+            }
+          }
+        }
+      )
+    )
   };
 
   const handleJobUpdate = (result)=>{

@@ -47,18 +47,15 @@ import {
   Dashboard as DashboardIcon,
   AccountCircle,
 } from "@mui/icons-material"
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { useDispatch, useSelector } from "react-redux"
 import { logoutUser } from "../../store/slices/authSlice"
 
 // Navigation configuration based on roles
 const getNavItemsByRole = (role, fullAccessRoles, user_profile) => {
-  const commonItems = [
-    { text: "Dashboard", path: "/admin/dashboard", icon: DashboardIcon, roles: ["admin", "worker"] },
-  ]
-
   const adminItems = [
+    { text: "Dashboard", path: "/admin/dashboard", icon: DashboardIcon, roles: ["admin"] },
     { text: "Jobs", path: "/admin/jobs", icon: WorkOutline, roles: ["admin"] },
     { text: "Quotes", path: "/admin/accepted-quotes", icon: ReceiptLong, roles: ["admin"] },
     { text: "Team", path: "/admin/team", icon: Group, roles: ["admin"] },
@@ -69,37 +66,55 @@ const getNavItemsByRole = (role, fullAccessRoles, user_profile) => {
     { text: "Calendar", path: "/admin/calendar", icon: Event, roles: ["worker"] },
   ]
 
+  // Determine payroll path based on role and pay_scale_type
+  // For admins: always go to Time Clock (/admin/payroll)
+  // For workers: go to Time Clock if hourly, otherwise go to Calculator
+  const getPayrollPath = () => {
+    if (fullAccessRoles.includes(role)) {
+      return "/admin/payroll" // Admins always go to Time Clock
+    } else if (role === "worker") {
+      // Workers go to Time Clock if hourly, otherwise Calculator
+      return user_profile?.pay_scale_type === "hourly" 
+        ? "/admin/payroll" 
+        : "/admin/payroll/calculator"
+    }
+    return "/admin/payroll"
+  }
+
   const payrollItem = [
-    { text: "Payroll", path: "/admin/payroll", icon: AttachMoney, roles: ["admin", "worker"] },
+    { text: "Payroll", path: getPayrollPath(), icon: AttachMoney, roles: ["admin", "worker"] },
   ]
 
   const workerReportsProfile = [
     // { text: "Reports", path: "/admin/reports", icon: Assessment, roles: ["worker"] },
-    { text: "Profile", path: "/admin/profile", icon: AccountCircle, roles: ["worker"] },
+    // { text: "Profile", path: "/admin/profile", icon: AccountCircle, roles: ["worker"] },
   ]
 
   if (fullAccessRoles.includes(role)) {
-    return [...commonItems, ...adminItems, ...payrollItem]
+    return [...adminItems, ...payrollItem]
   } else if (role === "worker") {
-    return [...commonItems, ...workerItems, ...payrollItem, ...workerReportsProfile]
+    return [...workerItems, ...payrollItem, ...workerReportsProfile]
   }
 
-  return commonItems
+  return []
 }
 
 const getPayrollSubNavByRole = (role, fullAccessRoles, user_profile) => {
+  // Time Clock: Always show for admins, only show for workers if pay_scale_type is hourly
+  const timeClockItem = {
+    text: "Time Clock",
+    path: "/admin/payroll",
+    icon: AccessTime,
+    roles: ["admin", "worker"],
+  }
+
+  const shouldShowTimeClock = 
+    fullAccessRoles.includes(role) || // Always show for admins
+    (role === "worker" && user_profile?.pay_scale_type === "hourly") // Show for workers only if hourly
+
   const commonPayrollItems = [
     // { text: "Payroll Home", path: "/admin/payroll", icon: AttachMoney, roles: ["admin", "worker"] },
-    ...(user_profile?.pay_scale_type === "hourly"
-      ? [
-          {
-            text: "Time Clock",
-            path: "/admin/payroll",
-            icon: AccessTime,
-            roles: ["admin", "worker"],
-          },
-        ]
-      : []),
+    ...(shouldShowTimeClock ? [timeClockItem] : []),
     { text: "Payroll Calculator", path: "/admin/payroll/calculator", icon: Calculate, roles: ["admin", "worker"] },
     { text: "Reports", path: "/admin/payroll/reports", icon: Assessment, roles: ["admin", "worker"] },
   ]
@@ -151,10 +166,22 @@ export const AdminLayout = ({ children }) => {
 
   const fullAccessRoles = ["admin", "manager"]
 
-  // Get filtered navigation items based on role
-  const navItems = getNavItemsByRole(userRole, fullAccessRoles, user_profile)
-  const payrollSubNavItems = getPayrollSubNavByRole(userRole, fullAccessRoles, user_profile)
-  const managementItems = getManagementItemsByRole(userRole, fullAccessRoles)
+  // Use useMemo to recalculate navigation items when user_profile changes
+  // This ensures navigation updates when user_profile loads after login
+  const navItems = useMemo(() => 
+    getNavItemsByRole(userRole, fullAccessRoles, user_profile),
+    [userRole, user_profile, fullAccessRoles]
+  )
+  
+  const payrollSubNavItems = useMemo(() => 
+    getPayrollSubNavByRole(userRole, fullAccessRoles, user_profile),
+    [userRole, user_profile, fullAccessRoles]
+  )
+  
+  const managementItems = useMemo(() => 
+    getManagementItemsByRole(userRole, fullAccessRoles),
+    [userRole, fullAccessRoles]
+  )
 
   const isPayrollSection = location.pathname.startsWith("/admin/payroll")
   const isManagementActive = managementItems.some((item) => location.pathname === item.path)

@@ -39,6 +39,7 @@ import {
   useCreatePayoutMutation,
 } from '../../../store/api/payrollApi';
 import { useGetSettingsQuery } from '../../../store/api/payrollApi';
+import { EmployeeListSkeleton } from '../../../components/ui/skeletons';
 
 const PayrollCalculator = () => {
   const [calculationType, setCalculationType] = useState('project');
@@ -56,12 +57,19 @@ const PayrollCalculator = () => {
   const [startTime, setStartTime] = useState('08:00');
   const [endTime, setEndTime] = useState('17:00');
 
-  const { data: employeesData } = useGetEmployeesQuery();
+  // Get employees filtered by pay scale type based on calculation type
+  const payScaleType = calculationType === 'hourly' ? 'hourly' : 'project';
+  const { data: employeesData, isLoading: isLoadingEmployees } = useGetEmployeesQuery({ pay_scale_type: payScaleType });
   const { data: settingsData } = useGetSettingsQuery();
   const [createPayout, { isLoading: creating }] = useCreatePayoutMutation();
 
   const employees = employeesData?.results || [];
   const settings = settingsData?.[0];
+
+  // Clear selected employees when calculation type changes
+  useEffect(() => {
+    setSelectedEmployees([]);
+  }, [calculationType]);
 
   const handleEmployeeToggle = (employeeId) => {
     setSelectedEmployees((prev) =>
@@ -595,18 +603,32 @@ const PayrollCalculator = () => {
                   background: "background.paper",
                 }}
               >
-                {employees?.length === 0 ? (
+                {isLoadingEmployees ? (
+                  <EmployeeListSkeleton count={5} />
+                ) : employees?.length === 0 ? (
                   <Typography
                     variant="body2"
                     textAlign="center"
                     color="text.secondary"
                     sx={{ p: 4 }}
                   >
-                    No employees found
+                    No {calculationType === 'hourly' ? 'hourly' : 'project-based'} employees found
                   </Typography>
                 ) : (
-                  employees?.map((emp) => {
-                    const isSelected = selectedEmployees.includes(emp.id);
+                  employees
+                    ?.filter((emp) => {
+                      // Filter by search term if provided
+                      if (employeeSearch) {
+                        const searchLower = employeeSearch.toLowerCase();
+                        return (
+                          emp.full_name?.toLowerCase().includes(searchLower) ||
+                          emp.email?.toLowerCase().includes(searchLower)
+                        );
+                      }
+                      return true;
+                    })
+                    .map((emp) => {
+                      const isSelected = selectedEmployees.includes(emp.id);
 
                     return (
                       <Box

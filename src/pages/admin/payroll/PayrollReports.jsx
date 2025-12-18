@@ -45,6 +45,7 @@ import {
   useDeletePayoutMutation,
   useGetEmployeesQuery,
 } from '../../../store/api/payrollApi';
+import { TableSkeleton } from '../../../components/ui/skeletons';
 
 const PayrollReports = () => {
   const [filters, setFilters] = useState({
@@ -286,7 +287,7 @@ const PayrollReports = () => {
               variant="outlined"
               startIcon={<DownloadIcon />}
               onClick={handleExport}
-              disabled={payouts.length === 0}
+              disabled={payouts.length === 0 || isLoading}
             >
               Export
             </Button>
@@ -401,7 +402,7 @@ const PayrollReports = () => {
                 >
                   <MenuItem value="">All Employees</MenuItem>
                   {employees.map((emp) => (
-                    <MenuItem key={emp.id} value={emp.id}>
+                    <MenuItem key={emp.user_id} value={emp.user_id}>
                       {emp.full_name}
                     </MenuItem>
                   ))}
@@ -477,14 +478,31 @@ const PayrollReports = () => {
               </TableHead>
               <TableBody>
                 {isLoading || isFetching ? (
-                  <TableRow>
-                    <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
-                      <CircularProgress size={40} />
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                        Loading payouts...
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
+                  <>
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <TableRow key={i}>
+                        {Array.from({ length: 8 }).map((_, j) => (
+                          <TableCell key={j}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box
+                                sx={{
+                                  width: '100%',
+                                  height: 20,
+                                  bgcolor: 'action.hover',
+                                  borderRadius: 1,
+                                  animation: 'pulse 1.5s ease-in-out infinite',
+                                  '@keyframes pulse': {
+                                    '0%, 100%': { opacity: 1 },
+                                    '50%': { opacity: 0.5 },
+                                  },
+                                }}
+                              />
+                            </Box>
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </>
                 ) : payouts.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} align="center" sx={{ py: 8 }}>

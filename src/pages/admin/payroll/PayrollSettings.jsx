@@ -19,6 +19,7 @@ import {
 } from '@mui/icons-material';
 import { useGetSettingsQuery, useUpdateSettingsMutation } from '../../../store/api/payrollApi';
 import PayrollTeamManagement from './PayrollTeamManagement';
+import { CardGridSkeleton } from '../../../components/ui/skeletons';
 
 const PayrollSettings = () => {
   const [activeTab, setActiveTab] = useState(0);
@@ -73,14 +74,6 @@ const PayrollSettings = () => {
       setError(err.data?.detail || 'Failed to update settings');
     }
   };
-
-  if (settingsLoading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   return (
     <Box>
@@ -148,9 +141,12 @@ const PayrollSettings = () => {
               Configure bonus percentages for different project scenarios
             </Typography>
 
-            <Grid container spacing={4}>
-              {/* First Time Project Bonus */}
-              <Grid item xs={12} md={6}>
+            {settingsLoading ? (
+              <CardGridSkeleton count={2} />
+            ) : (
+              <Grid container spacing={4}>
+                {/* First Time Project Bonus */}
+                <Grid item xs={12} md={6}>
                 <Box
                   sx={{
                     p: 3,
@@ -252,7 +248,8 @@ const PayrollSettings = () => {
                   </Typography>
                 </Box>
               </Grid>
-            </Grid>
+              </Grid>
+            )}
           </CardContent>
         </Card>
       )}

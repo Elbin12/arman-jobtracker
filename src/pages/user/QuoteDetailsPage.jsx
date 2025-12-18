@@ -45,6 +45,7 @@ import {
 } from "../../store/api/user/quoteApi"
 import { Info, Plus } from "lucide-react"
 import { handleDownloadPDF } from "../../utils/handleDownloadPDF"
+import { QuoteDetailsSkeleton } from "../../components/ui/skeletons"
 
 const statusStyles = {
   pending: { bgcolor: "warning.light", color: "warning.dark" },
@@ -170,12 +171,12 @@ const QuoteDetailsPage = () => {
 
   if (isLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress sx={{ color: "#023c8f" }} />
-        <Typography variant="h6" sx={{ ml: 2 }}>
-          Loading quote details...
-        </Typography>
-      </Box>
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Button startIcon={<ArrowBack />} variant="text" onClick={() => navigate(-1)} sx={{ mb: 3 }}>
+          Back
+        </Button>
+        <QuoteDetailsSkeleton />
+      </Container>
     )
   }
 

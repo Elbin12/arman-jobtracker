@@ -41,7 +41,8 @@ export function FilterSidebar({
   onClose, 
   onApplyFilters,
   assignees = [],
-  initialFilters = {}
+  initialFilters = {},
+  userRole = "worker"
 }) {
   // Helper function to parse assignee_ids from string format "[1,2,3]" to array
   const parseAssigneeIds = (assigneeIds) => {
@@ -91,7 +92,8 @@ export function FilterSidebar({
     if (filters.search) params.search = filters.search
     if (filters.status) params.status = filters.status
     if (filters.job_type) params.job_type = filters.job_type
-    if (filters.assignee_ids.length > 0) {
+    // Only include assignee_ids for non-worker roles
+    if (userRole !== "worker" && filters.assignee_ids.length > 0) {
         params.assignee_ids = `[${filters.assignee_ids.join(',')}]`;
     }
     
@@ -114,7 +116,7 @@ export function FilterSidebar({
     (filters.search ? 1 : 0) +
     (filters.status ? 1 : 0) +
     (filters.job_type ? 1 : 0) +
-    (filters.assignee_ids.length > 0 ? 1 : 0)
+    (userRole !== "worker" && filters.assignee_ids.length > 0 ? 1 : 0)
 
   return (
     <Drawer
@@ -226,45 +228,50 @@ export function FilterSidebar({
               </FormControl>
             </Box>
 
-            {/* Assignee Filter */}
-            <Box>
-              <Typography variant="subtitle2" gutterBottom fontWeight="medium">
-                Assignees
-              </Typography>
-              <FormControl fullWidth>
-                <Select
-                  multiple
-                  value={filters.assignee_ids}
-                  onChange={(e) => handleFilterChange('assignee_ids', e.target.value)}
-                  displayEmpty
-                  renderValue={(selected) => {
-                    if (selected.length === 0) {
-                      return <em>All Assignees</em>
-                    }
-                    return (
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {selected.map((id) => {
-                          const assignee = assignees.find(a => a.id === id)
-                          return (
-                            <Chip 
-                              key={id} 
-                              label={assignee?.first_name + assignee.last_name} 
-                              size="small" 
-                            />
-                          )
-                        })}
-                      </Box>
-                    )
-                  }}
-                >
-                  {assignees.map((assignee) => (
-                    <MenuItem key={assignee.id} value={assignee.id}>
-                      {assignee.first_name} {assignee?.last_name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Box>
+            {/* Assignee Filter - Only visible for non-worker roles */}
+            {userRole !== "worker" && (
+              <>
+                <Divider />
+                <Box>
+                  <Typography variant="subtitle2" gutterBottom fontWeight="medium">
+                    Assignees
+                  </Typography>
+                  <FormControl fullWidth>
+                    <Select
+                      multiple
+                      value={filters.assignee_ids}
+                      onChange={(e) => handleFilterChange('assignee_ids', e.target.value)}
+                      displayEmpty
+                      renderValue={(selected) => {
+                        if (selected.length === 0) {
+                          return <em>All Assignees</em>
+                        }
+                        return (
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                            {selected.map((id) => {
+                              const assignee = assignees.find(a => a.id === id)
+                              return (
+                                <Chip 
+                                  key={id} 
+                                  label={assignee?.first_name + assignee.last_name} 
+                                  size="small" 
+                                />
+                              )
+                            })}
+                          </Box>
+                        )
+                      }}
+                    >
+                      {assignees.map((assignee) => (
+                        <MenuItem key={assignee.id} value={assignee.id}>
+                          {assignee.first_name} {assignee?.last_name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
+              </>
+            )}
           </Box>
         </Box>
 

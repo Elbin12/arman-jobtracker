@@ -13,10 +13,12 @@ import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 
-// Job status options
+// Job status options - matching jobs page filter
 const JOB_STATUS_CHOICES = [
-  { value: 'scheduled', label: 'Scheduled' },
   { value: 'pending', label: 'Pending' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'service_due', label: 'Service Due' },
+  { value: 'on_the_way', label: 'On The Way' },
   { value: 'in_progress', label: 'In Progress' },
   { value: 'completed', label: 'Completed' },
   { value: 'cancelled', label: 'Cancelled' },
@@ -563,12 +565,20 @@ export function TimelineSidebar({
               <CollapsibleContent className="pt-2">
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: "#9ca3ef" }}></div>
-                    <span className="text-xs text-gray-600">Scheduled</span>
+                    <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: "#fbbf24" }}></div>
+                    <span className="text-xs text-gray-600">Pending</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: "#f59e0b" }}></div>
-                    <span className="text-xs text-gray-600">Pending</span>
+                    <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: "#06b6d4" }}></div>
+                    <span className="text-xs text-gray-600">Confirmed</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: "#a855f7" }}></div>
+                    <span className="text-xs text-gray-600">Service Due</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: "#f97316" }}></div>
+                    <span className="text-xs text-gray-600">On The Way</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: "#3b82f6" }}></div>

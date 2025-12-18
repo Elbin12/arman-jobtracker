@@ -88,6 +88,10 @@ export const BookingWizard = () => {
 
   useEffect(() => {
   if (isSuccess && submissionData) {
+    // Get quoted_by - it might be an ID (number) or name (string) from API
+    // We'll keep it as-is for now, but ensure it's converted to ID when needed
+    const quotedByValue = submissionData?.quote_schedule?.quoted_by;
+    
     const transformedData = {
       submission_id: submissionData.id,
       userInfo: {
@@ -104,7 +108,7 @@ export const BookingWizard = () => {
         contact: submissionData?.contact,
         addressId: submissionData?.address?.id,
         first_time: submissionData?.quote_schedule?.first_time,
-        quoted_by: submissionData?.quote_schedule?.quoted_by
+        quoted_by: typeof quotedByValue === 'number' ? quotedByValue : (typeof quotedByValue === 'string' && !isNaN(Number(quotedByValue)) ? Number(quotedByValue) : quotedByValue)
       },
       selectedServices: submissionData.service_selections.map((s) => ({
         id: s.service_details.id,
@@ -350,7 +354,12 @@ export const BookingWizard = () => {
         address:addressId,
         house_sqft: bookingData.userInfo?.selectedHouseSize,
         first_time: bookingData.userInfo?.first_time? bookingData.userInfo?.first_time: false,
-        quoted_by: bookingData.userInfo?.quoted_by
+        quoted_by: (() => {
+          // Ensure quoted_by is always sent as a number (employee ID)
+          const quotedBy = bookingData.userInfo?.quoted_by;
+          if (!quotedBy) return null;
+          return typeof quotedBy === 'number' ? quotedBy : (typeof quotedBy === 'string' && !isNaN(Number(quotedBy)) ? Number(quotedBy) : null);
+        })()
       }
 
       try {

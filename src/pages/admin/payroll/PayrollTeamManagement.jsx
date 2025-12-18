@@ -49,6 +49,7 @@ import {
   useUpdateEmployeeMutation,
   useDeleteEmployeeMutation,
 } from '../../../store/api/payrollApi';
+import { CardGridSkeleton } from '../../../components/ui/skeletons';
 
 const PayrollTeamManagement = () => {
 
@@ -197,14 +198,6 @@ const PayrollTeamManagement = () => {
     return name.substring(0, 2).toUpperCase();
   };
 
-  if (isLoading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
-  }
-
   return (
     <Box sx={{ p: 3 }}>
       {/* Header */}
@@ -218,7 +211,7 @@ const PayrollTeamManagement = () => {
               Manage your team and their compensation
             </Typography>
           </Box>
-          <Button
+          {/* <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={handleAddEmployee}
@@ -235,7 +228,7 @@ const PayrollTeamManagement = () => {
             }}
           >
             Add Team Member
-          </Button>
+          </Button> */}
         </Box>
 
         {/* Search */}
@@ -272,16 +265,19 @@ const PayrollTeamManagement = () => {
       )}
 
       {/* Employee Cards */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))',
-          gap: 2, // 16px gap between cards
-          width: '100%',
-          alignItems:"stretch"
-        }}
-      >
-        {employeesData?.results.map((employee) => (
+      {isLoading ? (
+        <CardGridSkeleton count={6} />
+      ) : (
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))',
+            gap: 2, // 16px gap between cards
+            width: '100%',
+            alignItems:"stretch"
+          }}
+        >
+          {employeesData?.results.map((employee) => (
           <Card
             sx={{
               height: "100%",
@@ -497,9 +493,10 @@ const PayrollTeamManagement = () => {
             </CardContent>
           </Card>
         ))}
-      </Box>
+        </Box>
+      )}
 
-      {employeesData?.results?.length === 0 && (
+      {!isLoading && employeesData?.results?.length === 0 && (
         <Box 
           sx={{ 
             textAlign: 'center', 

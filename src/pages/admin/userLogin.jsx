@@ -29,19 +29,42 @@ const UserLogin = () => {
     if (email === "theservicepilot@gmail.com") {
       dispatch(loginUser({ username: ADMIN_USERNAME, password: ADMIN_PASSWORD }))
         .unwrap()
-        .then(() => navigate("/admin/dashboard", { replace: true })) // go to dashboard
+        .then((response) => {
+          // Check user role from response and redirect accordingly
+          const userRole = response?.user?.role || 'worker';
+          if (userRole === 'admin' || userRole === 'manager') {
+            navigate("/admin/dashboard", { replace: true });
+          } else {
+            navigate("/admin/jobs", { replace: true });
+          }
+        })
         .catch(() => {});
     }else{
       dispatch(loginUser({ username: email, password: USER_PASSWORD }))
         .unwrap()
-        .then(() => navigate("/admin/dashboard", { replace: true })) // go to dashboard
+        .then((response) => {
+          // Check user role from response and redirect accordingly
+          const userRole = response?.user?.role || 'worker';
+          if (userRole === 'admin' || userRole === 'manager') {
+            navigate("/admin/dashboard", { replace: true });
+          } else {
+            navigate("/admin/jobs", { replace: true });
+          }
+        })
         .catch(() => {});
     }
   }, [email, dispatch, navigate]);
 
   useEffect(()=>{
     if (success) {
-      navigate('/admin/dashboard');
+      // Get user from Redux state to determine redirect
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const userRole = user?.role || 'worker';
+      if (userRole === 'admin' || userRole === 'manager') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/admin/jobs');
+      }
     }
   },[success, navigate]);
 
