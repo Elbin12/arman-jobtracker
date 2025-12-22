@@ -35,7 +35,7 @@ import {
   DeleteForever,
 } from '@mui/icons-material';
 import { useCalculatePriceMutation } from '../../../store/api/user/priceApi';
-import { useCreateCustomProductMutation, useDeleteCustomProductMutation, useGetQuoteDetailsQuery, useUpdateCustomProductMutation, useDeleteServiceMutation, useGetGlobalPriceQuery } from '../../../store/api/user/quoteApi';
+import { useCreateCustomProductMutation, useDeleteCustomProductMutation, useGetQuoteDetailsQuery, useUpdateCustomProductMutation, useDeleteServiceMutation, useGetGlobalPriceQuery, useRejectQuoteMutation } from '../../../store/api/user/quoteApi';
 import { useRef } from 'react';
 import SignatureCanvas from 'react-signature-canvas';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -78,6 +78,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteServiceDialogOpen, setDeleteServiceDialogOpen] = useState(false);
   const [serviceToDelete, setServiceToDelete] = useState(null);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [newProduct, setNewProduct] = useState({
     product_name: '',
     description: '',
@@ -108,6 +109,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
   const [updateCustomProduct] = useUpdateCustomProductMutation();
   const [deleteCustomProduct] = useDeleteCustomProductMutation();
   const [deleteService, { isLoading: isDeleting }] = useDeleteServiceMutation();
+  const [rejectQuote, { isLoading: isRejecting }] = useRejectQuoteMutation();
 
   const sigCanvasRef = useRef(null);
 
@@ -1128,30 +1130,55 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                 sx={{ flex: 1 }}
               />
 
-              <Button
-                variant="contained"
-                size="large"
-                disabled={
-                  (
-                    Object.keys(data.selectedPackages).length === 0 &&
-                    (data.selectedServices?.length ?? 0) === 0 &&
-                    (data.selectedCustomProducts?.length ?? 0) === 0
-                  )
-                  || !termsAccepted
-                  || !isStepComplete(3)
-                }
+              <Box display="flex" gap={2} flexDirection={{ xs: "column", sm: "row" }} width={{ xs: "100%", sm: "auto" }}>
+                <Button
+                  variant="outlined"
+                  size="large"
+                  disabled={isRejecting}
+                  sx={{
+                    borderColor: "#ef4444",
+                    color: "#ef4444",
+                    "&:hover": { 
+                      borderColor: "#dc2626",
+                      backgroundColor: "#fee2e2",
+                    },
+                    "&:disabled": { 
+                      borderColor: "#e0e0e0",
+                      color: "#e0e0e0"
+                    },
+                    fontWeight: 600,
+                    minWidth: { xs: "100%", sm: "200px" },
+                  }}
+                  onClick={() => setRejectDialogOpen(true)}
+                >
+                  {isRejecting ? 'Rejecting...' : 'Reject Quote'}
+                </Button>
 
-                sx={{
-                  bgcolor: "#42bd3f",
-                  "&:hover": { bgcolor: "#369932" },
-                  "&:disabled": { bgcolor: "#e0e0e0" },
-                  fontWeight: 600,
-                  minWidth: { xs: "100%", sm: "200px" },
-                }}
-                onClick={handleNext}
-              >
-                Accept Quote
-              </Button>
+                <Button
+                  variant="contained"
+                  size="large"
+                  disabled={
+                    (
+                      Object.keys(data.selectedPackages).length === 0 &&
+                      (data.selectedServices?.length ?? 0) === 0 &&
+                      (data.selectedCustomProducts?.length ?? 0) === 0
+                    )
+                    || !termsAccepted
+                    || !isStepComplete(3)
+                  }
+
+                  sx={{
+                    bgcolor: "#42bd3f",
+                    "&:hover": { bgcolor: "#369932" },
+                    "&:disabled": { bgcolor: "#e0e0e0" },
+                    fontWeight: 600,
+                    minWidth: { xs: "100%", sm: "200px" },
+                  }}
+                  onClick={handleNext}
+                >
+                  Accept Quote
+                </Button>
+              </Box>
             </Box>
 
             <Typography variant="caption" color="text.secondary" display="block" textAlign="center" mt={2}>
@@ -1230,6 +1257,51 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
             }}
           >
             {isDeleting ? 'Deleting...' : 'Delete Service'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Reject Quote Confirmation Dialog */}
+      <Dialog open={rejectDialogOpen} onClose={() => !isRejecting && setRejectDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#ef4444' }}>
+          <Close sx={{ color: '#ef4444' }} />
+          Reject Quote
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" gutterBottom>
+            Are you sure you want to reject this quote?
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            This action will mark the quote as rejected. You will be redirected to the quote details page after confirmation.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 3, pt: 1 }}>
+          <Button 
+            onClick={() => setRejectDialogOpen(false)}
+            disabled={isRejecting}
+            sx={{ color: '#666' }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="contained" 
+            onClick={async () => {
+              try {
+                await rejectQuote(data.submission_id).unwrap();
+                navigate(`/quote/details/${data.submission_id}`);
+              } catch (error) {
+                console.error('Failed to reject quote:', error);
+              }
+            }}
+            disabled={isRejecting}
+            startIcon={isRejecting ? <CircularProgress size={16} color="inherit" /> : <Close />}
+            sx={{
+              bgcolor: '#ef4444',
+              '&:hover': { bgcolor: '#dc2626' },
+              '&:disabled': { bgcolor: '#ffcdd2' }
+            }}
+          >
+            {isRejecting ? 'Rejecting...' : 'Reject Quote'}
           </Button>
         </DialogActions>
       </Dialog>

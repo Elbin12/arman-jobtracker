@@ -18,9 +18,29 @@ const AdminCalendar = () => {
   );
 
   return (
-    <Box>
-      <Typography variant="h4" component="h1" gutterBottom>Calendar</Typography>
-      <Typography variant="body2" color="text.secondary" mb={2}>Scheduled jobs grouped by day.</Typography>
+    <Box sx={{ width: '100%', overflow: 'hidden' }}>
+      <Typography 
+        variant="h4" 
+        component="h1" 
+        gutterBottom
+        sx={{ 
+          fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' },
+          fontWeight: 600
+        }}
+      >
+        Calendar
+      </Typography>
+      <Typography 
+        variant="body2" 
+        color="text.secondary" 
+        mb={2}
+        sx={{ 
+          fontSize: { xs: '0.75rem', sm: '0.875rem' },
+          display: { xs: 'none', sm: 'block' }
+        }}
+      >
+        Scheduled jobs grouped by day.
+      </Typography>
       <NewCalendar 
         users={canViewStaff ? (assigneesData?.results || []) : []} 
         isLoadingUsers={canViewStaff ? assigneesLoading : false} 

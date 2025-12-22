@@ -38,6 +38,10 @@ import {
   Clear as ClearIcon,
   FileDownload as DownloadIcon,
   Refresh as RefreshIcon,
+  AttachMoney as MoneyIcon,
+  Work as WorkIcon,
+  AccessTime as TimeIcon,
+  TrendingUp as TrendingUpIcon,
 } from '@mui/icons-material';
 import {
   useGetPayoutsQuery,
@@ -46,8 +50,13 @@ import {
   useGetEmployeesQuery,
 } from '../../../store/api/payrollApi';
 import { TableSkeleton } from '../../../components/ui/skeletons';
+import { useSelector } from 'react-redux';
 
 const PayrollReports = () => {
+  const user = useSelector((state) => state.auth.user);
+  const userRole = user?.role || 'worker';
+  const canEditDelete = ['admin', 'supervisor', "manager"].includes(userRole);
+
   const [filters, setFilters] = useState({
     employee: '',
     type: '',
@@ -93,8 +102,11 @@ const PayrollReports = () => {
   const totalCount = payoutsData?.count || 0;
   const totalPages = Math.ceil(totalCount / 20);
   
+  // Determine if we should show time entry columns (clock in, clock out, total hours)
+  const showTimeColumns = filters.type === 'hourly' || payouts.some(p => p.payout_type === 'hourly' && p.time_entry_details);
+  
   // Calculate summary statistics
-  const summary = useMemo(() => {
+  const   summary = useMemo(() => {
     const totalAmount = payouts.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
     const projectPayouts = payouts.filter(p => p.payout_type === 'project');
     const hourlyPayouts = payouts.filter(p => p.payout_type === 'hourly');
@@ -218,13 +230,15 @@ const PayrollReports = () => {
 
   const handleExport = () => {
     // Prepare CSV data
-    const headers = ['Employee', 'Type', 'Project/Description', 'Amount', 'Rate %', 'Project Value', 'Date', 'Notes'];
+    const headers = ['Employee', 'Type', 'Project/Description', 'Amount', 'Rate', 'Project Value', 'Date', 'Notes'];
     const rows = payouts.map(p => [
       p.employee_name || 'N/A',
       p.payout_type || 'project',
       p.project_title || 'N/A',
       p.amount || '0',
-      p.rate_percentage || 'N/A',
+      p.rate_percentage 
+        ? `${parseFloat(p.rate_percentage).toFixed(2)}${p.payout_type === 'hourly' ? '/hr' : '%'}`
+        : 'N/A',
       p.project_value || 'N/A',
       formatDate(p.created_at),
       p.notes || '',
@@ -264,6 +278,18 @@ const PayrollReports = () => {
     }).format(value || 0);
   };
 
+  const formatTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
   return (
     <Box sx={{ p: 3 }}>
       {/* Header */}
@@ -297,62 +323,242 @@ const PayrollReports = () => {
         {/* Summary Cards */}
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6} md={3}>
-            <Card variant="outlined">
-              <CardContent>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Total Payouts
-                </Typography>
-                <Typography variant="h5" fontWeight={600}>
-                  {formatCurrency(summary.totalAmount)}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {summary.totalCount} transactions
-                </Typography>
+            <Card 
+              sx={{ 
+                height: '100%',
+                bgcolor: 'primary.50',
+                border: 'none',
+                boxShadow: 1,
+                position: 'relative',
+                overflow: 'hidden',
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: 3,
+                  transition: 'all 0.2s ease-in-out',
+                },
+                transition: 'all 0.2s ease-in-out',
+              }}
+            >
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: -20,
+                  right: -20,
+                  width: 100,
+                  height: 100,
+                  borderRadius: '50%',
+                  bgcolor: 'primary.100',
+                  opacity: 0.3,
+                }}
+              />
+              <CardContent sx={{ position: 'relative', zIndex: 1, p: 3 }}>
+                <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                  <Box flex={1}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 500, fontSize: '0.875rem' }}>
+                      Total Payouts
+                    </Typography>
+                    <Typography variant="h4" fontWeight={700} color="text.primary" sx={{ mb: 0.5 }}>
+                      {formatCurrency(summary.totalAmount)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.813rem' }}>
+                      {summary.totalCount} transactions
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 2,
+                      bgcolor: 'primary.100',
+                      color: 'primary.main',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      ml: 2,
+                    }}
+                  >
+                    <MoneyIcon sx={{ fontSize: 28 }} />
+                  </Box>
+                </Box>
               </CardContent>
             </Card>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card variant="outlined">
-              <CardContent>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Project Payouts
-                </Typography>
-                <Typography variant="h5" fontWeight={600}>
-                  {formatCurrency(summary.projectAmount)}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {summary.projectCount} projects
-                </Typography>
+            <Card 
+              sx={{ 
+                height: '100%',
+                bgcolor: 'info.50',
+                border: 'none',
+                boxShadow: 1,
+                position: 'relative',
+                overflow: 'hidden',
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: 3,
+                  transition: 'all 0.2s ease-in-out',
+                },
+                transition: 'all 0.2s ease-in-out',
+              }}
+            >
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: -20,
+                  right: -20,
+                  width: 100,
+                  height: 100,
+                  borderRadius: '50%',
+                  bgcolor: 'info.100',
+                  opacity: 0.3,
+                }}
+              />
+              <CardContent sx={{ position: 'relative', zIndex: 1, p: 3 }}>
+                <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                  <Box flex={1}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 500, fontSize: '0.875rem' }}>
+                      Project Payouts
+                    </Typography>
+                    <Typography variant="h4" fontWeight={700} color="text.primary" sx={{ mb: 0.5 }}>
+                      {formatCurrency(summary.projectAmount)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.813rem' }}>
+                      {summary.projectCount} projects
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 2,
+                      bgcolor: 'info.100',
+                      color: 'info.main',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      ml: 2,
+                    }}
+                  >
+                    <WorkIcon sx={{ fontSize: 28 }} />
+                  </Box>
+                </Box>
               </CardContent>
             </Card>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card variant="outlined">
-              <CardContent>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Hourly Payouts
-                </Typography>
-                <Typography variant="h5" fontWeight={600}>
-                  {formatCurrency(summary.hourlyAmount)}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {summary.hourlyCount} entries
-                </Typography>
+            <Card 
+              sx={{ 
+                height: '100%',
+                bgcolor: 'success.50',
+                border: 'none',
+                boxShadow: 1,
+                position: 'relative',
+                overflow: 'hidden',
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: 3,
+                  transition: 'all 0.2s ease-in-out',
+                },
+                transition: 'all 0.2s ease-in-out',
+              }}
+            >
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: -20,
+                  right: -20,
+                  width: 100,
+                  height: 100,
+                  borderRadius: '50%',
+                  bgcolor: 'success.100',
+                  opacity: 0.3,
+                }}
+              />
+              <CardContent sx={{ position: 'relative', zIndex: 1, p: 3 }}>
+                <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                  <Box flex={1}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 500, fontSize: '0.875rem' }}>
+                      Hourly Payouts
+                    </Typography>
+                    <Typography variant="h4" fontWeight={700} color="text.primary" sx={{ mb: 0.5 }}>
+                      {formatCurrency(summary.hourlyAmount)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.813rem' }}>
+                      {summary.hourlyCount} entries
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 2,
+                      bgcolor: 'success.100',
+                      color: 'success.main',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      ml: 2,
+                    }}
+                  >
+                    <TimeIcon sx={{ fontSize: 28 }} />
+                  </Box>
+                </Box>
               </CardContent>
             </Card>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card variant="outlined">
-              <CardContent>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Average Payout
-                </Typography>
-                <Typography variant="h5" fontWeight={600}>
-                  {formatCurrency(summary.totalCount > 0 ? summary.totalAmount / summary.totalCount : 0)}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  per transaction
-                </Typography>
+            <Card 
+              sx={{ 
+                height: '100%',
+                bgcolor: 'warning.50',
+                border: 'none',
+                boxShadow: 1,
+                position: 'relative',
+                overflow: 'hidden',
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: 3,
+                  transition: 'all 0.2s ease-in-out',
+                },
+                transition: 'all 0.2s ease-in-out',
+              }}
+            >
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: -20,
+                  right: -20,
+                  width: 100,
+                  height: 100,
+                  borderRadius: '50%',
+                  bgcolor: 'warning.100',
+                  opacity: 0.3,
+                }}
+              />
+              <CardContent sx={{ position: 'relative', zIndex: 1, p: 3 }}>
+                <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                  <Box flex={1}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 500, fontSize: '0.875rem' }}>
+                      Average Payout
+                    </Typography>
+                    <Typography variant="h4" fontWeight={700} color="text.primary" sx={{ mb: 0.5 }}>
+                      {formatCurrency(summary.totalCount > 0 ? summary.totalAmount / summary.totalCount : 0)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.813rem' }}>
+                      per transaction
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 2,
+                      bgcolor: 'warning.100',
+                      color: 'warning.main',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      ml: 2,
+                    }}
+                  >
+                    <TrendingUpIcon sx={{ fontSize: 28 }} />
+                  </Box>
+                </Box>
               </CardContent>
             </Card>
           </Grid>
@@ -391,13 +597,12 @@ const PayrollReports = () => {
             </Button>
           </Box>
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6} md={2.4}>
+            <Grid item xs={12} sm={6} md={3}>
               <FormControl fullWidth size="small">
-                <InputLabel>Employee</InputLabel>
                 <Select
+                  displayEmpty
                   value={filters.employee}
                   onChange={(e) => handleFilterChange('employee', e.target.value)}
-                  label="Employee"
                   disabled={loadingEmployees}
                 >
                   <MenuItem value="">All Employees</MenuItem>
@@ -411,11 +616,10 @@ const PayrollReports = () => {
             </Grid>
             <Grid item xs={12} sm={6} md={2.4}>
               <FormControl fullWidth size="small">
-                <InputLabel>Type</InputLabel>
                 <Select
+                  displayEmpty
                   value={filters.type}
                   onChange={(e) => handleFilterChange('type', e.target.value)}
-                  label="Type"
                 >
                   <MenuItem value="">All Types</MenuItem>
                   <MenuItem value="project">Project</MenuItem>
@@ -470,10 +674,19 @@ const PayrollReports = () => {
                   <TableCell sx={{ fontWeight: 600 }}>Type</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Project/Description</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 600 }}>Amount</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600 }}>Rate %</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600 }}>Rate</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 600 }}>Project Value</TableCell>
+                  {showTimeColumns && (
+                    <>
+                      <TableCell sx={{ fontWeight: 600 }}>Clock In</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Clock Out</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600 }}>Total Hours</TableCell>
+                    </>
+                  )}
                   <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 600 }}>Actions</TableCell>
+                  {canEditDelete && (
+                    <TableCell align="center" sx={{ fontWeight: 600 }}>Actions</TableCell>
+                  )}
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -481,7 +694,7 @@ const PayrollReports = () => {
                   <>
                     {Array.from({ length: 8 }).map((_, i) => (
                       <TableRow key={i}>
-                        {Array.from({ length: 8 }).map((_, j) => (
+                        {Array.from({ length: showTimeColumns ? (canEditDelete ? 11 : 10) : (canEditDelete ? 8 : 7) }).map((_, j) => (
                           <TableCell key={j}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                               <Box
@@ -498,14 +711,14 @@ const PayrollReports = () => {
                                 }}
                               />
                             </Box>
-                          </TableCell>
+                    </TableCell>
                         ))}
-                      </TableRow>
+                  </TableRow>
                     ))}
                   </>
                 ) : payouts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
+                    <TableCell colSpan={showTimeColumns ? (canEditDelete ? 11 : 10) : (canEditDelete ? 8 : 7)} align="center" sx={{ py: 8 }}>
                       <Typography variant="body1" color="text.secondary">
                         No payouts found
                       </Typography>
@@ -531,7 +744,7 @@ const PayrollReports = () => {
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={payout.payout_type || 'project'}
+                          label={payout.payout_type === 'bonus_first_time' ? 'Fist time bonus' : payout.payout_type || 'project'}
                           size="small"
                           color={payout.payout_type === 'hourly' ? 'primary' : 'default'}
                           sx={{ textTransform: 'capitalize' }}
@@ -565,7 +778,8 @@ const PayrollReports = () => {
                       <TableCell align="right">
                         {payout.rate_percentage ? (
                           <Typography variant="body2">
-                            {parseFloat(payout.rate_percentage).toFixed(2)}%
+                            {parseFloat(payout.rate_percentage).toFixed(2)}
+                            {payout.payout_type === 'hourly' ? '/hr' : '%'}
                           </Typography>
                         ) : (
                           <Typography variant="body2" color="text.secondary">—</Typography>
@@ -580,31 +794,68 @@ const PayrollReports = () => {
                           <Typography variant="body2" color="text.secondary">—</Typography>
                         )}
                       </TableCell>
+                      {showTimeColumns && (
+                        <>
+                          <TableCell>
+                            {payout.payout_type === 'hourly' && payout.time_entry_details ? (
+                              <Typography variant="body2">
+                                {formatTime(payout.time_entry_details.check_in_time)}
+                              </Typography>
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">—</Typography>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {payout.payout_type === 'hourly' && payout.time_entry_details ? (
+                              <Typography variant="body2">
+                                {payout.time_entry_details.check_out_time 
+                                  ? formatTime(payout.time_entry_details.check_out_time)
+                                  : '—'}
+                              </Typography>
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">—</Typography>
+                            )}
+                          </TableCell>
+                          <TableCell align="right">
+                            {payout.payout_type === 'hourly' && payout.time_entry_details ? (
+                              <Typography variant="body2" fontWeight={500}>
+                                {payout.time_entry_details.total_hours 
+                                  ? `${parseFloat(payout.time_entry_details.total_hours).toFixed(2)}h`
+                                  : '—'}
+                              </Typography>
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">—</Typography>
+                            )}
+                          </TableCell>
+                        </>
+                      )}
                       <TableCell>
                         <Typography variant="body2">
                           {formatDate(payout.created_at)}
                         </Typography>
                       </TableCell>
-                      <TableCell align="center">
-                        <Tooltip title="Edit payout">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleEdit(payout)}
-                            color="primary"
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete payout">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDeleteConfirm(payout)}
-                            color="error"
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </TableCell>
+                      {canEditDelete && (
+                        <TableCell align="center">
+                          <Tooltip title="Edit payout">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleEdit(payout)}
+                              color="primary"
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete payout">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDeleteConfirm(payout)}
+                              color="error"
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}
@@ -662,6 +913,37 @@ const PayrollReports = () => {
                   Project: {selectedPayout.project_title}
                 </Typography>
               )}
+            </Alert>
+          )}
+          {selectedPayout?.payout_type === 'hourly' && selectedPayout?.time_entry_details && (
+            <Alert severity="info" sx={{ mb: 3 }}>
+              <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                Time Entry Details
+              </Typography>
+              <Grid container spacing={1}>
+                <Grid item xs={4}>
+                  <Typography variant="caption" color="text.secondary">Clock In:</Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    {formatTime(selectedPayout.time_entry_details.check_in_time)}
+                  </Typography>
+                </Grid>
+                <Grid item xs={4}>
+                  <Typography variant="caption" color="text.secondary">Clock Out:</Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    {selectedPayout.time_entry_details.check_out_time
+                      ? formatTime(selectedPayout.time_entry_details.check_out_time)
+                      : 'N/A'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={4}>
+                  <Typography variant="caption" color="text.secondary">Total Hours:</Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    {selectedPayout.time_entry_details.total_hours
+                      ? `${parseFloat(selectedPayout.time_entry_details.total_hours).toFixed(2)}h`
+                      : 'N/A'}
+                  </Typography>
+                </Grid>
+              </Grid>
             </Alert>
           )}
           <Grid container spacing={2}>

@@ -26,10 +26,12 @@ const JOB_STATUS_CHOICES = [
 
 // Appointment status options
 const APPOINTMENT_STATUS_CHOICES = [
-  { value: 'new', label: 'New' },
+  { value: 'new', label: 'Unconfirmed' }, // Maps to 'new' in backend, displays as 'Unconfirmed' in UI
   { value: 'confirmed', label: 'Confirmed' },
-  { value: 'completed', label: 'Completed' },
   { value: 'cancelled', label: 'Cancelled' },
+  { value: 'showed', label: 'Showed' },
+  { value: 'noshow', label: 'No Show' },
+  { value: 'invalid', label: 'Invalid' },
 ];
 
 // Helper function to parse comma-separated string or array to array
@@ -610,19 +612,27 @@ export function TimelineSidebar({
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded flex-shrink-0 border border-white" style={{ backgroundColor: "#9ca3ef" }}></div>
-                    <span className="text-xs text-gray-600">New</span>
+                    <span className="text-xs text-gray-600">Unconfirmed</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded flex-shrink-0 border border-white" style={{ backgroundColor: "#06b6d4" }}></div>
                     <span className="text-xs text-gray-600">Confirmed</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded flex-shrink-0 border border-white" style={{ backgroundColor: "#10b981" }}></div>
-                    <span className="text-xs text-gray-600">Completed</span>
-                  </div>
-                  <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded flex-shrink-0 border border-white" style={{ backgroundColor: "#ef4444" }}></div>
                     <span className="text-xs text-gray-600">Cancelled</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0 border border-white" style={{ backgroundColor: "#10b981" }}></div>
+                    <span className="text-xs text-gray-600">Showed</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0 border border-white" style={{ backgroundColor: "#f59e0b" }}></div>
+                    <span className="text-xs text-gray-600">No Show</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0 border border-white" style={{ backgroundColor: "#6b7280" }}></div>
+                    <span className="text-xs text-gray-600">Invalid</span>
                   </div>
                 </div>
               </CollapsibleContent>

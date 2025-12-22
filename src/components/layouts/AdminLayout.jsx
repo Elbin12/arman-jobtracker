@@ -55,10 +55,10 @@ import { logoutUser } from "../../store/slices/authSlice"
 // Navigation configuration based on roles
 const getNavItemsByRole = (role, fullAccessRoles, user_profile) => {
   const adminItems = [
-    { text: "Dashboard", path: "/admin/dashboard", icon: DashboardIcon, roles: ["admin"] },
-    { text: "Jobs", path: "/admin/jobs", icon: WorkOutline, roles: ["admin"] },
-    { text: "Quotes", path: "/admin/accepted-quotes", icon: ReceiptLong, roles: ["admin"] },
-    { text: "Team", path: "/admin/team", icon: Group, roles: ["admin"] },
+    { text: "Dashboard", path: "/admin/dashboard", icon: DashboardIcon, roles: ["admin", "supervisor"] },
+    { text: "Jobs", path: "/admin/jobs", icon: WorkOutline, roles: ["admin", "supervisor"] },
+    { text: "Quotes", path: "/admin/accepted-quotes", icon: ReceiptLong, roles: ["admin", "supervisor"] },
+    { text: "Team", path: "/admin/team", icon: Group, roles: ["admin", "supervisor"] },
   ]
 
   const workerItems = [
@@ -73,10 +73,7 @@ const getNavItemsByRole = (role, fullAccessRoles, user_profile) => {
     if (fullAccessRoles.includes(role)) {
       return "/admin/payroll" // Admins always go to Time Clock
     } else if (role === "worker") {
-      // Workers go to Time Clock if hourly, otherwise Calculator
-      return user_profile?.pay_scale_type === "hourly" 
-        ? "/admin/payroll" 
-        : "/admin/payroll/calculator"
+      return "/admin/payroll/reports"
     }
     return "/admin/payroll"
   }
@@ -115,11 +112,11 @@ const getPayrollSubNavByRole = (role, fullAccessRoles, user_profile) => {
   const commonPayrollItems = [
     // { text: "Payroll Home", path: "/admin/payroll", icon: AttachMoney, roles: ["admin", "worker"] },
     ...(shouldShowTimeClock ? [timeClockItem] : []),
-    { text: "Payroll Calculator", path: "/admin/payroll/calculator", icon: Calculate, roles: ["admin", "worker"] },
     { text: "Reports", path: "/admin/payroll/reports", icon: Assessment, roles: ["admin", "worker"] },
   ]
 
   const adminOnlyPayrollItems = [
+    { text: "Payroll Calculator", path: "/admin/payroll/calculator", icon: Calculate, roles: ["admin"] },
     { text: "Settings", path: "/admin/payroll/settings", icon: Settings, roles: ["admin"] },
     // { text: "Team Management", path: "/admin/payroll/team", icon: PeopleAlt, roles: ["admin"] },
   ]
@@ -164,7 +161,7 @@ export const AdminLayout = ({ children }) => {
   const userName = user_profile?.full_name || "User"
   console.log("User Role:", userRole, useSelector((state) => state.auth.user_profile));
 
-  const fullAccessRoles = ["admin", "manager"]
+  const fullAccessRoles = ["admin", "manager", "supervisor"]
 
   // Use useMemo to recalculate navigation items when user_profile changes
   // This ensures navigation updates when user_profile loads after login
@@ -727,7 +724,7 @@ export const AdminLayout = ({ children }) => {
         }}
       >
         {/* Breadcrumb for Payroll Section */}
-        {isPayrollSection && (
+        {/* {isPayrollSection && (
           <Breadcrumbs
             separator={<NavigateNext fontSize="small" />}
             sx={{ mb: 3 }}
@@ -751,7 +748,7 @@ export const AdminLayout = ({ children }) => {
               {getPayrollBreadcrumb()}
             </Typography>
           </Breadcrumbs>
-        )}
+        )} */}
         {children}
       </Box>
     </Box>

@@ -99,45 +99,45 @@ function App() {
                     </AdminProtectedRoute>
                   }>
                     <Route path="dashboard" element={
-                      <RoleProtectedRoute allowedRoles={['admin', 'manager']}>
+                      <RoleProtectedRoute allowedRoles={['admin', 'manager', 'supervisor']}>
                         <AdminDashboard />
                       </RoleProtectedRoute>
                     } />
                     <Route path="jobs" element={<Jobs />} />
                     {/* <Route path="jobs/:id" element={<JobDetails />} /> */}
                     <Route path="accepted-quotes" element={
-                        <RoleProtectedRoute allowedRoles={['manager']}>
+                        <RoleProtectedRoute allowedRoles={['manager', 'supervisor']}>
                           <AcceptedQuotes />
                         </RoleProtectedRoute>
                       }
                       />
                     <Route path="team" element={
-                        <RoleProtectedRoute allowedRoles={['manager']}>
+                        <RoleProtectedRoute allowedRoles={['manager', 'supervisor']}>
                           <TeamManagement />
                         </RoleProtectedRoute>
                       }
                     />
                     <Route path="calendar" element={<AdminCalendar />} />
                     <Route path="create-job" element={
-                        <RoleProtectedRoute allowedRoles={['manager']}>
+                        <RoleProtectedRoute allowedRoles={['manager', 'supervisor']}>
                           <CreateJob />
                         </RoleProtectedRoute>
                       }
                     />
                     <Route path="services" element={
-                        <RoleProtectedRoute allowedRoles={['manager']}>
+                        <RoleProtectedRoute allowedRoles={['manager', 'supervisor']}>
                           <ServicesManagement />
                         </RoleProtectedRoute>
                       }
                     />
                     <Route path="locations" element={
-                        <RoleProtectedRoute allowedRoles={['manager']}>
+                        <RoleProtectedRoute allowedRoles={['manager', 'supervisor']}>
                           <LocationsManagement />
                         </RoleProtectedRoute>
                       }
                     />
                     <Route path="house-size-info" element={
-                        <RoleProtectedRoute allowedRoles={['manager']}>
+                        <RoleProtectedRoute allowedRoles={['manager', 'supervisor']}>
                           <HouseSizeInfo />
                         </RoleProtectedRoute>
                       }
@@ -148,13 +148,13 @@ function App() {
                     <Route path="payroll/calculator" element={<PayrollCalculator />} />
                     <Route path="payroll/reports" element={<PayrollReports />} />
                     <Route path="payroll/settings" element={
-                        <RoleProtectedRoute allowedRoles={['admin', 'manager']}>
+                        <RoleProtectedRoute allowedRoles={['admin', 'manager', 'supervisor']}>
                           <PayrollSettings />
                         </RoleProtectedRoute>
                       }
                     />
                     {/* <Route path="payroll/team" element={
-                        <RoleProtectedRoute allowedRoles={['admin', 'manager']}>
+                        <RoleProtectedRoute allowedRoles={['admin', 'manager', 'supervisor']}>
                           <PayrollTeamManagement />
                         </RoleProtectedRoute>
                       }

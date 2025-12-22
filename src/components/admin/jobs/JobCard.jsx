@@ -285,7 +285,7 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                     <MoreVertical size={18} />
                   </IconButton>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="z-[1400]">
                   <DropdownMenuItem onClick={() => setDeleteDialogOpen(true)}>
                     <Trash2 size={16} className="mr-2" />
                     Delete
@@ -331,7 +331,7 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
             ) : (
               <Box sx={{ height: '24px' }} /> // Placeholder to maintain height
             )}
-          </Box>
+            </Box>
 
           {/* 2-Column Layout */}
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mb: 3 }}>
@@ -451,44 +451,44 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
           <Divider sx={{ my: 2 }} />
 
           {/* Services & Pricing - Consistent structure */}
-          <Box sx={{ mb: 3 }}>
+            <Box sx={{ mb: 3 }}>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase', mb: 1.5, display: 'block', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
-              Services
-            </Typography>
+                Services
+              </Typography>
             {job.items && job.items.length > 0 ? (
               <>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minHeight: '60px' }}>
-                  {job.items.map((item, index) => {
-                    const serviceName = item.service_name || item.custom_name || "Unknown Service"
-                    const itemPrice = parseFloat(item.price) || 0
-                    return (
-                      <Box key={item.id || index} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <Typography variant="body2" sx={{ fontSize: '0.875rem', flex: 1, fontWeight: 500, color: 'text.primary' }}>
-                          {serviceName}
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontSize: '0.875rem', color: "text.secondary", ml: 2, fontWeight: 500 }}>
-                          {formatPrice(itemPrice)}
-                        </Typography>
-                      </Box>
-                    )
-                  })}
-                </Box>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-                  <Typography variant="body2" sx={{ fontSize: '0.875rem', fontWeight: 600 }}>
-                    Total
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontSize: '0.875rem', fontWeight: 700, color: "success.main" }}>
-                    {formatPrice(servicesTotal)}
-                  </Typography>
-                </Box>
+                {job.items.map((item, index) => {
+                  const serviceName = item.service_name || item.custom_name || "Unknown Service"
+                  const itemPrice = parseFloat(item.price) || 0
+                  return (
+                    <Box key={item.id || index} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <Typography variant="body2" sx={{ fontSize: '0.875rem', flex: 1, fontWeight: 500, color: 'text.primary' }}>
+                        {serviceName}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontSize: '0.875rem', color: "text.secondary", ml: 2, fontWeight: 500 }}>
+                        {formatPrice(itemPrice)}
+                      </Typography>
+                    </Box>
+                  )
+                })}
+              </Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="body2" sx={{ fontSize: '0.875rem', fontWeight: 600 }}>
+                  Total
+                </Typography>
+                <Typography variant="body2" sx={{ fontSize: '0.875rem', fontWeight: 700, color: "success.main" }}>
+                  {formatPrice(servicesTotal)}
+                </Typography>
+              </Box>
               </>
             ) : (
               <Box sx={{ minHeight: '60px', display: 'flex', alignItems: 'center' }}>
                 <Typography variant="body2" sx={{ fontSize: '0.875rem', color: 'text.secondary', fontStyle: 'italic' }}>
                   No services
                 </Typography>
-              </Box>
-            )}
+            </Box>
+          )}
           </Box>
 
           {/* Invoice URL - Only show for completed jobs - Fixed height */}
@@ -549,36 +549,36 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
 
           {/* Notes (Collapsible) - Fixed height */}
           <Box sx={{ mb: 3, minHeight: job.notes ? '50px' : '0px' }}>
-            {job.notes && (
+          {job.notes && (
               <>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    cursor: 'pointer',
-                    p: 1.5,
-                    borderRadius: 1,
-                    bgcolor: 'grey.50',
-                    '&:hover': { bgcolor: 'grey.100' },
-                  }}
-                  onClick={() => setNotesExpanded(!notesExpanded)}
-                >
-                  <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
-                    Job Notes
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  cursor: 'pointer',
+                  p: 1.5,
+                  borderRadius: 1,
+                  bgcolor: 'grey.50',
+                  '&:hover': { bgcolor: 'grey.100' },
+                }}
+                onClick={() => setNotesExpanded(!notesExpanded)}
+              >
+                <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                  Job Notes
+                </Typography>
+                {notesExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </Box>
+              <Collapse in={notesExpanded}>
+                <Box sx={{ p: 1.5, bgcolor: 'grey.50', borderRadius: 1, mt: 0.5 }}>
+                  <Typography variant="body2" sx={{ fontSize: '0.875rem', color: 'text.secondary', whiteSpace: 'pre-wrap' }}>
+                    {job.notes}
                   </Typography>
-                  {notesExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </Box>
-                <Collapse in={notesExpanded}>
-                  <Box sx={{ p: 1.5, bgcolor: 'grey.50', borderRadius: 1, mt: 0.5 }}>
-                    <Typography variant="body2" sx={{ fontSize: '0.875rem', color: 'text.secondary', whiteSpace: 'pre-wrap' }}>
-                      {job.notes}
-                    </Typography>
-                  </Box>
-                </Collapse>
+              </Collapse>
               </>
             )}
-          </Box>
+            </Box>
 
           {/* Status Selector */}
           <Box>

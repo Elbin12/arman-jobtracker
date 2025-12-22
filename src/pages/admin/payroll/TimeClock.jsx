@@ -50,7 +50,7 @@ const TimeClock = () => {
   
   const user = useSelector((state) => state.auth.user);
   const user_profile = useSelector((state) => state.auth.user_profile);
-  const { data: employeesData } = useGetEmployeesQuery();
+  const { data: employeesData } = useGetEmployeesQuery({ pay_scale_type: 'hourly' });
   const { data: todayEntries, refetch: refetchToday } = useGetTodayTimeEntriesQuery();
   const { data: activeSession, refetch: refetchActive } = useGetActiveSessionQuery();
   
@@ -63,19 +63,7 @@ const TimeClock = () => {
 
   const isManagerOrSupervisor = user?.role === 'manager' || user?.role === 'supervisor' || user?.role === 'admin';
   
-  // For admins/managers, find the selected employee's active session from today's entries
-  // If no employee is selected, show the first active entry
-  // For regular workers, use the activeSession query result
-  const selectedEmployeeActiveEntry = isManagerOrSupervisor && selectedEmployee
-    ? activeEntries.find((entry) => entry.employee === selectedEmployee || entry.employee_id === selectedEmployee)
-    : null;
-  
-  // For admins, if no employee is selected but there are active entries, use the first one
-  const firstActiveEntry = isManagerOrSupervisor && !selectedEmployee && activeEntries.length > 0
-    ? activeEntries[0]
-    : null;
-  
-  // Calculate elapsed hours for selected employee's active entry if not provided
+  // Calculate elapsed hours for an entry if not provided
   const calculateElapsedHours = (entry) => {
     if (!entry || !entry.check_in_time) return 0;
     if (entry.elapsed_hours) return entry.elapsed_hours;
@@ -85,23 +73,57 @@ const TimeClock = () => {
     return diffMs / (1000 * 60 * 60); // Convert to hours
   };
   
-  // Determine which active session to show
-  // Priority: 1) Selected employee's active entry, 2) First active entry (for admins), 3) User's own active session
-  const displayActiveSession = isManagerOrSupervisor
-    ? (selectedEmployeeActiveEntry
-        ? {
+  // Get all active sessions - use active_sessions from API if available, otherwise use activeEntries
+  // The API response structure: { active_sessions: [{active: true, entry: {...}, elapsed_hours: 6.42}, ...], count: 7 }
+  let allActiveSessions = [];
+  if (activeSession?.active_sessions && Array.isArray(activeSession.active_sessions)) {
+    // API returned active_sessions array - each session already has {active: true, entry: {...}, elapsed_hours: ...}
+    allActiveSessions = activeSession.active_sessions.map(session => {
+      // Use the entry from the session, or fallback to session itself if entry doesn't exist
+      const entry = session.entry || session;
+      return {
+        active: session.active !== undefined ? session.active : true,
+        entry: entry,
+        elapsed_hours: session.elapsed_hours !== undefined 
+          ? session.elapsed_hours 
+          : calculateElapsedHours(entry)
+      };
+    });
+  } else if (activeEntries.length > 0) {
+    // Fallback to using activeEntries from today's entries
+    allActiveSessions = activeEntries.map(entry => ({
+      active: true,
+      entry: entry,
+      elapsed_hours: calculateElapsedHours(entry)
+    }));
+  } else if (activeSession?.active && activeSession.entry) {
+    // Single active session format (for regular workers)
+    allActiveSessions = [{
+      active: true,
+      entry: activeSession.entry,
+      elapsed_hours: activeSession.elapsed_hours || calculateElapsedHours(activeSession.entry)
+    }];
+  }
+  
+  // For admins/managers, find the selected employee's active session from today's entries
+  const selectedEmployeeActiveEntry = isManagerOrSupervisor && selectedEmployee
+    ? activeEntries.find((entry) => entry.employee === selectedEmployee || entry.employee_id === selectedEmployee)
+    : null;
+  
+  // For regular workers, show only their own active session
+  // For managers/supervisors, show all active sessions
+  const displayActiveSessions = isManagerOrSupervisor
+    ? allActiveSessions
+    : (activeSession?.active 
+        ? [{
             active: true,
-            entry: selectedEmployeeActiveEntry,
-            elapsed_hours: calculateElapsedHours(selectedEmployeeActiveEntry)
-          }
-        : firstActiveEntry
-          ? {
-              active: true,
-              entry: firstActiveEntry,
-              elapsed_hours: calculateElapsedHours(firstActiveEntry)
-            }
-          : null)
-    : activeSession;
+            entry: activeSession.entry || activeSession,
+            elapsed_hours: calculateElapsedHours(activeSession.entry || activeSession)
+          }]
+        : []);
+  
+  // Legacy single session for backward compatibility (used in some places)
+  const displayActiveSession = displayActiveSessions.length > 0 ? displayActiveSessions[0] : null;
 
   // Auto-select employee based on role
   useEffect(() => {
@@ -469,7 +491,7 @@ const TimeClock = () => {
       {/* Main Section - Clock In/Out and Active Session Row */}
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
         {/* Action Card - Clock In/Out */}
-        <Grid item xs={12} md={6} lg={activeSession?.active ? 5 : 12}>
+        <Grid item xs={12} md={6} lg={displayActiveSessions.length > 0 ? 5 : 12}>
           <Card 
             elevation={0} 
             sx={{ 
@@ -618,122 +640,142 @@ const TimeClock = () => {
           </Card>
         </Grid>
 
-        {/* Active Session Card */}
-        {displayActiveSession?.active && (
+        {/* Active Sessions - Show all for managers/supervisors, single for workers */}
+        {displayActiveSessions.length > 0 && (
           <Grid item xs={12} md={6} lg={7} sx={{ width: '100%' }}>
-            <Card 
-              elevation={0} 
-              sx={{ 
-                borderRadius: 3, 
-                border: '2px solid #3b82f6',
-                bgcolor: alpha('#3b82f6', 0.05),
-                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.15)',
-                width: '100%',
-                maxWidth: '100%',
-                height: '100%'
-              }}
-            >
-                <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
-                  <Box 
-                    display="flex" 
-                    justifyContent="space-between" 
-                    alignItems={{ xs: 'flex-start', sm: 'center' }}
-                    flexDirection={{ xs: 'column', sm: 'row' }}
-                    gap={2.5}
-                  >
-                    <Box display="flex" alignItems="center" gap={2.5} flex={1} minWidth={0}>
-                      <Box
-                        sx={{
-                          width: { xs: 48, sm: 56 },
-                          height: { xs: 48, sm: 56 },
-                          borderRadius: 2,
-                          bgcolor: '#3b82f6',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0
-                        }}
-                      >
-                        <AccessTimeIcon sx={{ fontSize: { xs: 24, sm: 28 }, color: 'white' }} />
-                      </Box>
-                      <Box flex={1} minWidth={0}>
-                        <Box display="flex" alignItems="center" gap={1.5} mb={1.5} flexWrap="wrap">
-                          <Typography variant="h6" fontWeight={700} color="#0f172a" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
-                            Active Session
-                          </Typography>
-                          <Chip
-                            label="LIVE"
-                            size="small"
-                            sx={{ 
-                              bgcolor: '#10b981',
-                              color: 'white',
-                              fontWeight: 700,
-                              fontSize: '0.75rem',
-                              height: 24
-                            }}
-                          />
-                        </Box>
-                        <Box display="flex" alignItems="center" gap={2} flexWrap="wrap">
-                          <Avatar sx={{ width: 40, height: 40, bgcolor: '#3b82f6' }}>
-                            {getInitials(displayActiveSession.entry.employee_name)}
-                          </Avatar>
-                          <Box minWidth={0}>
-                            <Typography variant="body1" fontWeight={600} color="#0f172a" noWrap>
-                              {displayActiveSession.entry.employee_name}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              Started at {formatTime(displayActiveSession.entry.check_in_time)}
-                            </Typography>
-                          </Box>
-                          {displayActiveSession.elapsed_hours && (
-                            <Box 
-                              sx={{ 
-                                px: 2.5, 
-                                py: 1.25, 
-                                borderRadius: 2, 
-                                bgcolor: 'white',
-                                border: '1px solid',
-                                borderColor: 'divider',
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {isManagerOrSupervisor && displayActiveSessions.length > 1 && (
+                <Typography variant="h6" fontWeight={600} color="#0f172a" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+                  Active Sessions ({displayActiveSessions.length})
+                </Typography>
+              )}
+              <Box 
+                sx={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: { xs: '1fr', sm: displayActiveSessions.length > 1 ? 'repeat(auto-fill, minmax(300px, 1fr))' : '1fr' },
+                  gap: 2
+                }}
+              >
+                {displayActiveSessions.map((session, index) => {
+                  const entry = session.entry || session;
+                  return (
+                    <Card 
+                      key={entry.id || index}
+                      elevation={0} 
+                      sx={{ 
+                        borderRadius: 3, 
+                        border: '2px solid #3b82f6',
+                        bgcolor: alpha('#3b82f6', 0.05),
+                        boxShadow: '0 4px 12px rgba(59, 130, 246, 0.15)',
+                        width: '100%',
+                        height: '100%'
+                      }}
+                    >
+                      <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
+                        <Box 
+                          display="flex" 
+                          justifyContent="space-between" 
+                          alignItems={{ xs: 'flex-start', sm: 'center' }}
+                          flexDirection={{ xs: 'column', sm: 'row' }}
+                          gap={2.5}
+                        >
+                          <Box display="flex" alignItems="center" gap={2.5} flex={1} minWidth={0}>
+                            <Box
+                              sx={{
+                                width: { xs: 48, sm: 56 },
+                                height: { xs: 48, sm: 56 },
+                                borderRadius: 2,
+                                bgcolor: '#3b82f6',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
                                 flexShrink: 0
                               }}
                             >
-                              <Typography variant="h6" fontWeight={700} color="#3b82f6" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
-                                {formatElapsedTime(displayActiveSession.elapsed_hours)}
-                              </Typography>
+                              <AccessTimeIcon sx={{ fontSize: { xs: 24, sm: 28 }, color: 'white' }} />
                             </Box>
-                          )}
+                            <Box flex={1} minWidth={0}>
+                              <Box display="flex" alignItems="center" gap={1.5} mb={1.5} flexWrap="wrap">
+                                <Typography variant="h6" fontWeight={700} color="#0f172a" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+                                  {isManagerOrSupervisor && displayActiveSessions.length > 1 ? 'Active Session' : 'Active Session'}
+                                </Typography>
+                                <Chip
+                                  label="LIVE"
+                                  size="small"
+                                  sx={{ 
+                                    bgcolor: '#10b981',
+                                    color: 'white',
+                                    fontWeight: 700,
+                                    fontSize: '0.75rem',
+                                    height: 24
+                                  }}
+                                />
+                              </Box>
+                              <Box display="flex" alignItems="center" gap={2} flexWrap="wrap">
+                                <Avatar sx={{ width: 40, height: 40, bgcolor: '#3b82f6' }}>
+                                  {getInitials(entry?.employee_name || '')}
+                                </Avatar>
+                                <Box minWidth={0}>
+                                  <Typography variant="body1" fontWeight={600} color="#0f172a" noWrap>
+                                    {entry?.employee_name || 'Unknown Employee'}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary">
+                                    Started at {formatTime(entry?.check_in_time)}
+                                  </Typography>
+                                </Box>
+                                {(session.elapsed_hours !== undefined && session.elapsed_hours !== null) && (
+                                  <Box 
+                                    sx={{ 
+                                      px: 2.5, 
+                                      py: 1.25, 
+                                      borderRadius: 2, 
+                                      bgcolor: 'white',
+                                      border: '1px solid',
+                                      borderColor: 'divider',
+                                      flexShrink: 0
+                                    }}
+                                  >
+                                    <Typography variant="h6" fontWeight={700} color="#3b82f6" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+                                      {formatElapsedTime(session.elapsed_hours)}
+                                    </Typography>
+                                  </Box>
+                                )}
+                              </Box>
+                            </Box>
+                          </Box>
+                          <Button
+                            variant="contained"
+                            size="large"
+                            fullWidth={{ xs: true, sm: false }}
+                            startIcon={checkingOut ? <CircularProgress size={18} color="inherit" /> : <StopCircleIcon sx={{ fontSize: 20 }} />}
+                            onClick={() => handleCheckOut(entry?.id)}
+                            disabled={checkingOut}
+                            sx={{
+                              bgcolor: '#ef4444',
+                              color: 'white',
+                              textTransform: 'none',
+                              fontWeight: 600,
+                              borderRadius: 2,
+                              px: 3,
+                              py: 1.5,
+                              boxShadow: '0 4px 6px rgba(239, 68, 68, 0.3)',
+                              '&:hover': { 
+                                bgcolor: '#dc2626',
+                                boxShadow: '0 6px 12px rgba(239, 68, 68, 0.4)'
+                              },
+                              flexShrink: 0,
+                              minWidth: { sm: 140 }
+                            }}
+                          >
+                            {checkingOut ? 'Checking Out...' : 'Clock Out'}
+                          </Button>
                         </Box>
-                      </Box>
-                    </Box>
-                    <Button
-                      variant="contained"
-                      size="large"
-                      fullWidth={{ xs: true, sm: false }}
-                      startIcon={checkingOut ? <CircularProgress size={18} color="inherit" /> : <StopCircleIcon sx={{ fontSize: 20 }} />}
-                      onClick={() => handleCheckOut(displayActiveSession.entry.id)}
-                      disabled={checkingOut}
-                      sx={{
-                        bgcolor: '#ef4444',
-                        color: 'white',
-                        textTransform: 'none',
-                        fontWeight: 600,
-                        borderRadius: 2,
-                        px: 3,
-                        py: 1.5,
-                        boxShadow: '0 4px 6px rgba(239, 68, 68, 0.3)',
-                        '&:hover': { 
-                          bgcolor: '#dc2626',
-                          boxShadow: '0 6px 12px rgba(239, 68, 68, 0.4)'
-                        },
-                        flexShrink: 0,
-                        minWidth: { sm: 140 }
-                      }}
-                    >
-                      {checkingOut ? 'Checking Out...' : 'Clock Out'}
-                    </Button>
-                  </Box>
-                </CardContent>
-              </Card>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </Box>
+            </Box>
           </Grid>
         )} 
       </div>

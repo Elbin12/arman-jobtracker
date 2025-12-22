@@ -15,6 +15,7 @@
   } from '@mui/material';
   import { LocationOn } from '@mui/icons-material';
   import axios from 'axios';
+  import { useSearchParams } from 'react-router-dom';
   import { useGetAddressesByContactQuery, useGetInitialDataQuery, useSearchContactsQuery } from '../../../store/api/user/quoteApi';
   import SearchableSelect from '../SearchableSelect';
 
@@ -186,6 +187,9 @@
   export const UserInfoForm = ({ data, onUpdate }) => {
     const [locations, setLocations] = useState([]);
     const [sizeRanges, setSizeRanges] = useState([]);
+    const [searchParams] = useSearchParams();
+    const emailParam = searchParams.get("email");
+    const hasSetQuotedByRef = useRef(false);
 
     const { data: initialData, isLoading, error } = useGetInitialDataQuery();
     const contactId = data.userInfo?.contactId;
@@ -202,6 +206,27 @@
 
     // Get project employees from initialData
     const projectEmployees = initialData?.project_employees || [];
+
+    // Auto-select "Quoted By" based on email query parameter
+    useEffect(() => {
+      if (emailParam && initialData?.project_employees && !hasSetQuotedByRef.current && !data.userInfo?.quoted_by) {
+        // Find employee by email (case-insensitive)
+        const matchingEmployee = projectEmployees.find(emp => 
+          emp.email?.toLowerCase() === emailParam.toLowerCase() ||
+          emp.username?.toLowerCase() === emailParam.toLowerCase()
+        );
+        
+        if (matchingEmployee && matchingEmployee.id) {
+          hasSetQuotedByRef.current = true;
+          onUpdate({
+            userInfo: {
+              ...data.userInfo,
+              quoted_by: matchingEmployee.id,
+            },
+          });
+        }
+      }
+    }, [emailParam, initialData, projectEmployees, data.userInfo?.quoted_by]);
 
     const handleChange = (field) => (event) => {
       onUpdate({

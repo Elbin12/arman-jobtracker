@@ -843,109 +843,113 @@ const QuoteDetailsPage = () => {
               </Card>
 
               {/* Enhanced Scheduling Section */}
-              {!quote_schedule?.is_submitted ? (
-                <Box
-                  sx={{
-                    borderRadius: 3,
-                    background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
-                  }}
-                >
-                  <CardContent sx={{ p: 0 }}>
-                    {!iframeLoaded && (
-                      <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}>
-                        <CircularProgress size={24} sx={{ color: "#023c8f" }} />
-                        <Typography variant="body2" sx={{ ml: 1 }}>
-                          Loading scheduler...
-                        </Typography>
-                      </Box>
-                    )}
-                    <iframe
-                      ref={iframeRef}
-                      src={iframeSrc}
-                      style={{
-                        width: "100%",
-                        border: "none",
-                        overflow: "hidden",
-                        height: iframeLoaded ? "950px" : "600px",
-                        display: iframeLoaded ? "block" : "none",
-                      }}
-                      scrolling="no"
-                      onLoad={() => setIframeLoaded(true)}
-                    />
-                  </CardContent>
-                </Box>
-              ) : (
-                <Card
-                  elevation={4}
-                  sx={{
-                    borderRadius: 3,
-                    background: "linear-gradient(135deg, #f1f8e9 0%, #e8f5e8 100%)",
-                  }}
-                >
-                  <Box
-                    sx={{
-                      background: "linear-gradient(135deg, #42bd3f 0%, #369932 100%)",
-                      color: "white",
-                      px: 4,
-                      py: 3,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 2,
-                      borderRadius: "12px 12px 0 0",
-                    }}
-                  >
-                    <Avatar sx={{ bgcolor: "rgba(255,255,255,0.2)", width: 40, height: 40 }}>
-                      <CheckCircle />
-                    </Avatar>
-                    <Box>
-                      <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
-                        Scheduled
-                      </Typography>
-                      <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                        Your service is confirmed
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  <CardContent sx={{ p: 4 }}>
-                    <Alert
-                      severity="success"
+              {status?.toLowerCase() !== 'rejected' && (
+                <>
+                  {!quote_schedule?.is_submitted ? (
+                    <Box
                       sx={{
-                        bgcolor: "rgba(255,255,255,0.8)",
-                        border: "none",
-                        borderRadius: 2,
+                        borderRadius: 3,
+                        background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
                       }}
                     >
-                      <AlertTitle sx={{ fontWeight: 600 }}>Service Scheduled!</AlertTitle>
-                      <Typography variant="body2" sx={{ mt: 1 }}>
-                        <strong>Date & Time (UTC):</strong>
-                        <br />
-                        {new Date(quote_schedule?.scheduled_date).toLocaleDateString("en-GB", {
-                          weekday: "long",
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                          timeZone: "UTC",
-                        })}
-                        <br />
-                        <AccessTime sx={{ mr: 1, verticalAlign: "middle", fontSize: 16 }} />
-                        {new Date(quote_schedule?.scheduled_date).toLocaleTimeString("en-GB", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          hour12: true,   // 👈 ensures AM/PM format
-                          timeZone: "UTC",
-                        })
-                        .replace("am", "AM")
-                        .replace("pm", "PM")
-                        }
-                      </Typography>
-                    </Alert>
+                      <CardContent sx={{ p: 0 }}>
+                        {!iframeLoaded && (
+                          <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}>
+                            <CircularProgress size={24} sx={{ color: "#023c8f" }} />
+                            <Typography variant="body2" sx={{ ml: 1 }}>
+                              Loading scheduler...
+                            </Typography>
+                          </Box>
+                        )}
+                        <iframe
+                          ref={iframeRef}
+                          src={iframeSrc}
+                          style={{
+                            width: "100%",
+                            border: "none",
+                            overflow: "hidden",
+                            height: iframeLoaded ? "950px" : "600px",
+                            display: iframeLoaded ? "block" : "none",
+                          }}
+                          scrolling="no"
+                          onLoad={() => setIframeLoaded(true)}
+                        />
+                      </CardContent>
+                    </Box>
+                  ) : (
+                    <Card
+                      elevation={4}
+                      sx={{
+                        borderRadius: 3,
+                        background: "linear-gradient(135deg, #f1f8e9 0%, #e8f5e8 100%)",
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          background: "linear-gradient(135deg, #42bd3f 0%, #369932 100%)",
+                          color: "white",
+                          px: 4,
+                          py: 3,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 2,
+                          borderRadius: "12px 12px 0 0",
+                        }}
+                      >
+                        <Avatar sx={{ bgcolor: "rgba(255,255,255,0.2)", width: 40, height: 40 }}>
+                          <CheckCircle />
+                        </Avatar>
+                        <Box>
+                          <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
+                            Scheduled
+                          </Typography>
+                          <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                            Your service is confirmed
+                          </Typography>
+                        </Box>
+                      </Box>
 
-                    <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 3 }}>
-                      Our team will contact you before the scheduled date to confirm details
-                    </Typography>
-                  </CardContent>
-                </Card>
+                      <CardContent sx={{ p: 4 }}>
+                        <Alert
+                          severity="success"
+                          sx={{
+                            bgcolor: "rgba(255,255,255,0.8)",
+                            border: "none",
+                            borderRadius: 2,
+                          }}
+                        >
+                          <AlertTitle sx={{ fontWeight: 600 }}>Service Scheduled!</AlertTitle>
+                          <Typography variant="body2" sx={{ mt: 1 }}>
+                            <strong>Date & Time (UTC):</strong>
+                            <br />
+                            {new Date(quote_schedule?.scheduled_date).toLocaleDateString("en-GB", {
+                              weekday: "long",
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                              timeZone: "UTC",
+                            })}
+                            <br />
+                            <AccessTime sx={{ mr: 1, verticalAlign: "middle", fontSize: 16 }} />
+                            {new Date(quote_schedule?.scheduled_date).toLocaleTimeString("en-GB", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              hour12: true,   // 👈 ensures AM/PM format
+                              timeZone: "UTC",
+                            })
+                            .replace("am", "AM")
+                            .replace("pm", "PM")
+                            }
+                          </Typography>
+                        </Alert>
+
+                        <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 3 }}>
+                          Our team will contact you before the scheduled date to confirm details
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
               )}
 
               {/* Service Selections */}
@@ -1353,8 +1357,8 @@ const QuoteDetailsPage = () => {
                         fontWeight: 600,
                         fontSize:{ xs: "0.7rem", sm: "0.8rem", md: "0.8rem"},
                         borderRadius: 0.3,
-                        bgcolor:"#D9FFD9",
-                        color:"success.dark",
+                        bgcolor: status?.toLowerCase() === 'rejected' ? "#FFE5E5" : "#D9FFD9",
+                        color: status?.toLowerCase() === 'rejected' ? "#d32f2f" : "success.dark",
                         width:"fit-content",
                         px:3
                       }}

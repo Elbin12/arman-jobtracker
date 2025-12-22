@@ -124,15 +124,16 @@ const TeamManagement = () => {
 
   const toggleActive = async (member) => {
     try {
-      await updateAssignee({
-        id:member?.id,
-        is_active: !member.is_active
+      const newActiveStatus = !member.is_active;
+      const updated = await updateAssignee({
+        id: member?.id,
+        is_active: newActiveStatus
       }).unwrap();
       dispatch(
         assigneesApi.util.updateQueryData('getAssignees', { page, limit: itemsPerPage }, (draft) => {
           const existing = draft.results.find((m) => m.id === member.id);
           if (existing) {
-            existing.is_active = updated.is_active;
+            existing.is_active = updated?.is_active ?? newActiveStatus;
           }
         })
       );

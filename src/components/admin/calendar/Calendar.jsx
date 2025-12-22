@@ -9,11 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarDays, ChevronLeft, ChevronRight, Loader2, RotateCcw, CheckCircle2 } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Loader2, RotateCcw, CheckCircle2, Filter, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Calendar as DatePicker } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
 
@@ -37,18 +38,49 @@ const calendarStyles = `
   }
   .rbc-header {
     width: 100% !important;
+    padding: 8px 4px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+  }
+  @media (min-width: 640px) {
+    .rbc-header {
+      padding: 10px 8px !important;
+      font-size: 14px !important;
+    }
+  }
+  .rbc-date-cell {
+    padding: 4px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+  }
+  @media (min-width: 640px) {
+    .rbc-date-cell {
+      padding: 6px !important;
+      font-size: 13px !important;
+    }
   }
   .rbc-event {
-    border-radius: 8px !important;
+    border-radius: 6px !important;
     padding: 0 !important;
     font-size: 13px !important;
     font-weight: 500 !important;
     box-shadow: none !important;
     border: none !important;
     outline: none !important;
-    margin: 0 !important;
+    margin: 1px 0 !important;
     transition: all 0.2s ease !important;
-    overflow: hidden !important;
+    overflow: visible !important;
+    cursor: pointer !important;
+  }
+  @media (min-width: 640px) {
+    .rbc-event {
+      margin: 2px 0 !important;
+    }
+  }
+  @media (min-width: 1024px) {
+    .rbc-event {
+      margin: 2px 0 !important;
+    }
   }
   .rbc-event-wrapper {
     border: none !important;
@@ -56,31 +88,141 @@ const calendarStyles = `
     box-shadow: none !important;
     background: transparent !important;
     padding: 0 !important;
-    border-radius: 8px !important;
-    overflow: hidden !important;
+    border-radius: 6px !important;
+    overflow: visible !important;
   }
   .rbc-event:hover {
     box-shadow: none !important;
-    transform: translateY(-1px);
+    transform: translateY(-1px) !important;
     border: none !important;
     outline: none !important;
+    z-index: 10 !important;
   }
   .rbc-event:hover .rbc-event-content {
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+    box-shadow: none !important;
   }
   .rbc-event-content {
-    line-height: 1.4 !important;
+    line-height: 1.3 !important;
     overflow: visible !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
     border: none !important;
     outline: none !important;
-    padding: 6px 10px !important;
-    border-radius: 8px !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
-    min-height: 28px !important;
+    padding: 4px 6px !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+    min-height: 20px !important;
     display: flex !important;
     align-items: center !important;
+    font-size: 13px !important;
+  }
+  @media (min-width: 640px) {
+    .rbc-event-content {
+      padding: 5px 8px !important;
+      min-height: 24px !important;
+    }
+  }
+  @media (min-width: 1024px) {
+    .rbc-event-content {
+      padding: 6px 10px !important;
+      min-height: 28px !important;
+    }
+  }
+  .rbc-event-content-responsive {
+    padding: 4px 6px !important;
+    font-size: 13px !important;
+    min-height: 20px !important;
+    box-shadow: none !important;
+  }
+  .rbc-event-content-responsive,
+  .rbc-event-content-responsive span,
+  .rbc-event-content-responsive * {
+    font-size: 13px !important;
+  }
+  @media (min-width: 640px) {
+    .rbc-event-content-responsive {
+      padding: 5px 8px !important;
+      font-size: 13px !important;
+      min-height: 24px !important;
+    }
+    .rbc-event-content-responsive,
+    .rbc-event-content-responsive span,
+    .rbc-event-content-responsive * {
+      font-size: 13px !important;
+    }
+  }
+  @media (min-width: 1024px) {
+    .rbc-event-content-responsive {
+      padding: 6px 10px !important;
+      font-size: 13px !important;
+      min-height: 28px !important;
+    }
+    .rbc-event-content-responsive,
+    .rbc-event-content-responsive span,
+    .rbc-event-content-responsive * {
+      font-size: 13px !important;
+    }
+  }
+  .rbc-event-content-responsive .recurring-indicator {
+    font-size: 11px !important;
+  }
+  /* Mobile-specific improvements - Google Calendar style */
+  @media (max-width: 639px) {
+    .rbc-event {
+      width: 100% !important;
+      min-width: 100% !important;
+      margin: 1px 0 !important;
+      border-radius: 4px !important;
+    }
+    .rbc-event-wrapper {
+      width: 100% !important;
+      min-width: 100% !important;
+    }
+    .rbc-event-content-responsive {
+      padding: 4px 6px !important;
+      font-size: 10px !important;
+      min-height: 20px !important;
+      line-height: 1.2 !important;
+      width: 100% !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      justify-content: center !important;
+    }
+    .rbc-event-content-responsive .truncate {
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      line-height: 1.2 !important;
+      display: block !important;
+      text-align: center !important;
+      font-size: 10px !important;
+      font-weight: 500 !important;
+    }
+    .rbc-event-content-responsive,
+    .rbc-event-content-responsive span:not(.recurring-indicator) {
+      font-size: 10px !important;
+      font-weight: 500 !important;
+    }
+    .rbc-event-content-responsive .recurring-indicator {
+      font-size: 8px !important;
+      margin-left: 2px !important;
+      font-weight: 600 !important;
+    }
+    .rbc-month-view .rbc-day-bg {
+      min-height: 50px !important;
+    }
+    .rbc-month-row {
+      min-height: 50px !important;
+    }
+    .rbc-date-cell {
+      padding: 2px 4px !important;
+      font-size: 11px !important;
+    }
+    .rbc-header {
+      padding: 8px 4px !important;
+      font-size: 11px !important;
+    }
   }
   .rbc-event-label {
     display: none !important;
@@ -159,12 +301,57 @@ import { useSelector, useDispatch } from "react-redux";
 import { EditJobDialog } from "../jobs/EditJobDialog";
 import { TimelineSidebar } from "./TimelineSidebar";
 import { useUpdateJobMutation } from "../../../store/api/jobsApi";
+import { Typography } from "@mui/material";
 
 const localizer = momentLocalizer(moment);
 const DnDCalendar = withDragAndDrop(BigCalendar);
 
 // Custom Event Component that accepts staff drops
 function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, ...props }) {
+  // Detect mobile view
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
+  
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Extract time from event for mobile view (like Google Calendar)
+  const getDisplayTitle = () => {
+    if (!isMobile) return title || event?.title || "";
+    
+    // On mobile, show only the time - extract from event start time
+    if (event?.start) {
+      const eventDate = new Date(event.start);
+      const hours = eventDate.getHours();
+      const minutes = eventDate.getMinutes();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = hours % 12 || 12;
+      
+      // Format: "8 AM" or "1:30 PM"
+      if (minutes === 0) {
+        return `${displayHours} ${ampm}`;
+      } else {
+        return `${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+      }
+    }
+    
+    // Fallback: try to extract from title if event.start is not available
+    const fullTitle = title || event?.title || "";
+    const timeMatch = fullTitle.match(/^(\d{1,2}(?::\d{2})?\s?(AM|PM))/i);
+    if (timeMatch) {
+      return timeMatch[1];
+    }
+    
+    // Last fallback
+    return fullTitle.substring(0, 6);
+  };
+
+  const displayTitle = getDisplayTitle();
+
   // Handle "+X more" event type
   if (event?.type === 'more') {
     return (
@@ -199,7 +386,7 @@ function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, ...pr
             fontWeight: "500",
             fontSize: "13px",
             color: "#374151",
-            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+            boxShadow: "none",
             transition: "all 0.2s ease",
           }}
         >
@@ -228,6 +415,9 @@ function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, ...pr
   const eventStyle = style || {};
   const eventTitle = title || event?.title || "";
   
+  // Use displayTitle (already calculated above) for rendering
+  // displayTitle will show only time on mobile, full title on desktop
+  
   // Check if job is recurring
   const resource = event?.resource;
   const isRecurring = resource && (
@@ -242,16 +432,22 @@ function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, ...pr
     const appointment = resource;
     switch (appointment?.appointment_status) {
       case "new":
-        backgroundColor = "#9ca3ef";
+        backgroundColor = "#9ca3ef"; // Light purple-blue for unconfirmed
         break;
       case "confirmed":
-        backgroundColor = "#06b6d4";
+        backgroundColor = "#06b6d4"; // Cyan
         break;
       case "cancelled":
-        backgroundColor = "#ef4444";
+        backgroundColor = "#ef4444"; // Red
         break;
-      case "completed":
-        backgroundColor = "#10b981";
+      case "showed":
+        backgroundColor = "#10b981"; // Green
+        break;
+      case "noshow":
+        backgroundColor = "#f59e0b"; // Orange/Yellow
+        break;
+      case "invalid":
+        backgroundColor = "#6b7280"; // Gray
         break;
       default:
         backgroundColor = "#9ca3ef";
@@ -301,32 +497,46 @@ function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, ...pr
       {...props}
     >
       <div 
+        className="rbc-event-content-responsive"
         style={{ 
-          lineHeight: "1.4",
+          lineHeight: isMobile ? "1.2" : "1.3",
           backgroundColor: backgroundColor,
-          borderRadius: "8px",
-          padding: "6px 10px",
+          borderRadius: isMobile ? "4px" : "6px",
           fontWeight: "500",
-          fontSize: "13px",
           color: "white",
-          boxShadow: isOver ? "0 2px 6px rgba(0, 0, 0, 0.15)" : "0 1px 3px rgba(0, 0, 0, 0.1)",
+          boxShadow: "none",
           transition: "all 0.2s ease",
           border: isOver ? "2px dashed rgba(255, 255, 255, 0.8)" : "none",
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
-          gap: "6px",
+          justifyContent: isMobile ? "center" : "space-between",
+          gap: isMobile ? "2px" : "4px",
+          width: "100%",
+          overflow: "hidden",
+          padding: isMobile ? "4px 6px" : undefined,
         }}
       >
-        <span className="truncate" style={{ flex: 1, minWidth: 0 }}>
-          {eventTitle}
+        <span className="truncate" style={{ 
+          flex: isMobile ? "none" : 1, 
+          minWidth: 0, 
+          overflow: "hidden", 
+          textOverflow: "ellipsis", 
+          whiteSpace: "nowrap", 
+          display: "block", 
+          fontSize: isMobile ? "10px" : "13px",
+          textAlign: isMobile ? "center" : "left",
+          fontWeight: "500",
+          width: isMobile ? "100%" : "auto"
+        }}>
+          {displayTitle}
         </span>
         {isRecurring && (
-          <span style={{ 
+          <span className="recurring-indicator" style={{ 
             flexShrink: 0,
             fontWeight: "600",
-            fontSize: "12px",
+            fontSize: isMobile ? "8px" : "11px",
             opacity: 0.9,
+            marginLeft: isMobile ? "2px" : "4px",
           }}>
             (R)
           </span>
@@ -349,6 +559,23 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
   const [monthRowHeight, setMonthRowHeight] = useState(140);
   const [expandedDays, setExpandedDays] = useState(new Set()); // Track which days are expanded
   const [showSidebar, setShowSidebar] = useState(true);
+  
+  // Responsive sidebar state - hidden on mobile by default
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setShowSidebar(false);
+      } else {
+        setShowSidebar(true);
+      }
+    };
+    
+    // Set initial state
+    handleResize();
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   // Initialize categories - both jobs and appointments checked by default
   const [selectedCategories, setSelectedCategories] = useState({
     jobs: true,
@@ -374,12 +601,18 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
   useEffect(() => {
     if (users.length > 0 && !isInitialized.current) {
       const initialAssignees = {};
+      const allUserIds = [];
       users.forEach((user) => {
-        initialAssignees[user.id] = false; // All unchecked by default
+        initialAssignees[user.id] = true; // All checked by default
+        // Support both numeric IDs and UUIDs/emails
+        const numId = parseInt(user.id);
+        const userId = isNaN(numId) ? (user.id || user.email) : numId;
+        allUserIds.push(userId);
       });
       setSelectedAssignees(initialAssignees);
-      // Set filterParams to empty assignee_ids so no jobs show initially
-      setFilterParams({ assignee_ids: '' });
+      // Set filterParams to include all assignee_ids so all jobs show initially
+      const assigneeIdsString = allUserIds.join(',');
+      setFilterParams({ assignee_ids: assigneeIdsString, assigned_user_ids: assigneeIdsString });
       isInitialized.current = true;
     }
   }, [users.length]); // Only run when users array length changes
@@ -781,7 +1014,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
 
       switch (appointment.appointment_status) {
         case "new":
-          backgroundColor = "#9ca3ef"; // Light purple-blue (matching the design)
+          backgroundColor = "#9ca3ef"; // Light purple-blue for unconfirmed
           break;
         case "confirmed":
           backgroundColor = "#06b6d4"; // Cyan
@@ -789,8 +1022,14 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
         case "cancelled":
           backgroundColor = "#ef4444"; // Red
           break;
-        case "completed":
-          backgroundColor = "#10b981"; // Green (matching the design)
+        case "showed":
+          backgroundColor = "#10b981"; // Green
+          break;
+        case "noshow":
+          backgroundColor = "#f59e0b"; // Orange/Yellow
+          break;
+        case "invalid":
+          backgroundColor = "#6b7280"; // Gray
           break;
         default:
           backgroundColor = "#9ca3ef";
@@ -1326,9 +1565,28 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
     }));
   };
 
+  const { toast } = useToast();
+
   // Handle appointment status update
   const handleAppointmentStatusChange = async (newStatus) => {
-    if (!selectedAppointment || !selectedAppointment.appointment_id) return;
+    if (!selectedAppointment || !selectedAppointment.appointment_id) {
+      toast({
+        title: "Error",
+        description: "Appointment information is missing",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Don't proceed if status hasn't actually changed
+    if (newStatus === selectedAppointment.appointment_status) {
+      // Still update the local state to reflect the selection (UI feedback)
+      setSelectedAppointment({
+        ...selectedAppointment,
+        appointment_status: newStatus,
+      });
+      return;
+    }
     
     try {
       const result = await updateAppointment({
@@ -1368,8 +1626,18 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
           }
         )
       );
+
+      toast({
+        title: "Success",
+        description: "Appointment status updated successfully",
+      });
     } catch (error) {
       console.error("Failed to update appointment status:", error);
+      toast({
+        title: "Error",
+        description: error?.data?.message || "Failed to update appointment status. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -1378,35 +1646,81 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
     <style>{calendarStyles}</style>
     <DndProvider backend={HTML5Backend}>
       <div className="space-y-4 w-full overflow-hidden">
-        <div className="flex gap-4 w-full min-w-0">
-          {/* Left Sidebar */}
+        {/* Mobile Sidebar Toggle Button */}
+        <div className="md:hidden flex justify-between items-center mb-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowSidebar(!showSidebar)}
+            className="flex items-center gap-2"
+          >
+            <Filter className="h-4 w-4" />
+            Filters
+          </Button>
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-4 w-full min-w-0 relative">
+          {/* Mobile Overlay - Must be before sidebar for proper z-index */}
           {showSidebar && (
-            <div className="flex-shrink-0">
-            <TimelineSidebar
-              currentDate={currentDate}
-              onDateChange={(date) => setCurrentDate(date)}
-              users={users}
-              isLoadingUsers={isLoadingUsers}
-              canViewStaff={canViewStaff}
-              userRole={userRole}
-              selectedCategories={selectedCategories}
-              onCategoryToggle={handleCategoryToggle}
-              selectedAssignees={selectedAssignees}
-              onAssigneeToggle={handleAssigneeToggle}
-              filterParams={filterParams}
-              onFilterChange={(field, value) => {
-                setFilterParams((prev) => ({
-                  ...prev,
-                  [field]: value,
-                }));
-              }}
-              jobs={jobs}
+            <div
+              className="md:hidden fixed inset-0 bg-black/50 z-40"
+              onClick={() => setShowSidebar(false)}
+              aria-hidden="true"
             />
+          )}
+
+          {/* Left Sidebar - Mobile: Full width overlay, Desktop: Sidebar */}
+          {showSidebar && (
+            <div className={cn(
+              "flex-shrink-0",
+              "md:relative md:w-auto",
+              "fixed md:static inset-y-0 left-0 md:inset-auto z-50 md:z-auto",
+              "bg-background md:bg-transparent",
+              "overflow-y-auto md:overflow-visible",
+              "w-[85vw] max-w-[320px] md:w-[280px] lg:w-[320px]",
+              "shadow-lg md:shadow-none"
+            )}>
+              {/* Mobile Close Button */}
+              <div className="md:hidden flex justify-between items-center p-4 border-b sticky top-0 bg-background z-10">
+                <Typography variant="h6" className="font-semibold">Filters</Typography>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowSidebar(false)}
+                  className="h-8 w-8"
+                  aria-label="Close filters"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              <div className="w-full">
+                <TimelineSidebar
+                  currentDate={currentDate}
+                  onDateChange={(date) => setCurrentDate(date)}
+                  users={users}
+                  isLoadingUsers={isLoadingUsers}
+                  canViewStaff={canViewStaff}
+                  userRole={userRole}
+                  selectedCategories={selectedCategories}
+                  onCategoryToggle={handleCategoryToggle}
+                  selectedAssignees={selectedAssignees}
+                  onAssigneeToggle={handleAssigneeToggle}
+                  filterParams={filterParams}
+                  onFilterChange={(field, value) => {
+                    setFilterParams((prev) => ({
+                      ...prev,
+                      [field]: value,
+                    }));
+                  }}
+                  jobs={jobs}
+                />
+              </div>
             </div>
           )}
 
           {/* Main Calendar */}
-          <div className="flex-1 min-w-0 overflow-hidden">
+          <div className="flex-1 min-w-0 overflow-hidden w-full">
             <Card className="w-full">
           <CardHeader>
             <div className="flex items-center gap-2 mb-4">
@@ -1416,51 +1730,53 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
               </CardTitle>
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-              <div className="flex items-center gap-2 flex-wrap">
-                <Button variant="outline" size="sm" onClick={navigateToday}>
-                  Today
-                </Button>
-                <div className="flex items-center border rounded-md">
-                  <Button variant="ghost" size="icon" onClick={navigateBack} className="rounded-r-none border-r">
-                    <ChevronLeft className="h-4 w-4" />
+            <div className="flex flex-col gap-3">
+              {/* Mobile: Stack controls vertically, Desktop: Horizontal */}
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button variant="outline" size="sm" onClick={navigateToday} className="text-xs sm:text-sm">
+                    Today
                   </Button>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="ghost" className="font-semibold min-w-[180px] rounded-none">
-                        {getDateTitle()}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <DatePicker
-                        mode="single"
-                        selected={currentDate}
-                        onSelect={(date) => {
-                          if (date) {
-                            setCurrentDate(date);
-                          }
-                        }}
-                        initialFocus
-                        className={cn("p-3 pointer-events-auto")}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <Button variant="ghost" size="icon" onClick={navigateNext} className="rounded-l-none border-l">
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
+                  <div className="flex items-center border rounded-md">
+                    <Button variant="ghost" size="icon" onClick={navigateBack} className="rounded-r-none border-r h-8 w-8 sm:h-9 sm:w-9">
+                      <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
+                    </Button>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" className="font-semibold min-w-[120px] sm:min-w-[180px] rounded-none text-xs sm:text-sm px-2 sm:px-4">
+                          {getDateTitle()}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <DatePicker
+                          mode="single"
+                          selected={currentDate}
+                          onSelect={(date) => {
+                            if (date) {
+                              setCurrentDate(date);
+                            }
+                          }}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Button variant="ghost" size="icon" onClick={navigateNext} className="rounded-l-none border-l h-8 w-8 sm:h-9 sm:w-9">
+                      <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
+                    </Button>
+                  </div>
 
-                <Select value={view} onValueChange={(value) => setView(value)}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="month">Month View</SelectItem>
-                    <SelectItem value="week">Week View</SelectItem>
-                    <SelectItem value="day">Day View</SelectItem>
-                  </SelectContent>
-                </Select>
-                
+                  <Select value={view} onValueChange={(value) => setView(value)}>
+                    <SelectTrigger className="w-[100px] sm:w-[140px] text-xs sm:text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="month">Month</SelectItem>
+                      <SelectItem value="week">Week</SelectItem>
+                      <SelectItem value="day">Day</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           </CardHeader>
@@ -1580,8 +1896,22 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
       </Dialog>
 
       {/* Appointment Details Dialog */}
-      <Dialog open={!!selectedAppointment} onOpenChange={() => setSelectedAppointment(null)}>
-        <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto">
+      <Dialog 
+        open={!!selectedAppointment} 
+        onOpenChange={(open) => {
+          if (!open) setSelectedAppointment(null);
+        }}
+      >
+        <DialogContent 
+          className="max-w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto"
+          onInteractOutside={(e) => {
+            // Prevent closing when clicking on Select dropdown
+            const target = e.target;
+            if (target && (target.closest('[role="listbox"]') || target.closest('[data-radix-portal]'))) {
+              e.preventDefault();
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Appointment Details</DialogTitle>
             <DialogDescription>View appointment information</DialogDescription>
@@ -1611,11 +1941,27 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
                     <SelectTrigger className="w-[140px]">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="new">New</SelectItem>
+                    <SelectContent 
+                      className="z-[1500] !fixed" 
+                      onCloseAutoFocus={(e) => e.preventDefault()}
+                      onEscapeKeyDown={(e) => {
+                        e.stopPropagation();
+                      }}
+                      onPointerDownOutside={(e) => {
+                        // Allow closing when clicking outside, but prevent dialog from closing
+                        const target = e.target;
+                        // Only prevent if clicking on the dialog overlay
+                        if (target && target.hasAttribute && target.hasAttribute('data-radix-dialog-overlay')) {
+                          e.preventDefault();
+                        }
+                      }}
+                    >
+                      <SelectItem value="new">Unconfirmed</SelectItem>
                       <SelectItem value="confirmed">Confirmed</SelectItem>
                       <SelectItem value="cancelled">Cancelled</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="showed">Showed</SelectItem>
+                      <SelectItem value="noshow">No Show</SelectItem>
+                      <SelectItem value="invalid">Invalid</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

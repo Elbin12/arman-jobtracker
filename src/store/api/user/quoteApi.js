@@ -120,11 +120,18 @@ export const quoteApi = createApi({
         method: 'POST',
       }),
     }),
+    rejectQuote: builder.mutation({
+      query: (submissionId) => ({
+        url: `${submissionId}/reject/`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['quote', 'Details'],
+    }),
   }),
 });
 
 export const { useGetInitialDataQuery, useGetServiceQuestionsQuery, useCreateSubmissionMutation, useUpdateSubmissionMutation, useCreateQuestionResponsesMutation,
   useCreateServiceToSubmissionMutation,   useGetQuoteDetailsQuery,useSubmitQuoteMutation, useGetAddressesByContactQuery, useSearchContactsQuery, useCreateCustomProductMutation,
   useUpdateCustomProductMutation, useDeleteCustomProductMutation, useGetServicesQuery, useCreateScheduleMutation, useDeleteServiceMutation, useGetGlobalPriceQuery,
-  useSubmitOnlyCustomProductsMutation
+  useSubmitOnlyCustomProductsMutation, useRejectQuoteMutation
  } = quoteApi;
