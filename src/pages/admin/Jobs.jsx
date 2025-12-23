@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Badge, Box, Button, Card, CardContent, FormControlLabel, Pagination, Switch, Typography } from "@mui/material"
 import { useGetLocationsQuery, useGetJobsQuery, jobsApi } from "../../store/api/jobsApi"
-import { useGetAssigneesQuery } from "../../store/api/assigneesApi"
+import { useGetEmployeesQuery } from "../../store/api/payrollApi"
 import { FilterIcon } from "lucide-react"
 import { LocationGroupCard } from "../../components/admin/jobs/LocationGroupCard"
 import { FilterSidebar } from "./FilterSibdebar"
@@ -31,7 +31,7 @@ export function Jobs() {
   const { data: locationData, isLoading: isLocationsFetching } =
     useGetLocationsQuery({ ...filterParams, page }, { skip: !groupByLocation });
 
-  const { data: assigneesData, isLoading: assigneesLoading } = useGetAssigneesQuery()
+  const { data: assigneesData, isLoading: assigneesLoading } = useGetEmployeesQuery({ is_active: true })
 
   const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);

@@ -603,10 +603,10 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
       const initialAssignees = {};
       const allUserIds = [];
       users.forEach((user) => {
-        initialAssignees[user.id] = true; // All checked by default
+        initialAssignees[user.user_id] = true; // All checked by default
         // Support both numeric IDs and UUIDs/emails
-        const numId = parseInt(user.id);
-        const userId = isNaN(numId) ? (user.id || user.email) : numId;
+        const numId = parseInt(user.user_id);
+        const userId = isNaN(numId) ? (user.user_id || user.email) : numId;
         allUserIds.push(userId);
       });
       setSelectedAssignees(initialAssignees);
@@ -638,9 +638,9 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
       // Update selectedAssignees based on filterParams
       const updatedAssignees = {};
       users.forEach((user) => {
-        const userId = user.id || user.email;
-        updatedAssignees[user.id] = assigneeIds.some(id => 
-          id === user.id || id === userId || id === user.email
+        const userId = user.user_id || user.email;
+        updatedAssignees[user.user_id] = assigneeIds.some(id => 
+          id === user.user_id || id === userId || id === user.email
         );
       });
       setSelectedAssignees(updatedAssignees);

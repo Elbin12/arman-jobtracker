@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, Typography } from '@mui/material';
 import { useSelector } from 'react-redux';
 import { NewCalendar } from '../../components/admin/calendar/Calendar.jsx';
-import { useGetAssigneesQuery } from '../../store/api/assigneesApi.js';
+import { useGetEmployeesQuery } from '../../store/api/payrollApi.js';
 import { useGetCalendarJobsQuery } from '../../store/api/jobsApi.js';
 
 const AdminCalendar = () => {
@@ -12,8 +12,8 @@ const AdminCalendar = () => {
   // Only fetch users if user is admin, manager, or supervisor
   const canViewStaff = ["admin", "manager", "supervisor"].includes(userRole);
   
-  const { data: assigneesData, isLoading: assigneesLoading } = useGetAssigneesQuery(
-    undefined,
+  const { data: assigneesData, isLoading: assigneesLoading } = useGetEmployeesQuery(
+    { is_active: true,},
     { skip: !canViewStaff }
   );
 

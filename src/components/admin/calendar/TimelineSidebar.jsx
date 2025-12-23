@@ -287,11 +287,11 @@ export function TimelineSidebar({
                     "#ec4899", // pink
                     "#a78bfa", // light purple
                   ];
-                  const colorIndex = user.id % colors.length;
+                  const colorIndex = user.user_id % colors.length;
                   const color = colors[colorIndex];
                   return (
                     <DraggableStaff 
-                      key={user.id} 
+                      key={user.user_id} 
                       user={user} 
                       color={color} 
                       selectedAssignees={selectedAssignees} 
@@ -761,7 +761,7 @@ function DraggableStaff({ user, color, selectedAssignees, onAssigneeToggle, jobs
     // Count jobs assigned to this user
     const assignedCount = jobs.filter(job => {
       if (!job.assignments || !Array.isArray(job.assignments)) return false;
-      return job.assignments.some(assignment => assignment.user === user.id);
+      return job.assignments.some(assignment => assignment.user === user.user_id);
     }).length;
 
     const totalCount = jobs.length;
@@ -832,9 +832,9 @@ function DraggableStaff({ user, color, selectedAssignees, onAssigneeToggle, jobs
         onClick={(e) => e.stopPropagation()}
       >
         <Checkbox
-          checked={selectedAssignees[user.id] === true}
+          checked={selectedAssignees[user.user_id] === true}
           onCheckedChange={(checked) =>
-            onAssigneeToggle?.(user.id, checked)
+            onAssigneeToggle?.(user.user_id, checked)
           }
         />
       </div>

@@ -50,7 +50,7 @@ const TimeClock = () => {
   
   const user = useSelector((state) => state.auth.user);
   const user_profile = useSelector((state) => state.auth.user_profile);
-  const { data: employeesData } = useGetEmployeesQuery({ pay_scale_type: 'hourly' });
+  const { data: employeesData } = useGetEmployeesQuery({ pay_scale_type: 'hourly', is_active: true });
   const { data: todayEntries, refetch: refetchToday } = useGetTodayTimeEntriesQuery();
   const { data: activeSession, refetch: refetchActive } = useGetActiveSessionQuery();
   

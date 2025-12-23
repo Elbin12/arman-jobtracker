@@ -42,7 +42,7 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
   const [jobServices, setJobServices] = useState([]);
   const customServiceSectionRef = useRef(null);
 
-  const { data: employeesData, isLoading: employeesLoading } = useGetEmployeesQuery({ pay_scale_type: 'project' });
+  const { data: employeesData, isLoading: employeesLoading } = useGetEmployeesQuery({ pay_scale_type: 'project', is_active: true });
   const { data: servicesData, isLoading: servicesLoading } = useGetServicesQuery(1);
 
   const employees = employeesData?.results || [];
@@ -932,6 +932,7 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
           </Card>
 
           {/* Job Settings */}
+        { objective === 'convert' && 
           <Card>
             <CardHeader
               avatar={<RotateCcw className="h-5 w-5" />}
@@ -1070,6 +1071,7 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
               )}
             </CardContent>
           </Card>
+        }
 
           {/* Notes */}
           <div className="space-y-2">

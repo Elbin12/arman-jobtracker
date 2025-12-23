@@ -93,7 +93,7 @@ const PayrollReports = () => {
   }, [filters, page]);
 
   const { data: payoutsData, isLoading, isFetching, refetch } = useGetPayoutsQuery(queryParams);
-  const { data: employeesData, isLoading: loadingEmployees } = useGetEmployeesQuery();
+  const { data: employeesData, isLoading: loadingEmployees } = useGetEmployeesQuery({ is_active: true });
   const [updatePayout, { isLoading: updating }] = useUpdatePayoutMutation();
   const [deletePayout, { isLoading: deleting }] = useDeletePayoutMutation();
 
@@ -744,7 +744,7 @@ const PayrollReports = () => {
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={payout.payout_type === 'bonus_first_time' ? 'Fist time bonus' : payout.payout_type || 'project'}
+                          label={payout.payout_type === 'bonus_first_time' ? 'Fist time bonus' : payout.payout_type === 'bonus_quoted_by' ? 'Quoted by bonus' : payout.payout_type || 'project'}
                           size="small"
                           color={payout.payout_type === 'hourly' ? 'primary' : 'default'}
                           sx={{ textTransform: 'capitalize' }}

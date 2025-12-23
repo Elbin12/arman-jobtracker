@@ -61,7 +61,7 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
   
   const { toast } = useToast();
 
-  const { data: employeesData, isLoading: employeesLoading } = useGetEmployeesQuery({ pay_scale_type: 'project' });
+  const { data: employeesData, isLoading: employeesLoading } = useGetEmployeesQuery({ pay_scale_type: 'project', is_active: true });
   const { data: servicesData, isLoading: servicesLoading } = useGetServicesQuery(1);
   const [createJob] = useCreateJobMutation();
   

@@ -59,7 +59,7 @@ const PayrollCalculator = () => {
 
   // Get employees filtered by pay scale type based on calculation type
   const payScaleType = calculationType === 'hourly' ? 'hourly' : 'project';
-  const { data: employeesData, isLoading: isLoadingEmployees } = useGetEmployeesQuery({ pay_scale_type: payScaleType });
+  const { data: employeesData, isLoading: isLoadingEmployees } = useGetEmployeesQuery({ pay_scale_type: payScaleType, is_active: true });
   const { data: settingsData } = useGetSettingsQuery();
   const [createPayout, { isLoading: creating }] = useCreatePayoutMutation();
 

@@ -70,6 +70,7 @@ const PayrollTeamManagement = () => {
     pay_scale_type: 'project',
     hourly_rate: null,
     is_administrator: false,
+    is_active: null,
     status: 'active',
   });
 
@@ -101,6 +102,7 @@ const PayrollTeamManagement = () => {
       hourly_rate: null,
       is_administrator: false,
       status: 'active',
+      is_active: true,
     });
     setShowDialog(true);
   };
@@ -116,7 +118,8 @@ const PayrollTeamManagement = () => {
       pay_scale_type: employee.pay_scale_type || 'project',
       hourly_rate: employee.hourly_rate || null,
       is_administrator: employee.is_administrator || false,
-      status: employee.status || 'active',
+      status: employee.is_active ? 'active' : 'inactive',
+      is_active: employee.is_active ? true : false,
     });
     setFormData(existing => ({
       ...existing,
@@ -355,10 +358,10 @@ const PayrollTeamManagement = () => {
                               width: 8,
                               height: 8,
                               borderRadius: "50%",
-                              bgcolor: employee.status === "active" ? "green" : "red",
+                              bgcolor: employee.is_active ? "green" : "red",
                             }}
                           />
-                          {employee.status.charAt(0).toUpperCase() + employee.status.slice(1)}
+                          {employee.is_active ? "Active" : "Inactive"}
                         </Box>
                       }
                       size="small"
@@ -367,7 +370,7 @@ const PayrollTeamManagement = () => {
                         textTransform: "none",
                         fontWeight: 600,
                         fontSize: "0.75rem",
-                        borderColor: employee.status === "active" ? "green" : "red",
+                        borderColor: employee.is_active? "green" : "red",
                       }}
                     />
                   </Box>
@@ -778,8 +781,8 @@ const PayrollTeamManagement = () => {
             <FormControl fullWidth size="small">
               <InputLabel>Status</InputLabel>
               <Select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                value={formData.is_active ? 'active' : 'inactive'}
+                onChange={(e) => setFormData({ ...formData, is_active: e.target.value === 'active', status: e.target.value })}
                 label="Status"
                 sx={{ borderRadius: 1 }}
               >
