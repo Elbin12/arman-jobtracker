@@ -70,7 +70,6 @@ export const LocationGroupCard = ({ locationInfo, users }) => {
     // Get job ID - support both job_id and id fields
     const jobId = jobToDelete.job_id || jobToDelete.id
     if (!jobId) {
-      console.error("Job ID not found")
       return
     }
     
@@ -113,13 +112,16 @@ export const LocationGroupCard = ({ locationInfo, users }) => {
         }
       )
     )
+
+    // Invalidate getLocations cache to refresh location cards with updated counts
+    // This will cause all getLocations queries to refetch
+    dispatch(jobsApi.util.invalidateTags(['Job']))
   };
 
   const handleJobUpdate = (result)=>{
     // Use the job ID from the result (supports both id and job_id)
     const jobId = result.id || result.job_id;
     if (!jobId) {
-      console.error("Job ID not found in result");
       return;
     }
     
@@ -149,8 +151,6 @@ export const LocationGroupCard = ({ locationInfo, users }) => {
     );
   }
 
-  console.log(selectedJob, 'selected jobww')
-
   return (
     <>
       <div className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow duration-300 h-full flex flex-col">
@@ -172,7 +172,8 @@ export const LocationGroupCard = ({ locationInfo, users }) => {
             </div>
             <button 
               onClick={() => setIsModalOpen(true)}
-              className="text-sm font-medium text-blue-600 hover:text-blue-700 whitespace-nowrap ml-4"
+              className="text-sm font-medium text-blue-600 hover:text-blue-700 whitespace-nowrap ml-4 min-h-[44px] min-w-[44px] px-3"
+              aria-label="View jobs at this location"
             >
               View Jobs
             </button>
@@ -268,7 +269,21 @@ export const JobsModal = ({
   );
 
   return (
-    <Dialog open={isOpen} onClose={onClose} maxWidth="xl" fullWidth scroll="paper">
+    <Dialog 
+      open={isOpen} 
+      onClose={onClose} 
+      maxWidth="xl" 
+      fullWidth 
+      scroll="paper"
+      PaperProps={{
+        sx: {
+          maxWidth: { xs: '100%', sm: '90%', md: '1200px' },
+          maxHeight: { xs: '100vh', sm: '90vh' },
+          margin: { xs: 0, sm: 'auto' },
+          borderRadius: { xs: 0, sm: 1 },
+        }
+      }}
+    >
       {/* HEADER */}
       <DialogTitle
         sx={{
@@ -331,7 +346,8 @@ export const JobsModal = ({
       <DialogActions>
         <button
           onClick={onClose}
-          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg"
+          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg min-h-[44px] min-w-[44px]"
+          aria-label="Close dialog"
         >
           Close
         </button>

@@ -47,7 +47,7 @@
         setGoogleReady(true);
       };
       script.onerror = () => {
-        console.error('Failed to load Google Maps API');
+        // Failed to load Google Maps API
       };
       document.head.appendChild(script);
     }, []);

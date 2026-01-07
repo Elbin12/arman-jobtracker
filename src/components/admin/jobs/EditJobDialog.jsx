@@ -177,10 +177,10 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
       if (updated.period === "PM" && hour24 !== 12) hour24 += 12;
       if (updated.period === "AM" && hour24 === 12) hour24 = 0;
 
-      // Create moment in account timezone, then convert to UTC
+      // Create moment in UTC directly (user input is already in UTC format, matching calendar display)
       const timeStr = `${String(hour24).padStart(2, '0')}:${updated.minute}:00`;
-      const localMoment = moment.tz(`${updated.date} ${timeStr}`, "YYYY-MM-DD HH:mm:ss", accountTimezone);
-      const utcIsoString = localMoment.utc().toISOString();
+      const utcMoment = moment.utc(`${updated.date} ${timeStr}`, "YYYY-MM-DD HH:mm:ss");
+      const utcIsoString = utcMoment.toISOString();
       
       setFormData(prev => ({ ...prev, scheduled_at: utcIsoString }));
     }
@@ -347,8 +347,6 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
 
       const result = await updateJob({ id: job.id, filter:objective==='convert'&&'status=to_convert', ...payload}).unwrap();
 
-      console.log("RTK update using address:", job.customer_address);
-
       // Show success message
       if (objective === 'convert') {
         toast({
@@ -368,7 +366,6 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
 
       onClose();
     } catch (err) {
-      console.error("Failed to update job:", err);
       toast({
         title: "Error",
         description: err?.data?.message || (objective === 'convert' ? "Failed to convert quote to job. Please try again." : "Failed to update job. Please try again."),
@@ -399,8 +396,6 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
     }
   };
 
-  console.log(formData);
-
   return (
     <Dialog 
       open={open} 
@@ -409,13 +404,23 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
       fullWidth
       PaperProps={{
         sx: {
-          zIndex: 1400, // Higher than navbar (1200) and parent dialog (1300)
+          zIndex: 1201, // Modal content layer
+          maxWidth: { xs: '100%', sm: '600px', md: '900px' },
+          maxHeight: { xs: '100vh', sm: '90vh' },
+          margin: { xs: 0, sm: 'auto' },
+          borderRadius: { xs: 0, sm: 1 },
         }
       }}
       BackdropProps={{
         sx: {
-          zIndex: 1399, // Just below the dialog content
+          zIndex: 1199, // Modal backdrop layer
           backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        }
+      }}
+      fullScreen={false}
+      sx={{
+        '& .MuiDialog-container': {
+          alignItems: { xs: 'flex-end', sm: 'center' },
         }
       }}
       disableEnforceFocus={true}

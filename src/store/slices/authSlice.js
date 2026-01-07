@@ -8,8 +8,6 @@ const refresh = localStorage.getItem('refresh');
 const user_profile = localStorage.getItem('user_profile');
 const user = localStorage.getItem('user');
 
-console.log("Auth Slice - User Profile:", user_profile);  
-
 const initialState = {
   admin: null,
   access: access,
@@ -71,6 +69,9 @@ const authSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    clearSuccess: (state) => {
+      state.success = false;
+    },
     setCredentials: (state, action) => {
       state.access = action.payload.access;
       state.refresh = action.payload.refresh;
@@ -116,6 +117,7 @@ const authSlice = createSlice({
         state.refresh = null;
         state.isAuthenticated = false;
         state.error = null;
+        state.success = false;
         localStorage.removeItem('access');
         localStorage.removeItem('refresh');
         localStorage.removeItem('user_profile');
@@ -133,5 +135,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, clearError, setCredentials } = authSlice.actions;
+export const { logout, clearError, clearSuccess, setCredentials } = authSlice.actions;
 export default authSlice.reducer;

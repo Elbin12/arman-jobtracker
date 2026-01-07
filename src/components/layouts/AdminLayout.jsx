@@ -55,7 +55,7 @@ import { logoutUser } from "../../store/slices/authSlice"
 // Navigation configuration based on roles
 const getNavItemsByRole = (role, fullAccessRoles, user_profile) => {
   const adminItems = [
-    { text: "Dashboard", path: "/admin/dashboard", icon: DashboardIcon, roles: ["admin", "supervisor"] },
+    // { text: "Dashboard", path: "/admin/dashboard", icon: DashboardIcon, roles: ["admin", "supervisor"] },
     { text: "Jobs", path: "/admin/jobs", icon: WorkOutline, roles: ["admin", "supervisor"] },
     { text: "Quotes", path: "/admin/accepted-quotes", icon: ReceiptLong, roles: ["admin", "supervisor"] },
     { text: "Team", path: "/admin/team", icon: Group, roles: ["admin", "supervisor"] },
@@ -63,24 +63,24 @@ const getNavItemsByRole = (role, fullAccessRoles, user_profile) => {
 
   const workerItems = [
     { text: "My Jobs", path: "/admin/jobs", icon: WorkOutline, roles: ["worker"] },
-    { text: "Calendar", path: "/admin/calendar", icon: Event, roles: ["worker"] },
+    // { text: "Calendar", path: "/admin/calendar", icon: Event, roles: ["worker"] },
   ]
 
   // Determine payroll path based on role and pay_scale_type
   // For admins: always go to Time Clock (/admin/payroll)
   // For workers: go to Time Clock if hourly, otherwise go to Calculator
-  const getPayrollPath = () => {
-    if (fullAccessRoles.includes(role)) {
-      return "/admin/payroll" // Admins always go to Time Clock
-    } else if (role === "worker") {
-      return "/admin/payroll/reports"
-    }
-    return "/admin/payroll"
-  }
+  // const getPayrollPath = () => {
+  //   if (fullAccessRoles.includes(role)) {
+  //     return "/admin/payroll" // Admins always go to Time Clock
+  //   } else if (role === "worker") {
+  //     return "/admin/payroll/reports"
+  //   }
+  //   return "/admin/payroll"
+  // }
 
-  const payrollItem = [
-    { text: "Payroll", path: getPayrollPath(), icon: AttachMoney, roles: ["admin", "worker"] },
-  ]
+  // const payrollItem = [
+  //   { text: "Payroll", path: getPayrollPath(), icon: AttachMoney, roles: ["admin", "worker"] },
+  // ]
 
   const workerReportsProfile = [
     // { text: "Reports", path: "/admin/reports", icon: Assessment, roles: ["worker"] },
@@ -88,9 +88,9 @@ const getNavItemsByRole = (role, fullAccessRoles, user_profile) => {
   ]
 
   if (fullAccessRoles.includes(role)) {
-    return [...adminItems, ...payrollItem]
+    return [...adminItems] // , ...payrollItem
   } else if (role === "worker") {
-    return [...workerItems, ...payrollItem, ...workerReportsProfile]
+    return [...workerItems, ...workerReportsProfile] // , ...payrollItem
   }
 
   return []
@@ -132,7 +132,7 @@ const getManagementItemsByRole = (role, fullAccessRoles) => {
   if (!fullAccessRoles.includes(role)) return []
 
   return [
-    { text: "Calendar", path: "/admin/calendar", icon: Event },
+    // { text: "Calendar", path: "/admin/calendar", icon: Event },
     { text: "Service Management", path: "/admin/services", icon: BusinessCenter },
     { text: "Location Management", path: "/admin/locations", icon: LocationOn },
     { text: "House Size Info", path: "/admin/house-size-info", icon: Home },
@@ -154,12 +154,10 @@ export const AdminLayout = ({ children }) => {
 
   const user_profile = useSelector((state) => state.auth.user_profile)
   const user = useSelector((state) => state.auth.user)
-  console.log("User Profile in AdminLayout:", user);
 
   // Get user role from Redux store - adjust this based on your store structure
   const userRole = user?.role || "worker"
   const userName = user_profile?.full_name || "User"
-  console.log("User Role:", userRole, useSelector((state) => state.auth.user_profile));
 
   const fullAccessRoles = ["admin", "manager", "supervisor"]
 
@@ -183,6 +181,12 @@ export const AdminLayout = ({ children }) => {
   const isPayrollSection = location.pathname.startsWith("/admin/payroll")
   const isManagementActive = managementItems.some((item) => location.pathname === item.path)
   const showManagementDropdown = managementItems.length > 0
+
+  // Hide navbar for specific routes
+  const shouldHideNavbar = 
+    location.pathname.startsWith("/admin/payroll") ||
+    location.pathname === "/admin/dashboard" ||
+    location.pathname === "/admin/calendar"
 
   const getPayrollBreadcrumb = () => {
     const currentPayrollItem = payrollSubNavItems.find(item => item.path === location.pathname)
@@ -222,6 +226,13 @@ export const AdminLayout = ({ children }) => {
   }
 
   const handleLogout = () => {
+    // Store current location before logout (only if not already on login page)
+    if (!location.pathname.includes('/admin/login')) {
+      const currentPath = location.pathname + location.search;
+      localStorage.setItem('returnTo', currentPath);
+      console.log('Stored returnTo in logout:', currentPath);
+    }
+    
     dispatch(logoutUser())
     navigate("/admin/login")
     handleUserMenuClose()
@@ -253,16 +264,17 @@ export const AdminLayout = ({ children }) => {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       {/* Main Navigation Bar */}
-      <AppBar
-        position="sticky"
-        elevation={0}
-        sx={{
-          backgroundColor: "white",
-          borderBottom: "1px solid",
-          borderColor: "divider",
-          zIndex: 1200,
-        }}
-      >
+      {!shouldHideNavbar && (
+        <AppBar
+          position="sticky"
+          elevation={0}
+          sx={{
+            backgroundColor: "white",
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            zIndex: 1200,
+          }}
+        >
         <Toolbar sx={{ gap: 1 }}>
           {isMobile && (
             <IconButton
@@ -650,6 +662,7 @@ export const AdminLayout = ({ children }) => {
           </Menu>
         </Toolbar>
       </AppBar>
+      )}
 
       {/* Payroll Sub-Navigation */}
       {isPayrollSection && (
@@ -658,7 +671,7 @@ export const AdminLayout = ({ children }) => {
             backgroundColor: "#073D7F",
             borderColor: "divider",
             position: "sticky",
-            top: 64,
+            top: shouldHideNavbar ? 0 : 64,
             zIndex: 1200,
             boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
           }}

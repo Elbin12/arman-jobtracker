@@ -75,12 +75,12 @@ const PlacesAutocomplete = ({ value, onChange, error, helperText }) => {
         }
 
         script.onerror = () => {
-          console.error("Failed to load Google Maps API")
+          // Failed to load Google Maps API
         }
 
         document.head.appendChild(script)
       } catch (error) {
-        console.error("Error loading Google Maps API:", error)
+        // Error loading Google Maps API
       }
     }
 
@@ -317,7 +317,7 @@ const LocationsManagement = () => {
       if (error?.status === 400 && error?.data) {
         setFormErrors(error.data)
       } else {
-        console.error("Failed to save location:", error)
+        // Error handled by toast notification
       }
     }
   }
@@ -330,7 +330,7 @@ const LocationsManagement = () => {
       setDeleteDialogOpen(false)
       setLocationToDelete(null)
     } catch (error) {
-      console.error("Failed to delete location:", error)
+      // Error handled by toast notification
     }
   }
 

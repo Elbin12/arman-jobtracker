@@ -49,8 +49,6 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
     assignments: [],
     total_price: 0,
   });
-
-  console.log(formData, 'deeaa')
   
   const [timeData, setTimeData] = useState({
     date: "",
@@ -108,8 +106,6 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
 
   useEffect(() => {
     if (initialData) {
-      console.log('CreateJobForm initialData:', initialData);
-      
       // Parse scheduled date
       let parsedTimeData = { date: "", hour: "12", minute: "00", period: "PM" };
       if (initialData.scheduled_date) {
@@ -345,6 +341,7 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Validation: Job Title
     if (!formData.title.trim()) {
       toast({
         title: "Error",
@@ -354,10 +351,163 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
       return;
     }
 
+    // Validation: Services
     if (formData.items.length === 0) {
       toast({
         title: "Error",
         description: "Please select at least one service",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validation: Service prices (each service must have a price > 0)
+    const invalidServices = formData.items.filter(item => !item.price || parseFloat(item.price) <= 0);
+    if (invalidServices.length > 0) {
+      toast({
+        title: "Error",
+        description: "All services must have a valid price greater than 0",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validation: Duration
+    if (!formData.duration_hours || parseFloat(formData.duration_hours) <= 0) {
+      toast({
+        title: "Error",
+        description: "Duration is required and must be greater than 0",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validation: Total Price
+    if (!formData.total_price || parseFloat(formData.total_price) <= 0) {
+      toast({
+        title: "Error",
+        description: "Price is required and must be greater than 0",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validation: Date
+    if (!timeData.date || !timeData.date.trim()) {
+      toast({
+        title: "Error",
+        description: "Date is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validation: Hour
+    if (!timeData.hour || !timeData.hour.trim()) {
+      toast({
+        title: "Error",
+        description: "Hour is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validation: Minute
+    if (!timeData.minute || !timeData.minute.trim()) {
+      toast({
+        title: "Error",
+        description: "Minute is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validation: Period
+    if (!timeData.period || !timeData.period.trim()) {
+      toast({
+        title: "Error",
+        description: "Period (AM/PM) is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validation: Customer Name
+    if (!formData.customer_name || !formData.customer_name.trim()) {
+      toast({
+        title: "Error",
+        description: "Customer name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validation: Customer Phone
+    if (!formData.customer_phone || !formData.customer_phone.trim()) {
+      toast({
+        title: "Error",
+        description: "Customer phone is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validation: Customer Email
+    if (!formData.customer_email || !formData.customer_email.trim()) {
+      toast({
+        title: "Error",
+        description: "Customer email is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validation: Email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.customer_email.trim())) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid email address",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validation: GHL Contact ID
+    if (!formData.ghl_contact_id || !formData.ghl_contact_id.trim()) {
+      toast({
+        title: "Error",
+        description: "GHL Contact ID is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validation: Customer Address
+    if (!formData.customer_address || !formData.customer_address.trim()) {
+      toast({
+        title: "Error",
+        description: "Customer address is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validation: Quoted By
+    if (!formData.quoted_by) {
+      toast({
+        title: "Error",
+        description: "Quoted By is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validation: Team Members Assignment
+    if (!formData.assignments || formData.assignments.length === 0) {
+      toast({
+        title: "Error",
+        description: "At least one team member must be assigned",
         variant: "destructive",
       });
       return;
@@ -419,16 +569,13 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
       // Call appropriate API based on job type
       const apiEndpoint = formData.job_type === "recurring" ? "jobs-series" : "jobs";
 
-      await createJob({
+      // Use unwrap() to properly handle errors - this will throw on 400/500 status codes
+      const result = await createJob({
         apiEndpoint: apiEndpoint,
         payload: payload,
-      });
-      
-      // Replace with actual API call
-      // const response = await createJob(payload).unwrap(); // or createRecurringJob
-      console.log("API Endpoint:", apiEndpoint);
-      console.log("Payload:", payload);
+      }).unwrap();
 
+      // Only show success if we get here (no error thrown, status 200/201)
       toast({
         title: "Success",
         description: `Job ${formData.job_type === "recurring" ? "series" : ""} created successfully`,
@@ -442,13 +589,16 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
       }
       
       if (onJobCreated) {
-        onJobCreated(payload);
+        onJobCreated(result || payload);
       }
     } catch (err) {
-      console.error("Failed to create job:", err);
+      // Extract error message from RTK Query unwrap error
+      // Error structure: { status, data } when using unwrap()
+      const errorMessage = err?.data?.message || err?.data?.error || err?.message || "Failed to create job. Please try again.";
+      
       toast({
         title: "Error",
-        description: err?.data?.message || "Failed to create job. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
       

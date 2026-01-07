@@ -168,7 +168,8 @@ export const BookingWizard = () => {
               break;
               
             default:
-              console.warn(`Unknown question type: ${response.question_type}`);
+              // Unknown question type
+              break;
           }
         });
         return acc;
@@ -182,7 +183,6 @@ export const BookingWizard = () => {
       quoteDetails: submissionData,
     };
     
-    console.log('Transformed question answers:', transformedData.questionAnswers);
     setBookingData(transformedData);
   }
 }, [isSuccess, submissionData]);
@@ -338,7 +338,6 @@ export const BookingWizard = () => {
     return serviceResponses;
   };
 
-  console.log(bookingData, 'data');
   
 
   const handleNext = async () => {
@@ -374,7 +373,6 @@ export const BookingWizard = () => {
         }
         setActiveStep((prev) => prev + 1)
       } catch (err) {
-        console.error("Failed to save contact", err)
         alert("Could not save contact. Please try again.")
       }
     } else if (activeStep === 1) {
@@ -403,7 +401,7 @@ export const BookingWizard = () => {
           setActiveStep(prev => prev + 1);
         }
       } catch (error) {
-        console.log(error, "error");
+        // Error handled
       }
     }
     else if (activeStep === 2) {
@@ -421,8 +419,6 @@ export const BookingWizard = () => {
         //   return;
         // }
 
-        console.log(bookingData, 'dataaaa')
-
         // Transform question answers to API format
         const serviceResponses = transformQuestionAnswersToAPIFormat(questionAnswers, selectedServices);
 
@@ -431,13 +427,10 @@ export const BookingWizard = () => {
           const responses = serviceResponses[service.id] || [];
           
           if (responses.length === 0) {
-            console.log(`No responses for service ${service.id}, skipping...`);
             return;
           }
 
           const payload = { responses };
-
-          console.log(payload, 'payload')
           
           try {
             const result = await createQuestionResponses({
@@ -445,10 +438,8 @@ export const BookingWizard = () => {
               serviceId: service.id,
               payload
             }).unwrap();
-            console.log(`Responses submitted for service ${service.id}:`, result);
             return result;
           } catch (error) {
-            console.error(`Failed to submit responses for service ${service.id}:`, error);
             throw new Error(`Failed to submit responses for ${service.name}`);
           }
         });
@@ -456,11 +447,9 @@ export const BookingWizard = () => {
         // Wait for all service responses to be submitted
         await Promise.all(responsePromises);
         
-        console.log('All question responses submitted successfully');
         setActiveStep((prev) => prev + 1);
         
       } catch (err) {
-        console.error("Failed to submit question responses", err);
         alert(`Could not submit question responses: ${err.message || 'Please try again.'}`);
       }
     } else if (activeStep === steps.length - 1) {
@@ -508,8 +497,6 @@ export const BookingWizard = () => {
         marketing_consent: false,
         signature:signature
       };
-
-      console.log('Submitting quote with payload:', payload);
       
       await submitQuote({ submissionId: submission_id, payload }).unwrap();
       
@@ -517,7 +504,6 @@ export const BookingWizard = () => {
       navigate(`/quote/details/${submission_id}?first_name=${quoteDetails?.contact?.first_name}&last_name=${quoteDetails?.contact?.last_name}&email=${quoteDetails?.contact?.email}&phone=${quoteDetails?.contact?.phone}`);
       
     } catch (err) {
-      console.error("Failed to submit quote", err);
       alert("Could not submit booking. Please try again.");
     }
   }
@@ -580,14 +566,7 @@ export const BookingWizard = () => {
       case 2:
         return true; // Questions are optional, so always allow proceeding
         case 3:
-          console.log(
-            "packages", bookingData.selectedPackages?.length,
-            "services", bookingData.selectedServices?.length,
-            "custom", bookingData.selectedCustomProducts?.length,
-            "terms", termsAccepted,
-            "signature", signature
-          );
-
+          // Validate packages and services
           const hasCustom = bookingData.selectedCustomProducts?.length > 0;
           const servicesCount = bookingData.selectedServices?.length ?? 0;
           const packagesCount = bookingData.selectedPackages?.length ?? 0;
@@ -639,16 +618,14 @@ export const BookingWizard = () => {
         // Convert to Base64 (remove data:image/png;base64, prefix for backend)
         const base64Data = dataUrl.split(",")[1]
         setSignature(base64Data)
-        console.log("Signature captured as Base64:", base64Data.substring(0, 50) + "...")
       } catch (error) {
-        console.error("Error capturing signature:", error)
         // Fallback: try to get data URL directly
         try {
           const dataUrl = sigCanvasRef.current.toDataURL("image/png")
           const base64Data = dataUrl.split(",")[1]
           setSignature(base64Data)
         } catch (fallbackError) {
-          console.error("Fallback signature capture failed:", fallbackError)
+          // Fallback signature capture failed
         }
       }
     }

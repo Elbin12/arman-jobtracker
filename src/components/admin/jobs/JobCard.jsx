@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import moment from "moment-timezone"
 import { useUpdateJobMutation } from "../../../store/api/jobsApi"
+import { useToast } from "@/hooks/use-toast"
 import {
   Card,
   CardContent,
@@ -48,6 +49,7 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
   const [pendingStatus, setPendingStatus] = useState(null)
   const [displayStatus, setDisplayStatus] = useState(job?.status)
   const [updateJob] = useUpdateJobMutation()
+  const { toast } = useToast()
 
   // Update displayStatus when job status changes externally
   useEffect(() => {
@@ -111,6 +113,18 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
       return
     }
 
+    // Validation: Prevent changing from pending to confirmed if slot is reserved
+    if (job?.status === "pending" && newStatus === "confirmed" && job?.slot_reserved_info?.slot_reserved === true) {
+      toast({
+        title: "Cannot Change Status",
+        description: "This slot is reserved. You cannot change the status from Pending to Confirmed.",
+        variant: "destructive",
+      })
+      // Reset display status to current job status
+      setDisplayStatus(job?.status)
+      return
+    }
+
     // Check if status change requires confirmation
     if (newStatus === "completed" || newStatus === "cancelled") {
       setPendingStatus(newStatus)
@@ -128,7 +142,6 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
     
     const jobId = job.job_id || job.id
     if (!jobId) {
-      console.error("Job ID not found")
       return
     }
     
@@ -148,7 +161,6 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
       setStatusChangeDialogOpen(false)
       setPendingStatus(null)
     } catch (error) {
-      console.error("Failed to update job status:", error)
       // Keep dialog open on error so user can retry
     } finally {
       setUpdating(false)
@@ -170,17 +182,14 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
 
   const assignedUserNames = job.assignments
     ?.map((assignment) => {
-      if (assignment.user && users.length > 0) {
-        const user = users.find((u) => u.id === assignment.user)
-        if (user) {
-          if (user.first_name || user.last_name) {
-            const fullName = `${user.first_name || ""} ${user.last_name || ""}`.trim()
+        if (assignment.user) {
+          if (assignment.first_name || assignment.last_name) {
+            const fullName = `${assignment.first_name || ""} ${assignment.last_name || ""}`.trim()
             return toTitleCase(fullName)
-          } else if (user.email) {
-            return user.email
+          } else if (assignment.email) {
+            return assignment.email
           }
         }
-      }
       const email = assignment.user_email || assignment.user || ""
       return email.includes("@") ? email : toTitleCase(email)
     })
@@ -229,13 +238,13 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
         }}
       >
         <CardContent sx={{ p: 3, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-          {/* Header - Fixed height to ensure consistency */}
+          {/* Header - Responsive height */}
           <Box sx={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'flex-start', 
             mb: 2,
-            minHeight: '64px', // Fixed minimum height for header
+            minHeight: { xs: 'auto', sm: '64px' }, // Responsive minimum height
           }}>
             <Box sx={{ flex: 1, pr: 1 }}>
               <Typography 
@@ -249,29 +258,57 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                   WebkitBoxOrient: 'vertical',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  minHeight: '32px', // Reserve space for title
+                  minHeight: { xs: 'auto', sm: '32px' }, // Responsive minimum height
                 }}
               >
                 {job.title || "Untitled Job"}
               </Typography>
-              <Typography 
-                variant="body1" 
-                sx={{ 
-                  color: 'text.secondary', 
-                  fontWeight: 500,
-                  lineHeight: 1.3,
-                  minHeight: '24px', // Reserve space for customer name
-                }}
-              >
-                {job.customer_name ? toTitleCase(job.customer_name) : '\u00A0'}
-              </Typography>
+              {job.customer_name && job.ghl_contact_id ? (
+                <Typography 
+                  component="a"
+                  href={`https://app.theservicepilot.com/v2/location/b8qvo7VooP3JD3dIZU42/contacts/detail/${job.ghl_contact_id}/`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  variant="body1" 
+                  sx={{ 
+                    color: 'primary.main', 
+                    fontWeight: 500,
+                    lineHeight: 1.3,
+                    minHeight: { xs: 'auto', sm: '24px' }, // Responsive minimum height
+                    textDecoration: 'none',
+                    cursor: 'pointer',
+                    '&:hover': {
+                      textDecoration: 'underline',
+                    },
+                  }}
+                >
+                  {toTitleCase(job.customer_name)}
+                </Typography>
+              ) : (
+                <Typography 
+                  variant="body1" 
+                  sx={{ 
+                    color: 'text.secondary', 
+                    fontWeight: 500,
+                    lineHeight: 1.3,
+                    minHeight: { xs: 'auto', sm: '24px' }, // Responsive minimum height
+                  }}
+                >
+                  {job.customer_name ? toTitleCase(job.customer_name) : '\u00A0'}
+                </Typography>
+              )}
             </Box>
             <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
               <IconButton 
                 size="small" 
                 onClick={() => onEdit(job)} 
                 title="Edit job"
-                sx={{ color: 'text.secondary' }}
+                aria-label="Edit job"
+                sx={{ 
+                  color: 'text.secondary',
+                  minWidth: { xs: '44px', sm: 'auto' },
+                  minHeight: { xs: '44px', sm: 'auto' },
+                }}
               >
                 <Edit size={18} />
               </IconButton>
@@ -280,12 +317,17 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                   <IconButton 
                     size="small" 
                     title="More options"
-                    sx={{ color: 'text.secondary' }}
+                    aria-label="More options"
+                    sx={{ 
+                      color: 'text.secondary',
+                      minWidth: { xs: '44px', sm: 'auto' },
+                      minHeight: { xs: '44px', sm: 'auto' },
+                    }}
                   >
                     <MoreVertical size={18} />
                   </IconButton>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="z-[1400]">
+                <DropdownMenuContent align="end" className="z-[1300]">
                   <DropdownMenuItem onClick={() => setDeleteDialogOpen(true)}>
                     <Trash2 size={16} className="mr-2" />
                     Delete
@@ -296,13 +338,13 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
             </Box>
           </Box>
 
-          {/* Status Badges - Fixed height to ensure consistency */}
+          {/* Status Badges - Responsive height */}
           <Box sx={{ 
             display: "flex", 
             gap: 1, 
             mb: 3, 
             flexWrap: "wrap",
-            minHeight: '32px', // Fixed height for status badges section
+            minHeight: { xs: 'auto', sm: '32px' }, // Responsive minimum height
             alignItems: 'flex-start',
           }}>
             {statusBadges.length > 0 ? (
@@ -344,9 +386,30 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
               {job.customer_name && (
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   <User size={16} style={{ color: 'rgba(0, 0, 0, 0.54)', flexShrink: 0 }} />
-                  <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
-                    {toTitleCase(job.customer_name)}
-                  </Typography>
+                  {job.ghl_contact_id ? (
+                    <Typography 
+                      component="a"
+                      href={`https://app.gohighlevel.com/v2/location/b8qvo7VooP3JD3dIZU42/contacts/detail/${job.ghl_contact_id}/`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      variant="body2" 
+                      sx={{ 
+                        fontSize: '0.875rem',
+                        color: 'primary.main',
+                        textDecoration: 'none',
+                        cursor: 'pointer',
+                        '&:hover': {
+                          textDecoration: 'underline',
+                        },
+                      }}
+                    >
+                      {toTitleCase(job.customer_name)}
+                    </Typography>
+                  ) : (
+                    <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                      {toTitleCase(job.customer_name)}
+                    </Typography>
+                  )}
                 </Box>
               )}
 
@@ -580,6 +643,122 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
             )}
             </Box>
 
+          {/* Appointment Details - Show when slot is reserved and appointment exists */}
+          {job?.slot_reserved_info?.slot_reserved === true && job?.slot_reserved_info?.appointment && (
+            <Box sx={{ mb: 3 }}>
+              <Divider sx={{ mb: 2 }} />
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase', mb: 1.5, display: 'block', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
+                Reserved Appointment
+              </Typography>
+              <Box
+                sx={{
+                  p: 2,
+                  borderRadius: 2,
+                  bgcolor: "info.50",
+                  border: "1px solid",
+                  borderColor: "info.200",
+                }}
+              >
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  {/* Appointment Title */}
+                  {job.slot_reserved_info.appointment.title && (
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: "info.main", mb: 0.5 }}>
+                      {job.slot_reserved_info.appointment.title}
+                    </Typography>
+                  )}
+
+                  {/* Appointment Time */}
+                  {job.slot_reserved_info.appointment.start_time && (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Calendar size={16} style={{ color: 'rgba(0, 0, 0, 0.54)', flexShrink: 0 }} />
+                      <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                        {moment.utc(job.slot_reserved_info.appointment.start_time).tz(accountTimezone).format("MMM D, YYYY · h:mm A")}
+                        {job.slot_reserved_info.appointment.end_time && (
+                          <> - {moment.utc(job.slot_reserved_info.appointment.end_time).tz(accountTimezone).format("h:mm A")}</>
+                        )}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {/* Assigned User */}
+                  {job.slot_reserved_info.appointment.assigned_user && (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <User size={16} style={{ color: 'rgba(0, 0, 0, 0.54)', flexShrink: 0 }} />
+                      <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                        {job.slot_reserved_info.appointment.assigned_user.name}
+                        {job.slot_reserved_info.appointment.assigned_user.email && (
+                          <> ({job.slot_reserved_info.appointment.assigned_user.email})</>
+                        )}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {/* Contact */}
+                  {job.slot_reserved_info.appointment.contact && (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <User size={16} style={{ color: 'rgba(0, 0, 0, 0.54)', flexShrink: 0 }} />
+                      <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                        {job.slot_reserved_info.appointment.contact.name}
+                        {job.slot_reserved_info.appointment.contact.email && (
+                          <> ({job.slot_reserved_info.appointment.contact.email})</>
+                        )}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {/* Address */}
+                  {job.slot_reserved_info.appointment.address && (
+                    <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
+                      <MapPin size={16} style={{ color: 'rgba(0, 0, 0, 0.54)', flexShrink: 0, marginTop: '2px' }} />
+                      <Typography variant="body2" sx={{ fontSize: '0.875rem', lineHeight: 1.4 }}>
+                        {job.slot_reserved_info.appointment.address}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {/* Calendar Name */}
+                  {job.slot_reserved_info.appointment.calendar_name && (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Calendar size={16} style={{ color: 'rgba(0, 0, 0, 0.54)', flexShrink: 0 }} />
+                      <Typography variant="body2" sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>
+                        Calendar: {job.slot_reserved_info.appointment.calendar_name}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {/* Appointment Status */}
+                  {job.slot_reserved_info.appointment.appointment_status && (
+                    <Box>
+                      <Chip
+                        label={job.slot_reserved_info.appointment.appointment_status.replace(/_/g, " ")}
+                        size="small"
+                        sx={{
+                          textTransform: "capitalize",
+                          fontSize: "0.75rem",
+                          height: "24px",
+                          fontWeight: 500,
+                        }}
+                        color={job.slot_reserved_info.appointment.appointment_status === "confirmed" ? "success" : "default"}
+                      />
+                    </Box>
+                  )}
+
+                  {/* Notes */}
+                  {job.slot_reserved_info.appointment.notes && (
+                    <Box sx={{ mt: 1, pt: 1.5, borderTop: '1px solid', borderColor: 'info.200' }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 0.5 }}>
+                        Notes:
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontSize: '0.875rem', color: 'text.secondary', whiteSpace: 'pre-wrap' }}>
+                        {job.slot_reserved_info.appointment.notes}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+            </Box>
+          )}
+
           {/* Status Selector */}
           <Box>
             <Select
@@ -590,9 +769,14 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
-              <SelectContent className="z-[1400]">
+              <SelectContent className="z-[1300]">
                 <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="confirmed">Confirmed</SelectItem>
+                <SelectItem 
+                  value="confirmed"
+                  disabled={job?.status === "pending" && job?.slot_reserved_info?.slot_reserved === true}
+                >
+                  Confirmed
+                </SelectItem>
                 <SelectItem value="service_due">Service Due</SelectItem>
                 <SelectItem value="on_the_way">On The Way</SelectItem>
                 <SelectItem value="in_progress">In Progress</SelectItem>

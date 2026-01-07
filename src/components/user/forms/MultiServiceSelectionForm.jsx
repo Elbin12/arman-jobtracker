@@ -92,14 +92,13 @@ const MultiServiceSelectionForm = ({ data, onUpdate }) => {
   const handleAddCustomProduct = async() => {
     // Here you should call your backend mutation instead of local update
     // Example: addCustomProductMutation(newProduct).then(refetch)
-    console.log("Adding custom product to backend:", newProduct);
     try {
       const response = await createCustomProduct({...newProduct, purchase:data?.submission_id}).unwrap();
 
       setDialogOpen(false);
       setNewProduct({ product_name: '', description: '', price: '' });
     } catch (err) {
-      console.error("Failed to create custom product", err);
+      // Error handled by toast notification
     }
   };
 

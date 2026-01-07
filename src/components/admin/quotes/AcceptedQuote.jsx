@@ -1,9 +1,9 @@
-import { LocationOnOutlined, MailOutline, PhoneAndroid, CalendarToday, AttachMoney, AccessTime, WorkOutline, Person } from '@mui/icons-material'
-import { Avatar, Box, Card, CardContent, CardHeader, Typography, Chip, Divider, Grid, Button } from '@mui/material'
+import { LocationOnOutlined, MailOutline, PhoneAndroid, CalendarToday, AttachMoney, AccessTime, WorkOutline, Person, Delete } from '@mui/icons-material'
+import { Avatar, Box, Card, CardContent, CardHeader, Typography, Chip, Divider, Grid, Button, IconButton } from '@mui/material'
 import { User } from 'lucide-react'
 import React from 'react'
 
-const AcceptedQuote = ({ quote, handleEdit }) => {
+const AcceptedQuote = ({ quote, handleEdit, handleDelete }) => {
   const formatDate = (dateString) => {
     if (!dateString) return 'Not scheduled';
 
@@ -104,13 +104,25 @@ const AcceptedQuote = ({ quote, handleEdit }) => {
           </Box>
         }
         action={
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
             <Chip 
               label={getJobTypeLabel(quote?.job_type)} 
               color={getJobTypeColor(quote?.job_type)}
               size="small"
               variant="outlined"
             />
+            {handleDelete && (
+              <IconButton
+                size="small"
+                onClick={() => handleDelete(quote)}
+                sx={{ 
+                  color: 'error.main'
+                }}
+                aria-label="Delete quote"
+              >
+                <Delete fontSize="small" />
+              </IconButton>
+            )}
           </Box>
         }
       />

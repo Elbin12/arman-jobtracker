@@ -286,7 +286,7 @@ export function TimelineView({
       }).unwrap();
       if (onJobUpdate) onJobUpdate(result);
     } catch (error) {
-      console.error("Failed to update job date:", error);
+      // Error handled by toast notification
     }
   };
 
@@ -299,7 +299,7 @@ export function TimelineView({
       }).unwrap();
       if (onJobUpdate) onJobUpdate(result);
     } catch (error) {
-      console.error("Failed to update job assignment:", error);
+      // Error handled by toast notification
     }
   };
 
@@ -347,7 +347,7 @@ export function TimelineView({
             }).unwrap();
             if (onJobUpdate) onJobUpdate(result);
           } catch (error) {
-            console.error("Failed to update job:", error);
+            // Error handled by toast notification
           }
         }
       } else {
@@ -363,7 +363,7 @@ export function TimelineView({
           }).unwrap();
           if (onJobUpdate) onJobUpdate(result);
         } catch (error) {
-          console.error("Failed to update job duration:", error);
+          // Error handled by toast notification
         }
       }
 

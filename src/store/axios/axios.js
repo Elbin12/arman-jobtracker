@@ -85,8 +85,22 @@ axiosInstance.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return axiosInstance(originalRequest);
       } catch (refreshError) {
-        console.error('Refresh token failed:', refreshError);
         localStorage.removeItem('access');
+        
+        // Store current location before token expires (for automatic logout scenarios)
+        // Only store if not already on login page and returnTo doesn't already exist
+        if (typeof window !== 'undefined') {
+          const currentPath = window.location.pathname + window.location.search;
+          if (!currentPath.includes('/admin/login')) {
+            const existingReturnTo = localStorage.getItem('returnTo');
+            // Only store if there's no existing returnTo (to preserve the original page)
+            if (!existingReturnTo) {
+              localStorage.setItem('returnTo', currentPath);
+              console.log('Stored returnTo in axios interceptor (token expired):', currentPath);
+            }
+          }
+        }
+        
         // store.dispatch(logout());
         // window.location.href = '/login';
         return Promise.reject(refreshError);

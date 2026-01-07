@@ -150,7 +150,6 @@ const PackageManagementForm = ({
       setErrors({});
       
     } catch (error) {
-      console.error('Failed to update package:', error);
       setErrors({ 
         edit: error?.data?.message || error?.data?.detail || 'Failed to update package. Please try again.' 
       });
@@ -183,7 +182,6 @@ const PackageManagementForm = ({
       setNewFeature('');
       setErrors({});
     } catch (error) {
-      console.error('Failed to create feature:', error);
       setErrors({ 
         general: error?.data?.message || error?.data?.detail || 'Failed to create feature. Please try again.' 
       });
@@ -213,7 +211,6 @@ const PackageManagementForm = ({
       setNewPackage({ name: '', base_price: '' });
       setErrors({});
     } catch (error) {
-      console.error('Failed to create package:', error);
       setErrors({ 
         general: error?.data?.message || error?.data?.detail || 'Failed to create package. Please try again.' 
       });
@@ -233,7 +230,6 @@ const PackageManagementForm = ({
       setDeleteConfirmOpen(false);
       setSelectedPackage(null);
     } catch (error) {
-      console.error('Failed to delete package:', error);
       setErrors({
         general: error?.data?.message || error?.data?.detail || 'Failed to delete package. Please try again.'
       });
@@ -254,7 +250,6 @@ const PackageManagementForm = ({
       setFeatureDeleteConfirmOpen(false);
       setFeatureToDelete(null);
     } catch (error) {
-      console.error("Failed to delete feature:", error);
       setErrors({
         general: error?.data?.message || error?.data?.detail || 'Failed to delete feature. Please try again.'
       });
@@ -266,7 +261,6 @@ const PackageManagementForm = ({
       const pkg = packages.find(p => p.id === packageId);
       const id = pkg?.features?.find(f => f.feature === featureId)?.id
 
-      console.log('isIncluded:', isIncluded, 'typeof:', typeof isIncluded, id, pkg.features);
       const updatedFeature = await updateFeatureStatus({id:id, is_included:isIncluded, feature:featureId, package:packageId}).unwrap();
       
       // Update local state
@@ -287,7 +281,7 @@ const PackageManagementForm = ({
     setPackages(updatedPackages);
     // onUpdate({ packages: updatedPackages, features: updatedFeatures });
   } catch (error) {
-    console.error("Failed to update package feature:", error);
+    // Error handled by toast notification
   }
 };
 

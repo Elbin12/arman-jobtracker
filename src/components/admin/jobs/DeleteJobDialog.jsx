@@ -1,33 +1,47 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Label } from "@/components/ui/label"
 import { Trash2, RotateCw, Calendar } from "lucide-react"
-import { useDeleteJobMutation } from "../../../store/api/jobsApi"
+import { useDeleteJobMutation, useDeleteJobSeriesMutation } from "../../../store/api/jobsApi"
 
 export function DeleteJobDialog({ job, open, onClose, onDelete, disabled = false }) {
   const [deleteOption, setDeleteOption] = useState("single")
   const [deleting, setDeleting] = useState(false)
   const [deleteJob] = useDeleteJobMutation()
+  const [deleteJobSeries] = useDeleteJobSeriesMutation()
+  
+  // Check if job has series_id (for recurring jobs)
+  const hasSeriesId = job?.series_id != null && job?.series_id !== undefined
+
+  // Reset delete option when dialog closes or job changes
+  useEffect(() => {
+    if (!open) {
+      setDeleteOption("single")
+    }
+  }, [open])
 
   const handleDelete = async () => {
     if (!job) return
     
-    // Get job ID - support both job_id and id fields
-    const jobId = job.job_id || job.id
-    if (!jobId) {
-      console.error("Job ID not found")
-      return
-    }
-    
     setDeleting(true)
     try {
-      // Call the delete API
-      await deleteJob(jobId).unwrap()
+      // If deleting entire series and series_id exists
+      if (deleteOption === "sequence" && hasSeriesId) {
+        await deleteJobSeries(job.series_id).unwrap()
+      } else {
+        // Delete single job - support both job_id and id fields
+        const jobId = job.job_id || job.id
+        if (!jobId) {
+          setDeleting(false)
+          return
+        }
+        await deleteJob(jobId).unwrap()
+      }
       
       // Call the onDelete callback with the job and option for cache updates
       if (onDelete) {
@@ -36,22 +50,21 @@ export function DeleteJobDialog({ job, open, onClose, onDelete, disabled = false
       
       onClose()
     } catch (error) {
-      console.error("Failed to delete job:", error)
-      // Optionally show error message to user
+      // Error handled by toast notification
     } finally {
       setDeleting(false)
     }
   }
 
   const getDeleteDescription = () => {
-    if (!job?.is_recurring) {
+    if (!hasSeriesId) {
       return `Are you sure you want to delete "${job?.title}"? This action cannot be undone.`
     }
 
     if (deleteOption === "single") {
-      return `Are you sure you want to delete this single occurrence of "${job?.title}"? Other recurring appointments will remain scheduled.`
+      return `Are you sure you want to delete this single occurrence of "${job?.title}"? Other recurring jobs will remain scheduled.`
     } else {
-      return `Are you sure you want to delete ALL recurring appointments for "${job?.title}"? This will delete the entire recurring sequence. This action cannot be undone.`
+      return `Are you sure you want to delete ALL recurring jobs for "${job?.title}"? This will delete the entire recurring sequence. This action cannot be undone.`
     }
   }
 
@@ -69,7 +82,7 @@ export function DeleteJobDialog({ job, open, onClose, onDelete, disabled = false
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {job?.is_recurring && (
+          {hasSeriesId && (
             <div className="space-y-3">
               <Label className="text-sm font-semibold">Choose deletion option:</Label>
               <RadioGroup value={deleteOption} onValueChange={setDeleteOption}>
@@ -91,7 +104,7 @@ export function DeleteJobDialog({ job, open, onClose, onDelete, disabled = false
                   <div className="flex-1 space-y-1">
                     <Label htmlFor="sequence" className="flex items-center gap-2 font-semibold cursor-pointer">
                       <RotateCw className="h-4 w-4" />
-                      Delete entire sequence
+                      Delete all recurring jobs
                     </Label>
                     <p className="text-sm text-muted-foreground">
                       Remove all jobs in this recurring sequence permanently.
@@ -114,7 +127,11 @@ export function DeleteJobDialog({ job, open, onClose, onDelete, disabled = false
             Cancel
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-            {deleting ? "Deleting..." : "Delete Job"}
+            {deleting 
+              ? "Deleting..." 
+              : hasSeriesId && deleteOption === "sequence" 
+                ? "Delete All Recurring Jobs" 
+                : "Delete Job"}
           </Button>
         </DialogFooter>
       </DialogContent>

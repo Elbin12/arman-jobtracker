@@ -130,8 +130,6 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
   //     });
   //   }, [quoteData])
 
-  console.log(selectedPackages, 'oaa')
-
   useEffect(() => {
     onUpdate({selectedPackages:[]})
   }, []);
@@ -191,7 +189,6 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
 
   useEffect(() => {
     if (quoteData && !isLoading) {
-      console.log(quoteData, 'datad')
       onUpdate({
         quoteDetails: quoteData,
         selectedCustomProducts: quoteData?.custom_products.filter((p) => p.is_active),
@@ -310,7 +307,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
       setDeleteServiceDialogOpen(false);
       setServiceToDelete(null);
     } catch (err) {
-      console.error("Failed to delete service", err);
+      // Error handled by toast notification
     }
   };
 
@@ -340,7 +337,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
       setCurrentProductId(null);
       setNewProduct({ product_name: '', description: '', price: '' });
     } catch (err) {
-      console.error("Failed to save custom product", err);
+      // Error handled by toast notification
     }
   };
 
@@ -351,7 +348,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
       setCustomProducts(updatedList);
       onUpdate({ selectedPackages, customProducts: updatedList });
     } catch (err) {
-      console.error("Failed to delete custom product", err);
+      // Error handled by toast notification
     }
   };
 
@@ -375,7 +372,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
         selectedCustomProducts: updatedList.filter((p) => p.is_active),
       });
     } catch (error) {
-      console.error("Failed to update custom product:", error);
+      // Error handled by toast notification
     }
   };
 
@@ -1290,7 +1287,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                 await rejectQuote(data.submission_id).unwrap();
                 navigate(`/quote/details/${data.submission_id}`);
               } catch (error) {
-                console.error('Failed to reject quote:', error);
+                // Error handled by toast notification
               }
             }}
             disabled={isRejecting}

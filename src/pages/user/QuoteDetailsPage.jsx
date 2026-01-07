@@ -117,7 +117,7 @@ const QuoteDetailsPage = () => {
     script.async = true
 
     script.onload = () => {
-      console.log("Form embed script loaded.")
+      // Form embed script loaded
     }
 
     const timer = setTimeout(() => {
@@ -154,7 +154,6 @@ const QuoteDetailsPage = () => {
 
   const handleSchedule = async () => {
     if (!selectedDate) return
-    console.log("Scheduled date:", selectedDate, quote.quote_schedule?.quoted_by)
     const payload = {
       id: quote.id,
       scheduled_date: selectedDate,
@@ -165,7 +164,7 @@ const QuoteDetailsPage = () => {
       const response = await createSchedule(payload).unwrap()
       await refetch()
     } catch (err) {
-      console.error("Failed.", err)
+      // Error handled by toast notification
     }
   }
 
@@ -1284,11 +1283,9 @@ const QuoteDetailsPage = () => {
 
                       const final = formatPrice(final_total + custom_service_total); // numeric addition
                       // const final = formatPrice(final_total) + formatPrice(custom_service_total)
-                      console.log(final, custom_service_total, typeof(final))
                       const taxRate = 0.0825 // 8.25% tax
                       const taxAmount = final * taxRate
                       const finalWithTax = Number(final) + taxAmount
-                      console.log(taxAmount, typeof(final))
 
                       return (
                         <>

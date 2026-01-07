@@ -28,6 +28,7 @@ import AdminCalendar from './pages/admin/AdminCalendar.jsx';
 import TeamManagement from './pages/admin/TeamManagement.jsx';
 import AcceptedQuotes from './pages/admin/AcceptedQuotes.jsx';
 import CreateJob from './pages/admin/CreateJob.jsx';
+import CalendarCreateJob from './pages/admin/CalendarCreateJob.jsx';
 import RoleProtectedRoute from './pages/RoleProtectedRoute.jsx';
 import TimeClock from './pages/admin/payroll/TimeClock.jsx';
 import PayrollCalculator from './pages/admin/payroll/PayrollCalculator.jsx';
@@ -89,6 +90,15 @@ function App() {
                   
                   {/* Admin Login Route */}
                   <Route path="/admin/login" element={<UserLogin />} />
+                  
+                  {/* Standalone Calendar Create Job Route (no AdminLayout) */}
+                  <Route path="/admin/calendar/create-job" element={
+                    <AdminProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'manager', 'supervisor']}>
+                        <CalendarCreateJob />
+                      </RoleProtectedRoute>
+                    </AdminProtectedRoute>
+                  } />
                   
                   {/* Protected Admin Routes */}
                   <Route path="/admin" element={

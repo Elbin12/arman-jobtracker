@@ -124,7 +124,10 @@ export function FilterSidebar({
       open={open}
       onClose={onClose}
       PaperProps={{
-        sx: { width: { xs: '100%', sm: 400 }, zIndex: 2, }
+        sx: { 
+          width: { xs: '100%', sm: 400 },
+          zIndex: 1200, // Modal layer
+        }
       }}
     >
       <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -215,6 +218,10 @@ export function FilterSidebar({
                   value={filters.job_type}
                   onChange={(e) => handleFilterChange('job_type', e.target.value)}
                   displayEmpty
+                  aria-label="Filter by job type"
+                  sx={{
+                    minHeight: '44px',
+                  }}
                 >
                   <MenuItem value="">
                     <em>All Types</em>

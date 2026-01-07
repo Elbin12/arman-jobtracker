@@ -27,9 +27,14 @@ export const jobsApi = createApi({
     }),
     getLocations: builder.query({
       query: (params) => ({ url: 'locations/', method: 'GET', params}),
+      providesTags: ['Job'],
     }),
     deleteJob: builder.mutation({
       query: (id) => ({ url: `jobs/${id}/`, method: 'DELETE' }),
+      invalidatesTags: ['Job'],
+    }),
+    deleteJobSeries: builder.mutation({
+      query: (seriesId) => ({ url: `jobs-series/${seriesId}/`, method: 'DELETE' }),
       invalidatesTags: ['Job'],
     }),
 
@@ -91,6 +96,7 @@ export const {
   useCreateJobMutation,
   useUpdateJobMutation,
   useDeleteJobMutation,
+  useDeleteJobSeriesMutation,
   useGetJobsByLocationQuery,
   useGetLocationsQuery,
 

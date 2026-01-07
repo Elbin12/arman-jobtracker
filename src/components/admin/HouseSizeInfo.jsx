@@ -156,7 +156,6 @@ const HouseSizeInfo = () => {
         await deleteHouseSize(row.id).unwrap()
         alert(`Row ${index + 1} deleted successfully`)
       } catch (error) {
-        console.error("Delete failed:", error)
         alert("Failed to delete row from server.")
         return
       }
@@ -273,14 +272,6 @@ const HouseSizeInfo = () => {
               isNew: !originalRow.id,
               id: originalRow.id
             })
-
-            console.log(`Row ${i + 1} payload:`, {
-              min_sqft: minParsed,
-              max_sqft: originalRow.andUp || originalRow.max === "" ? null : maxParsed,
-              originalMaxValue: originalRow.max,
-              template_prices,
-              order: i + 1,
-            })
           }
 
           // Now save the rows
@@ -304,7 +295,6 @@ const HouseSizeInfo = () => {
               setInitialized(false) // Refresh data
               
             } catch (err) {
-              console.error("Save error:", err)
               alert(`Error saving rows: ${err.message || 'Unknown error'}`)
             } finally {
               setSavingRows((prev) => {

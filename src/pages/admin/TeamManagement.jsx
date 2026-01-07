@@ -56,8 +56,6 @@ const TeamManagement = () => {
     setShowDialog(true);
   };
 
-  console.log('teamData', formData);
-
   const handleEditMember = (member) => {
     setSelectedMember(member);
     setFormData({
@@ -98,7 +96,7 @@ const TeamManagement = () => {
       }
       setShowDialog(false);
     }catch (error) {
-      console.error('Failed to save member:', error);
+      // Error handled by toast notification
     }
   };
 
@@ -115,10 +113,9 @@ const TeamManagement = () => {
           draft.results = draft.results.filter((m) => m.id !== selectedMember.id);
         })
       );
-      console.log('Delete member:', selectedMember.id);
       setShowDeleteDialog(false);
     } catch (error) {
-      console.error('Failed to delete member:', error);
+      // Error handled by toast notification
     }
   };
 
@@ -138,7 +135,7 @@ const TeamManagement = () => {
         })
       );
     } catch (error) {
-      console.error('Failed to toggle active status:', error);
+      // Error handled by toast notification
     }
   };
 

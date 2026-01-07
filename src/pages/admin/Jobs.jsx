@@ -66,7 +66,6 @@ export function Jobs() {
     // Get job ID - support both job_id and id fields
     const jobId = jobToDelete.job_id || jobToDelete.id
     if (!jobId) {
-      console.error("Job ID not found")
       return
     }
     
@@ -113,7 +112,6 @@ export function Jobs() {
     // Use the job ID from the result (supports both id and job_id)
     const jobId = result.id || result.job_id;
     if (!jobId) {
-      console.error("Job ID not found in result");
       return;
     }
     
@@ -166,6 +164,11 @@ export function Jobs() {
           variant="outlined"
           startIcon={<FilterIcon />}
           onClick={() => setFilterSidebarOpen(true)}
+          aria-label={`Manage filters${activeFilterCount > 0 ? ` (${activeFilterCount} active)` : ''}`}
+          sx={{
+            minHeight: { xs: '44px', sm: 'auto' },
+            minWidth: { xs: '44px', sm: 'auto' },
+          }}
         >
           <Badge badgeContent={activeFilterCount} color="primary">
             <Box sx={{ mr: activeFilterCount > 0 ? 2 : 0 }}>
@@ -185,7 +188,13 @@ export function Jobs() {
         }}
       >
         <FormControlLabel
-          control={<Switch checked={groupByLocation} onChange={(e) => setGroupByLocation(e.target.checked)} />}
+          control={
+            <Switch 
+              checked={groupByLocation} 
+              onChange={(e) => setGroupByLocation(e.target.checked)}
+              aria-label="Group jobs by location"
+            />
+          }
           label={
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <LocationOn fontSize="small" />
@@ -208,54 +217,76 @@ export function Jobs() {
       ) : (
         <>
           {/* Jobs Display */}
-          {jobsData?.results.length === 0 ? (
-        <Card>
-          <CardContent sx={{ textAlign: "center", py: 6 }}>
-            <Typography variant="h6" gutterBottom>
-              No jobs found
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Try adjusting your search criteria or create a new job.
-            </Typography>
-          </CardContent>
-        </Card>):
-      groupByLocation && locationData?.results ? (
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(min(400px, 100%), 1fr))',
-            gap: 2, // 16px gap between cards
-            width: '100%',
-            alignItems:"stretch",
-          }}
-        >
-          {locationData?.results.map((locationInfo, index) => (
-            <LocationGroupCard locationInfo={locationInfo} users={users}/>
-          ))}
-        </Box>
-      ) : 
-      (
-        <Box
-          sx={{
-            width: '100%',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))',
-            gap: 2,
-            alignItems: 'stretch',
-          }}
-        >
-          {jobsData?.results.map((job) => (
-            <JobCard
-              key={job.id || job.job_id}
-              job={job}
-              onEdit={handleEdit}
-              onDelete={handleDeleteJob}
-              onUpdate={handleJobUpdate}
-              users={users}
-            />
-          ))}
-        </Box>
-      )}
+          {groupByLocation ? (
+            locationData?.results && locationData.results.length > 0 ? (
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { 
+                    xs: '1fr', 
+                    sm: 'repeat(auto-fill, minmax(min(350px, 100%), 1fr))',
+                    md: 'repeat(auto-fill, minmax(min(400px, 100%), 1fr))'
+                  },
+                  gap: 2,
+                  width: '100%',
+                  alignItems: "stretch",
+                }}
+              >
+                {locationData.results.map((locationInfo, index) => (
+                  <LocationGroupCard key={index} locationInfo={locationInfo} users={users}/>
+                ))}
+              </Box>
+            ) : (
+              <Card>
+                <CardContent sx={{ textAlign: "center", py: 6 }}>
+                  <Typography variant="h6" gutterBottom>
+                    No locations found
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Try adjusting your search criteria or create a new job.
+                  </Typography>
+                </CardContent>
+              </Card>
+            )
+          ) : (
+            jobsData?.results && jobsData.results.length > 0 ? (
+              <Box
+                sx={{
+                  width: '100%',
+                  display: 'grid',
+                  gridTemplateColumns: { 
+                    xs: '1fr', 
+                    sm: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))',
+                    md: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))'
+                  },
+                  gap: 2,
+                  alignItems: 'stretch',
+                }}
+              >
+                {jobsData.results.map((job) => (
+                  <JobCard
+                    key={job.id || job.job_id}
+                    job={job}
+                    onEdit={handleEdit}
+                    onDelete={handleDeleteJob}
+                    onUpdate={handleJobUpdate}
+                    users={users}
+                  />
+                ))}
+              </Box>
+            ) : (
+              <Card>
+                <CardContent sx={{ textAlign: "center", py: 6 }}>
+                  <Typography variant="h6" gutterBottom>
+                    No jobs found
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Try adjusting your search criteria or create a new job.
+                  </Typography>
+                </CardContent>
+              </Card>
+            )
+          )}
         </>
       )}
 

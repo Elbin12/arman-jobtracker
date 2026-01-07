@@ -219,7 +219,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
             child_questions: [childResult],
           }
         } catch (e) {
-          console.error("Failed to create conditional child", e)
+          // Error handled by toast notification
         }
       }
 
@@ -241,7 +241,6 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
       })
       setErrors({})
     } catch (error) {
-      console.error("Failed to create question:", error)
       setErrors({
         general: error?.data?.message || error?.data?.detail || "Failed to create question. Please try again.",
       })
@@ -399,7 +398,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
       setQuestions(updatedQuestions)
       onUpdate({ questions: updatedQuestions })
     } catch (err) {
-      console.error("Failed to add option", err)
+      // Error handled by toast notification
     }
   }
 
@@ -430,7 +429,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
       setQuestions(updatedQuestions)
       onUpdate({ questions: updatedQuestions })
     } catch (err) {
-      console.error("Failed to delete option:", err)
+      // Error handled by toast notification
     }
   }
 
@@ -477,7 +476,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
       setQuestions(updatedQuestions)
       onUpdate({ questions: updatedQuestions })
     } catch (err) {
-      console.error("Failed to add sub-question", err)
+      // Error handled by toast notification
     }
   }
 
@@ -513,7 +512,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
       setQuestions(updatedQuestions)
       onUpdate({ questions: updatedQuestions })
     } catch (err) {
-      console.error("Failed to delete sub-question:", err)
+      // Error handled by toast notification
     }
   }
 
@@ -526,7 +525,6 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
       setQuestions(updatedQuestions)
       onUpdate({ questions: updatedQuestions })
     } catch (error) {
-      console.error("Failed to toggle question active status:", error)
       setErrors({
         general: error?.data?.message || error?.data?.detail || "Failed to update question status. Please try again.",
       })
@@ -542,7 +540,6 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
       setOpenConfirmModal(false)
       setSelectedQuestion(null)
     } catch (error) {
-      console.error("Failed to permanently delete question:", error)
       setErrors({
         general:
           error?.data?.message || error?.data?.detail || "Failed to delete question permanently. Please try again.",
@@ -571,7 +568,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
       setQuestions(updatedQuestions)
       onUpdate({ questions: updatedQuestions })
     } catch (err) {
-      console.error("Failed to update question:", err)
+      // Error handled by toast notification
     }
   }
 
@@ -633,7 +630,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
 
         await Promise.all(updatePromises);
       } catch (err) {
-        console.error("Failed to update option order:", err);
+        // Error handled by toast notification
         // Revert on error
         setQuestions(questions);
         onUpdate({ questions });
@@ -746,7 +743,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                                   setQuestions(updatedQuestions);
                                   setEditingOptionId(null);
                                 } catch (err) {
-                                  console.error("Failed to update option:", err);
+                                  // Error handled by toast notification
                                 }
                               } else if (e.key === "Escape") {
                                 setEditingOptionId(null);
@@ -921,7 +918,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
 
         await Promise.all(updatePromises);
       } catch (err) {
-        console.error("Failed to update sub-question order:", err);
+        // Error handled by toast notification
         // Revert on error
         setQuestions(questions);
         onUpdate({ questions });
@@ -1038,7 +1035,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                                   setQuestions(updatedQuestions);
                                   setEditingSubQuestionId(null);
                                 } catch (err) {
-                                  console.error("Failed to update sub-question:", err);
+                                  // Error handled by toast notification
                                 }
                               } else if (e.key === "Escape") {
                                 setEditingSubQuestionId(null);

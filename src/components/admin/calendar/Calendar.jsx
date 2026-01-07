@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Calendar as BigCalendar, momentLocalizer } from "react-big-calendar";
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
 import { DndProvider, useDrop } from "react-dnd";
@@ -6,10 +7,11 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import moment from "moment-timezone";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarDays, ChevronLeft, ChevronRight, Loader2, RotateCcw, CheckCircle2, Filter, X } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Loader2, RotateCcw, CheckCircle2, Filter, X, Trash2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Calendar as DatePicker } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
@@ -23,11 +25,24 @@ const calendarStyles = `
   .rbc-calendar {
     width: 100% !important;
     max-width: 100% !important;
-    overflow-x: hidden !important;
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+  }
+  @media (max-width: 639px) {
+    .rbc-calendar {
+      overflow-x: auto !important;
+      -webkit-overflow-scrolling: touch !important;
+    }
   }
   .rbc-month-view {
     width: 100% !important;
     max-width: 100% !important;
+    min-width: 600px !important;
+  }
+  @media (min-width: 640px) {
+    .rbc-month-view {
+      min-width: 100% !important;
+    }
   }
   .rbc-month-row {
     width: 100% !important;
@@ -296,7 +311,7 @@ const calendarStyles = `
   }
 `;
 import { JobCard } from "../jobs/JobCard";
-import { jobsApi, useGetCalendarJobsQuery, useGetAppointmentsCalendarQuery, useGetJobDetailsQuery, useUpdateAppointmentMutation } from "../../../store/api/jobsApi";
+import { jobsApi, useGetCalendarJobsQuery, useGetAppointmentsCalendarQuery, useGetJobDetailsQuery, useUpdateAppointmentMutation, useDeleteAppointmentMutation } from "../../../store/api/jobsApi";
 import { useSelector, useDispatch } from "react-redux";
 import { EditJobDialog } from "../jobs/EditJobDialog";
 import { TimelineSidebar } from "./TimelineSidebar";
@@ -548,8 +563,10 @@ function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, ...pr
 
 export function NewCalendar({ users = [], isLoadingUsers = false }) {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [updateJob] = useUpdateJobMutation();
   const [updateAppointment, { isLoading: isUpdatingAppointment }] = useUpdateAppointmentMutation();
+  const [deleteAppointment, { isLoading: isDeletingAppointment }] = useDeleteAppointmentMutation();
   const [events, setEvents] = useState([]);
   const [originalEvents, setOriginalEvents] = useState([]); // Store original events for height calculation
   const [selectedJob, setSelectedJob] = useState(null);
@@ -579,13 +596,14 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
   // Initialize categories - both jobs and appointments checked by default
   const [selectedCategories, setSelectedCategories] = useState({
     jobs: true,
-    appointments: true,
+    appointments: false,
   });
   const [selectedAssignees, setSelectedAssignees] = useState({});
   const [filterParams, setFilterParams] = useState({});
   
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editingJob, setEditingJob] = useState(null);
+  const [deleteAppointmentDialogOpen, setDeleteAppointmentDialogOpen] = useState(false);
   
   // Time picker dialog state for drag and drop
   const [timePickerOpen, setTimePickerOpen] = useState(false);
@@ -794,7 +812,8 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
             const startDate = new Date(m.year(), m.month(), m.date(), m.hour(), m.minute(), m.second());
             const duration = parseFloat(job.duration_hours) || 2;
             const endDate = new Date(m.year(), m.month(), m.date(), m.hour() + duration, m.minute(), m.second());
-            const timeStr = m.format("h A");
+            // Format time with minutes if not zero: "6 PM" or "6:30 PM"
+            const timeStr = m.minute() === 0 ? m.format("h A") : m.format("h:mm A");
 
             return {
               id: job.job_id, // Use job_id from new API
@@ -823,7 +842,8 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
             const endM = moment.utc(appointment.end_time).tz("America/Chicago");
             const startDate = new Date(startM.year(), startM.month(), startM.date(), startM.hour(), startM.minute(), startM.second());
             const endDate = new Date(endM.year(), endM.month(), endM.date(), endM.hour(), endM.minute(), endM.second());
-            const timeStr = startM.format("h A");
+            // Format time with minutes if not zero: "6 PM" or "6:30 PM"
+            const timeStr = startM.minute() === 0 ? startM.format("h A") : startM.format("h:mm A");
 
             return {
               id: appointment.appointment_id,
@@ -1106,7 +1126,6 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
     // Get job ID - support both job_id and id fields
     const jobId = jobToDelete.job_id || jobToDelete.id
     if (!jobId) {
-      console.error("Job ID not found")
       return
     }
     
@@ -1199,13 +1218,19 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
     const newDateStr = moment(start).format("YYYY-MM-DD");
 
     // Extract date/time components from start
+    // The start Date object represents UTC time components as local time (see event creation at line 807)
+    // So we extract the components and treat them as UTC directly
     const startDate = new Date(start);
-    const dateStr = moment(startDate).format("YYYY-MM-DD");
-    const timeStr = moment(startDate).format("HH:mm:ss");
+    const year = startDate.getFullYear();
+    const month = startDate.getMonth();
+    const date = startDate.getDate();
+    const hours = startDate.getHours();
+    const minutes = startDate.getMinutes();
+    const seconds = startDate.getSeconds();
     
-    // Create moment in account timezone with the extracted date/time, then convert to UTC
-    const localMoment = moment.tz(`${dateStr} ${timeStr}`, "YYYY-MM-DD HH:mm:ss", accountTimezone);
-    const newScheduledAt = localMoment.utc().toISOString();
+    // Create moment in UTC with the extracted components (treating them as UTC, not local)
+    const utcMoment = moment.utc([year, month, date, hours, minutes, seconds]);
+    const newScheduledAt = utcMoment.toISOString();
 
     // In week and day views, directly update since user can see and drag to specific time slots
     // In month view, show time picker when dragging to different date
@@ -1218,12 +1243,13 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
         // Show time picker dialog
         setDraggedJob({ ...job, id: jobId });
         setNewDate(moment(start).toDate());
-        // Set initial time from the drop position
-        const hours = localMoment.hour();
+        // Set initial time from the drop position (convert UTC to account timezone for display)
+        const accountMoment = utcMoment.tz(accountTimezone);
+        const hours = accountMoment.hour();
         const hour12 = hours % 12 || 12;
         setSelectedTime({
           hour: hour12.toString(),
-          minute: localMoment.format("mm"),
+          minute: accountMoment.format("mm"),
           period: hours >= 12 ? "PM" : "AM"
         });
         setTimePickerOpen(true);
@@ -1303,7 +1329,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
         setLastUpdateInfo(null);
       }, 10000);
     } catch (error) {
-      console.error("Failed to update job:", error);
+      // Error handled by toast notification
     }
   };
 
@@ -1342,7 +1368,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
         setLastUpdateInfo(null);
       }, 10000);
     } catch (error) {
-      console.error("Failed to update job duration:", error);
+      // Error handled by toast notification
     }
   };
 
@@ -1382,7 +1408,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
         setLastUpdateInfo(null);
       }, 10000);
     } catch (error) {
-      console.error("Failed to update job time and duration:", error);
+      // Error handled by toast notification
     }
   };
 
@@ -1438,7 +1464,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
       }, 500);
     } catch (error) {
       setIsUpdatingTime(false);
-      console.error("Failed to update job time:", error);
+      // Error handled by toast notification
     }
   };
 
@@ -1472,7 +1498,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
       setIsUpdatingTime(false);
     } catch (error) {
       setIsUpdatingTime(false);
-      console.error("Failed to undo time change:", error);
+      // Error handled by toast notification
     }
   };
 
@@ -1515,7 +1541,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
 
       handleJobUpdate(result);
     } catch (error) {
-      console.error("Failed to add assignee to job:", error);
+      // Error handled by toast notification
     }
   };
 
@@ -1632,10 +1658,61 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
         description: "Appointment status updated successfully",
       });
     } catch (error) {
-      console.error("Failed to update appointment status:", error);
       toast({
         title: "Error",
         description: error?.data?.message || "Failed to update appointment status. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle appointment deletion
+  const handleDeleteAppointment = async () => {
+    if (!selectedAppointment || !selectedAppointment.appointment_id) {
+      toast({
+        title: "Error",
+        description: "Appointment information is missing",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await deleteAppointment(selectedAppointment.appointment_id).unwrap();
+      
+      // Remove the appointment from the calendar cache
+      dispatch(
+        jobsApi.util.updateQueryData(
+          "getAppointmentsCalendar",
+          appointmentsParams,
+          (draft) => {
+            if (Array.isArray(draft)) {
+              const filtered = draft.filter(
+                a => a.appointment_id !== selectedAppointment.appointment_id
+              );
+              draft.length = 0;
+              draft.push(...filtered);
+            } else if (draft?.results) {
+              draft.results = draft.results.filter(
+                a => a.appointment_id !== selectedAppointment.appointment_id
+              );
+            }
+          }
+        )
+      );
+
+      // Close dialogs
+      setDeleteAppointmentDialogOpen(false);
+      setSelectedAppointment(null);
+
+      toast({
+        title: "Success",
+        description: "Appointment deleted successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error?.data?.message || "Failed to delete appointment. Please try again.",
         variant: "destructive",
       });
     }
@@ -1723,11 +1800,20 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
           <div className="flex-1 min-w-0 overflow-hidden w-full">
             <Card className="w-full">
           <CardHeader>
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center justify-between mb-4">
               <CardTitle className="flex items-center gap-2">
                 <CalendarDays className="h-5 w-5" />
                 Calendar
               </CardTitle>
+              {(userRole === "admin" || userRole === "supervisor" || userRole === "manager") && (
+                <Button
+                  onClick={() => navigate("/admin/calendar/create-job")}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Job
+                </Button>
+              )}
             </div>
 
             <div className="flex flex-col gap-3">
@@ -1766,11 +1852,15 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
                     </Button>
                   </div>
 
-                  <Select value={view} onValueChange={(value) => setView(value)}>
-                    <SelectTrigger className="w-[100px] sm:w-[140px] text-xs sm:text-sm">
+                  <Select 
+                    value={view} 
+                    onValueChange={(value) => setView(value)}
+                    aria-label="Select calendar view"
+                  >
+                    <SelectTrigger className="w-[100px] sm:w-[140px] text-xs sm:text-sm min-h-[44px]">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[1300]">
                       <SelectItem value="month">Month</SelectItem>
                       <SelectItem value="week">Week</SelectItem>
                       <SelectItem value="day">Day</SelectItem>
@@ -1852,7 +1942,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
         setSelectedJob(null);
         setSelectedJobId(null);
       }}>
-        <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[100vw] sm:max-w-md max-h-[100vh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Job Details</DialogTitle>
             <DialogDescription>View and manage job information</DialogDescription>
@@ -1903,7 +1993,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
         }}
       >
         <DialogContent 
-          className="max-w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto"
+          className="max-w-[100vw] sm:max-w-md max-h-[100vh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6"
           onInteractOutside={(e) => {
             // Prevent closing when clicking on Select dropdown
             const target = e.target;
@@ -1942,7 +2032,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent 
-                      className="z-[1500] !fixed" 
+                      className="z-[1300] !fixed" 
                       onCloseAutoFocus={(e) => e.preventDefault()}
                       onEscapeKeyDown={(e) => {
                         e.stopPropagation();
@@ -2004,8 +2094,76 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
                   <span className="text-sm">{selectedAppointment.users_count || 0}</span>
                 </div>
               </div>
+              <div className="pt-4 border-t">
+                <Button
+                  variant="destructive"
+                  onClick={() => setDeleteAppointmentDialogOpen(true)}
+                  className="w-full"
+                  disabled={isDeletingAppointment}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Appointment
+                </Button>
+              </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Appointment Confirmation Dialog */}
+      <Dialog 
+        open={deleteAppointmentDialogOpen} 
+        onOpenChange={(open) => {
+          if (!isDeletingAppointment) {
+            setDeleteAppointmentDialogOpen(open);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              Delete Appointment
+            </DialogTitle>
+            <DialogDescription>
+              You're about to delete "{selectedAppointment?.title || 'this appointment'}"
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <Alert variant="destructive">
+              <AlertDescription>
+                Are you sure you want to delete "{selectedAppointment?.title || 'this appointment'}"? This action cannot be undone.
+              </AlertDescription>
+            </Alert>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setDeleteAppointmentDialogOpen(false)} 
+              disabled={isDeletingAppointment}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteAppointment} 
+              disabled={isDeletingAppointment}
+            >
+              {isDeletingAppointment ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Appointment
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

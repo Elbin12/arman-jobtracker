@@ -157,8 +157,6 @@ export const QuestionsForm = ({ data, onUpdate }) => {
   }
 
   const handleAnswerChange = (serviceId, questionId, answer, subQuestionId = null, optionId = null) => {
-    console.log('Answer change:', { serviceId, questionId, answer, subQuestionId, optionId })
-    
     const key = subQuestionId
       ? `${serviceId}_${questionId}_${subQuestionId}`
       : optionId
@@ -174,8 +172,6 @@ export const QuestionsForm = ({ data, onUpdate }) => {
   }
 
   const handleQuantityChange = (serviceId, questionId, optionId, quantity) => {
-    console.log('Quantity change:', { serviceId, questionId, optionId, quantity })
-    
     const key = `${serviceId}_${questionId}_${optionId}_quantity`
     onUpdate({
       questionAnswers: {
@@ -485,9 +481,6 @@ export const QuestionsForm = ({ data, onUpdate }) => {
       </Box>
     )
   }
-
-  // Debug log
-  console.log('Current question answers:', data.questionAnswers)
 
   return (
     <Box>

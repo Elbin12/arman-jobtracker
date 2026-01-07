@@ -189,7 +189,7 @@ const TimeClock = () => {
       refetchActive();
       refetchToday();
     } catch (err) {
-      console.error('Check-in failed:', err);
+      // Error handled by toast notification
     }
   };
 
@@ -199,7 +199,7 @@ const TimeClock = () => {
       refetchActive();
       refetchToday();
     } catch (err) {
-      console.error('Check-out failed:', err);
+      // Error handled by toast notification
     }
   };
 

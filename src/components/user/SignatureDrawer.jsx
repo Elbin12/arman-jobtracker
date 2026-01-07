@@ -33,7 +33,7 @@ export const SignatureDrawer = ({ label, value, onChange, width = 400, height = 
           canvas.renderAll();
         });
       } catch (error) {
-        console.error("Error loading signature:", error);
+        // Error loading signature
       }
     }
 

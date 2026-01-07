@@ -120,9 +120,8 @@ const ServicesManagement = () => {
         id: service.id,
         is_active: !service.is_active,
       }).unwrap();
-      console.log(`Service ${service.name} ${!service.is_active ? 'activated' : 'deactivated'}`);
     } catch (error) {
-      console.error('Failed to update service status:', error);
+      // Error handled by toast notification
     }
   };
 
@@ -135,7 +134,7 @@ const ServicesManagement = () => {
       }
       setOriginalBasePrice(basePrice);
     } catch (error) {
-      console.error("Failed to save base price:", error);
+      // Error handled by toast notification
     }
   };
 
@@ -144,7 +143,6 @@ const ServicesManagement = () => {
   };
 
   const handleEditService = async (service) => {
-    console.log(service, 'service from handleEditService');
     dispatch(setEditingService(service));
     dispatch(setWizardOpen(true));
     setLoadingEdit(true);
@@ -154,10 +152,9 @@ const ServicesManagement = () => {
         servicesApi.endpoints.getServiceById.initiate(service.id, { forceRefetch: true })
       ).unwrap();
 
-      console.log(fullServiceData, 'from handleEditService');
       dispatch(setEditingService(fullServiceData));
     } catch (error) {
-      console.error('Failed to fetch service details:', error);
+      // Error handled by toast notification
     } finally {
       setLoadingEdit(false);
     }
@@ -170,12 +167,11 @@ const ServicesManagement = () => {
 
   const handleDeleteService = async () => {
     try {
-      console.log('Handle delete service:', serviceToDelete);
       await deleteService(serviceToDelete.id).unwrap();
       dispatch(setDeleteConfirmOpen(false));
       dispatch(setServiceToDelete(null));
     } catch (error) {
-      console.error('Failed to delete service:', error);
+      // Error handled by toast notification
     }
   };
 
@@ -224,11 +220,8 @@ const ServicesManagement = () => {
 
       // Wait for all updates to complete
       await Promise.all(updatePromises);
-      
-      console.log(`Service ${movedService.name} moved to position ${destinationIndex + 1}`);
-      console.log('All services reordered successfully');
     } catch (error) {
-      console.error('Failed to update service order:', error);
+      // Error handled by toast notification
       // Revert on error
       setOrderedServices(orderedServices);
     }

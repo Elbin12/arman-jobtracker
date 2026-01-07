@@ -1,13 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Typography, Grid, Alert, Card, CardContent, TextField } from '@mui/material';
 import AcceptedQuote from '../../components/admin/quotes/AcceptedQuote.jsx';
-import { useGetJobsQuery } from '../../store/api/jobsApi.js';
+import { useGetJobsQuery, useDeleteJobMutation, jobsApi } from '../../store/api/jobsApi.js';
 import { EditJobDialog } from '../../components/admin/jobs/EditJobDialog.jsx';
 import { QuoteCardSkeleton } from '../../components/ui/skeletons';
+import { useDispatch } from 'react-redux';
+import { useToast } from '@/hooks/use-toast';
+import DeleteJobDialog from '../../components/admin/jobs/DeleteJobDialog.jsx';
 
 const AcceptedQuotes = () => {
+  const dispatch = useDispatch();
+  const { toast } = useToast();
   const [selectedJob, setSelectedJob] = useState(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [quoteToDelete, setQuoteToDelete] = useState(null)
+  const [deleteJob] = useDeleteJobMutation()
 
   const [filters, setFilters] = useState({
     status: "to_convert",
@@ -47,6 +55,62 @@ const AcceptedQuotes = () => {
     // Close the dialog and clear selected job
     setEditDialogOpen(false);
     setSelectedJob(null);
+  }
+
+  const handleDelete = (quote) => {
+    setQuoteToDelete(quote);
+    setDeleteDialogOpen(true);
+  }
+
+  const handleDeleteConfirm = async (quoteToDelete, option) => {
+    if (!quoteToDelete) return;
+    
+    const jobId = quoteToDelete.id || quoteToDelete.job_id;
+    if (!jobId) {
+      toast({
+        title: "Error",
+        description: "Quote ID is missing",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await deleteJob(jobId).unwrap();
+      
+      // Update the cache to remove the deleted quote
+      dispatch(
+        jobsApi.util.updateQueryData(
+          "getJobs",
+          { ...debouncedFilters },
+          (draft) => {
+            const index = draft.results.findIndex(j => 
+              j.id === jobId || j.job_id === jobId
+            );
+            if (index !== -1) {
+              draft.results.splice(index, 1);
+              if (draft.count) {
+                draft.count = Math.max(0, draft.count - 1);
+              }
+            }
+          }
+        )
+      );
+
+      toast({
+        title: "Success",
+        description: "Quote deleted successfully",
+      });
+
+      setDeleteDialogOpen(false);
+      setQuoteToDelete(null);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error?.data?.message || "Failed to delete quote. Please try again.",
+        variant: "destructive",
+      });
+    }
   }
 
   return (
@@ -113,7 +177,12 @@ const AcceptedQuotes = () => {
           }}
         >
           {jobsData.results.map((quote) => (
-            <AcceptedQuote key={quote.id} quote={quote} handleEdit={handleEdit}/>
+            <AcceptedQuote 
+              key={quote.id} 
+              quote={quote} 
+              handleEdit={handleEdit}
+              handleDelete={handleDelete}
+            />
           ))}
         </Box>
       )}
@@ -128,6 +197,18 @@ const AcceptedQuotes = () => {
           }}
           objective={"convert"}
           handleJobUpdate={handleJobUpdate}
+        />
+      )}
+
+      {quoteToDelete && (
+        <DeleteJobDialog
+          job={quoteToDelete}
+          open={deleteDialogOpen}
+          onClose={() => {
+            setDeleteDialogOpen(false);
+            setQuoteToDelete(null);
+          }}
+          onDelete={handleDeleteConfirm}
         />
       )}
     </Box>

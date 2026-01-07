@@ -394,7 +394,6 @@ export const handleDownloadPDF = async (
     const timestamp = new Date().toISOString().split("T")[0]
     doc.save(`TruShine-Quote-${quote.id}-${timestamp}.pdf`)
   } catch (error) {
-    console.error("Failed to generate PDF:", error)
     alert("Failed to generate PDF. Please try again.")
   } finally {
     setIsGeneratingPDF(false)

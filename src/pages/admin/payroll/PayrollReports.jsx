@@ -102,24 +102,26 @@ const PayrollReports = () => {
   const totalCount = payoutsData?.count || 0;
   const totalPages = Math.ceil(totalCount / 20);
   
+  // Get totals from API response
+  const totals = payoutsData?.totals || {};
+  const averagePayout = totals?.average_payout || 0;
+  const payoutCount = totals?.payout_count || totalCount;
+  const totalHoursWorked = totals?.total_hours_worked || 0;
+  
   // Determine if we should show time entry columns (clock in, clock out, total hours)
   const showTimeColumns = filters.type === 'hourly' || payouts.some(p => p.payout_type === 'hourly' && p.time_entry_details);
   
-  // Calculate summary statistics
-  const   summary = useMemo(() => {
-    const totalAmount = payouts.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-    const projectPayouts = payouts.filter(p => p.payout_type === 'project');
-    const hourlyPayouts = payouts.filter(p => p.payout_type === 'hourly');
-    
+  // Use totals from API for summary statistics
+  const summary = useMemo(() => {
     return {
-      totalAmount,
-      totalCount: payouts.length,
-      projectCount: projectPayouts.length,
-      hourlyCount: hourlyPayouts.length,
-      projectAmount: projectPayouts.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0),
-      hourlyAmount: hourlyPayouts.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0),
+      totalAmount: totals.total_payouts || 0,
+      totalCount: payoutCount,
+      projectAmount: totals.project_total_payouts || 0,
+      hourlyAmount: totals.hourly_total_payouts || 0,
+      averagePayout: averagePayout,
+      totalHoursWorked: totalHoursWorked,
     };
-  }, [payouts]);
+  }, [totals, averagePayout, payoutCount, totalHoursWorked]);
 
   const showNotification = (type, message) => {
     setNotification({ open: true, type, message });
@@ -361,7 +363,7 @@ const PayrollReports = () => {
                       {formatCurrency(summary.totalAmount)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.813rem' }}>
-                      {summary.totalCount} transactions
+                      {summary.totalCount.toLocaleString()} transactions
                     </Typography>
                   </Box>
                   <Box
@@ -421,7 +423,7 @@ const PayrollReports = () => {
                       {formatCurrency(summary.projectAmount)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.813rem' }}>
-                      {summary.projectCount} projects
+                      Project payouts
                     </Typography>
                   </Box>
                   <Box
@@ -481,7 +483,7 @@ const PayrollReports = () => {
                       {formatCurrency(summary.hourlyAmount)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.813rem' }}>
-                      {summary.hourlyCount} entries
+                      {summary.totalHoursWorked > 0 ? `${summary.totalHoursWorked.toFixed(2)} hours` : 'Hourly payouts'}
                     </Typography>
                   </Box>
                   <Box
@@ -538,7 +540,7 @@ const PayrollReports = () => {
                       Average Payout
                     </Typography>
                     <Typography variant="h4" fontWeight={700} color="text.primary" sx={{ mb: 0.5 }}>
-                      {formatCurrency(summary.totalCount > 0 ? summary.totalAmount / summary.totalCount : 0)}
+                      {formatCurrency(summary.averagePayout)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.813rem' }}>
                       per transaction

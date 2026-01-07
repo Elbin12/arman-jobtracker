@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   Box,
   Card,
@@ -15,7 +15,7 @@ import * as Yup from 'yup';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 // Replace this with your actual login action
-import { loginUser } from '../../store/slices/authSlice';
+import { loginUser, clearSuccess } from '../../store/slices/authSlice';
 import { ADMIN_PASSWORD, ADMIN_USERNAME, USER_PASSWORD } from '../../store/axios/axios';
 
 const UserLogin = () => {
@@ -24,49 +24,108 @@ const UserLogin = () => {
   const { loading, error, success } = useSelector((state) => state.auth);
   const [searchParams] = useSearchParams();
   const email = searchParams.get("email");
+  const navigationHandled = useRef(false);
 
   useEffect(() => {
     if (email === "theservicepilot@gmail.com") {
+      navigationHandled.current = true;
+      // Read returnTo BEFORE login to avoid race condition with success useEffect
+      const returnTo = localStorage.getItem('returnTo');
+      console.log('returnTo (auto-login admin - before dispatch):', returnTo);
+      
       dispatch(loginUser({ username: ADMIN_USERNAME, password: ADMIN_PASSWORD }))
         .unwrap()
         .then((response) => {
-          // Check user role from response and redirect accordingly
-          const userRole = response?.user?.role || 'worker';
-          if (userRole === 'admin' || userRole === 'manager') {
-            navigate("/admin/dashboard", { replace: true });
+          if (returnTo) {
+            // Clear the stored path and redirect to it
+            localStorage.removeItem('returnTo');
+            dispatch(clearSuccess());
+            navigate(returnTo, { replace: true });
           } else {
-            navigate("/admin/jobs", { replace: true });
+            // Default redirect based on role
+            const userRole = response?.user?.role || 'worker';
+            dispatch(clearSuccess());
+            if (userRole === 'admin' || userRole === 'manager') {
+              navigate("/admin/dashboard", { replace: true });
+            } else {
+              navigate("/admin/jobs", { replace: true });
+            }
           }
         })
-        .catch(() => {});
-    }else{
+        .catch(() => {
+          navigationHandled.current = false;
+        });
+    } else if (email) {
+      navigationHandled.current = true;
+      // Read returnTo BEFORE login to avoid race condition with success useEffect
+      const returnTo = localStorage.getItem('returnTo');
+      console.log('returnTo (auto-login email - before dispatch):', returnTo);
+      
       dispatch(loginUser({ username: email, password: USER_PASSWORD }))
         .unwrap()
         .then((response) => {
-          // Check user role from response and redirect accordingly
-          const userRole = response?.user?.role || 'worker';
-          if (userRole === 'admin' || userRole === 'manager') {
-            navigate("/admin/dashboard", { replace: true });
+          if (returnTo) {
+            // Clear the stored path and redirect to it
+            localStorage.removeItem('returnTo');
+            dispatch(clearSuccess());
+            navigate(returnTo, { replace: true });
           } else {
-            navigate("/admin/jobs", { replace: true });
+            // Default redirect based on role
+            const userRole = response?.user?.role || 'worker';
+            dispatch(clearSuccess());
+            if (userRole === 'admin' || userRole === 'manager') {
+              navigate("/admin/dashboard", { replace: true });
+            } else {
+              navigate("/admin/jobs", { replace: true });
+            }
           }
         })
-        .catch(() => {});
+        .catch(() => {
+          navigationHandled.current = false;
+        });
     }
   }, [email, dispatch, navigate]);
 
+  // Note: Navigation is handled in form submission and auto-login handlers above
+  // This useEffect is kept as a fallback only if navigation wasn't handled
   useEffect(()=>{
-    if (success) {
-      // Get user from Redux state to determine redirect
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const userRole = user?.role || 'worker';
-      if (userRole === 'admin' || userRole === 'manager') {
-        navigate('/admin/dashboard');
-      } else {
-        navigate('/admin/jobs');
-      }
+    if (success && !navigationHandled.current) {
+      // Check if navigation was already handled by form/auto-login handlers
+      const timer = setTimeout(() => {
+        const returnTo = localStorage.getItem('returnTo');
+        console.log('returnTo (success useEffect fallback):', returnTo);
+        
+        // If returnTo still exists, it means form/auto-login didn't handle it
+        if (returnTo) {
+          localStorage.removeItem('returnTo');
+          dispatch(clearSuccess());
+          navigate(returnTo, { replace: true });
+        } else {
+          // Check if we're still on login page (navigation wasn't handled)
+          const currentPath = window.location.pathname;
+          if (currentPath === '/admin/login') {
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const userRole = user?.role || 'worker';
+            dispatch(clearSuccess());
+            if (userRole === 'admin' || userRole === 'manager') {
+              navigate('/admin/dashboard', { replace: true });
+            } else {
+              navigate('/admin/jobs', { replace: true });
+            }
+          } else {
+            // Navigation was already handled, just clear success
+            dispatch(clearSuccess());
+          }
+        }
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    } else if (success && navigationHandled.current) {
+      // Navigation was handled, just clear success
+      dispatch(clearSuccess());
+      navigationHandled.current = false;
     }
-  },[success, navigate]);
+  },[success, navigate, dispatch]);
 
   const formik = useFormik({
     initialValues: {
@@ -78,7 +137,33 @@ const UserLogin = () => {
       password: Yup.string().required('Password is required'),
     }),
     onSubmit: async (values) => {
-      await dispatch(loginUser(values));
+      try {
+        navigationHandled.current = true;
+        // Read returnTo BEFORE login to avoid race condition with success useEffect
+        const returnTo = localStorage.getItem('returnTo');
+        console.log('returnTo (form login - before dispatch):', returnTo);
+        
+        const response = await dispatch(loginUser(values)).unwrap();
+        
+        if (returnTo) {
+          // Clear the stored path and redirect to it
+          localStorage.removeItem('returnTo');
+          dispatch(clearSuccess());
+          navigate(returnTo, { replace: true });
+        } else {
+          // Default redirect based on role
+          const userRole = response?.user?.role || 'worker';
+          dispatch(clearSuccess());
+          if (userRole === 'admin' || userRole === 'manager') {
+            navigate('/admin/dashboard', { replace: true });
+          } else {
+            navigate('/admin/jobs', { replace: true });
+          }
+        }
+      } catch (error) {
+        navigationHandled.current = false;
+        // Error is handled by Redux state
+      }
     },
   });
 

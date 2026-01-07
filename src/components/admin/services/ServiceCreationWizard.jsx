@@ -183,7 +183,6 @@ export const ServiceCreationWizard = ({
               result = await updateService({ id: editData.id, ...servicePayload }).unwrap();
               // dispatch(
               //   servicesApi.util.updateQueryData('getServices', undefined, (draft) => {
-              //     console.log(draft, 'draf')
               //     const servicesArray = draft.data || draft; // handle both shapes
               //     const index = servicesArray.findIndex((item) => item.id === serviceData.id);
               //     if (index !== -1) {
@@ -257,7 +256,6 @@ export const ServiceCreationWizard = ({
 
       setActiveStep((prev) => prev + 1);
     } catch (error) {
-      console.error("Step failed:", error);
       setStepErrors({ 
         [activeStep]: error?.data?.message || error?.data?.detail || 'An error occurred. Please try again.' 
       });

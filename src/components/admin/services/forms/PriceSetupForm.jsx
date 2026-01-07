@@ -368,7 +368,6 @@ const PriceSetupForm = ({ data, onUpdate }) => {
         alert("Pricing saved successfully!")
       }
     } catch (err) {
-      console.error(err)
       // Error handling should also be conditional or handled differently for recursive calls
       if (!isRecursiveCall) {
         alert("Failed to save pricing. Please try again.")
