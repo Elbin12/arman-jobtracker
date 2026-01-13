@@ -14,9 +14,17 @@ export const dashboardApi = createApi({
       query: (params = {}) => ({ url: 'technician-workload/', params }),
       providesTags: ['Dashboard'],
     }),
+    getSalesForecasting: builder.query({
+      query: (params = {}) => ({ url: 'invoices/sales_forecasting/', params }),
+      providesTags: ['Dashboard'],
+    }),
+    getLeadFunnelReport: builder.query({
+      query: (params = {}) => ({ url: 'invoices/lead_funnel_report/', params }),
+      providesTags: ['Dashboard'],
+    }),
   }),
 });
 
-export const { useGetAnalyticsQuery, useGetHeatMapQuery } = dashboardApi;
+export const { useGetAnalyticsQuery, useGetHeatMapQuery, useGetSalesForecastingQuery, useGetLeadFunnelReportQuery } = dashboardApi;
 
 

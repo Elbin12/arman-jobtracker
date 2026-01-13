@@ -76,27 +76,67 @@ const AcceptedQuote = ({ quote, handleEdit, handleDelete }) => {
       }}
     >
       <CardHeader
+        sx={{
+          "& .MuiCardHeader-root": {
+            overflow: "visible",
+          },
+
+          "& .MuiCardHeader-avatar": {
+            alignSelf: "flex-start",
+            marginTop: "4px",
+          },
+
+          "& .MuiCardHeader-content": {
+            minWidth: 0,
+            overflow: "hidden",
+          },
+
+          "& .MuiCardHeader-action": {
+            margin: 0,
+            alignSelf: "flex-start",
+          },
+
+          // Force a 3-column grid
+          display: "grid",
+          gridTemplateColumns: "auto 1fr auto",
+          alignItems: "start",
+        }}
         avatar={
           <Avatar sx={{ bgcolor: 'primary.main' }}>
             <User size={20} />
           </Avatar>
         }
         title={
-          <Typography variant="h6" fontWeight={600}>
+          <Typography
+            variant="h6"
+            fontWeight={600}
+            sx={{
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
             {quote?.customer_name || 'Unknown Customer'}
           </Typography>
         }
         subheader={
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-            <MailOutline sx={{ fontSize: 16, color: 'text.secondary' }} />
-            <Typography 
-              variant="body2" 
-              color="text.secondary"
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+            <MailOutline sx={{ fontSize: 16, color: 'text.secondary', flexShrink: 0 }} />
+            <Typography
+              variant="body2"
               component="a"
               href={`mailto:${quote?.customer_email}`}
-              sx={{ 
-                textDecoration: 'none',
-                '&:hover': { color: 'primary.main', textDecoration: 'underline' }
+              sx={{
+                color: "text.secondary",
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                textDecoration: "none",
+                "&:hover": {
+                  color: "primary.main",
+                  textDecoration: "underline",
+                },
               }}
             >
               {quote?.customer_email || 'No email provided'}
@@ -104,21 +144,19 @@ const AcceptedQuote = ({ quote, handleEdit, handleDelete }) => {
           </Box>
         }
         action={
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            <Chip 
-              label={getJobTypeLabel(quote?.job_type)} 
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Chip
+              label={getJobTypeLabel(quote?.job_type)}
               color={getJobTypeColor(quote?.job_type)}
               size="small"
               variant="outlined"
             />
+
             {handleDelete && (
               <IconButton
                 size="small"
                 onClick={() => handleDelete(quote)}
-                sx={{ 
-                  color: 'error.main'
-                }}
-                aria-label="Delete quote"
+                sx={{ color: "error.main" }}
               >
                 <Delete fontSize="small" />
               </IconButton>
@@ -126,6 +164,7 @@ const AcceptedQuote = ({ quote, handleEdit, handleDelete }) => {
           </Box>
         }
       />
+
       
       <Divider />
       

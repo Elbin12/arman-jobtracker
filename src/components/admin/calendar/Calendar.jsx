@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Calendar as BigCalendar, momentLocalizer } from "react-big-calendar";
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
 import { DndProvider, useDrop } from "react-dnd";
@@ -1805,15 +1805,29 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
                 <CalendarDays className="h-5 w-5" />
                 Calendar
               </CardTitle>
-              {(userRole === "admin" || userRole === "supervisor" || userRole === "manager") && (
-                <Button
-                  onClick={() => navigate("/admin/calendar/create-job")}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Job
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {(userRole === "admin" || userRole === "supervisor" || userRole === "manager") && (
+                    <Button
+                      onClick={() => navigate("/admin/calendar/create-job")}
+                      className="bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Job
+                    </Button>
+                )}
+                <Link 
+                  to={user?.role === "worker" ? `https://app.theservicepilot.com/v2/location/b8qvo7VooP3JD3dIZU42/calendars/view?user_ids=${user?.ghl_user_id}` : "https://app.theservicepilot.com/v2/location/b8qvo7VooP3JD3dIZU42/calendars/view"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >
+                  <Button
+                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Appointment
+                  </Button>
+                </Link>
+              </div>
             </div>
 
             <div className="flex flex-col gap-3">
@@ -2021,6 +2035,34 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
                   <Label className="text-sm font-semibold">Assigned To</Label>
                   <span className="text-sm">{selectedAppointment.assigned_user_name || "Unassigned"}</span>
                 </div>
+
+                {selectedAppointment.calendar && (
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-semibold">Calendar</Label>
+                    <a
+                      href={`https://app.theservicepilot.com/v2/location/b8qvo7VooP3JD3dIZU42/calendars/view?user_ids=${user?.ghl_user_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:text-primary/80 decoration-primary/30 hover:decoration-primary/60 transition-all duration-200 flex items-center gap-1.5 font-medium"
+                    >
+                      {selectedAppointment.calendar.name || "View Calendar"}
+                      <svg 
+                        className="h-3.5 w-3.5" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round" 
+                          strokeWidth={2} 
+                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" 
+                        />
+                      </svg>
+                    </a>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-semibold">Status</Label>
                   <Select

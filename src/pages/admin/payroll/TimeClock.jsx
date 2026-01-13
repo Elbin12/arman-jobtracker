@@ -43,6 +43,7 @@ import {
   useGetEmployeesQuery,
 } from '../../../store/api/payrollApi';
 import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 
 const TimeClock = () => {
   const [selectedEmployee, setSelectedEmployee] = useState('');
@@ -62,6 +63,14 @@ const TimeClock = () => {
   const completedEntries = todayEntries?.entries?.filter((entry) => entry.status === 'checked_out') || [];
 
   const isManagerOrSupervisor = user?.role === 'manager' || user?.role === 'supervisor' || user?.role === 'admin';
+
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if(user?.role === 'worker' && user_profile?.pay_scale_type === 'project') {
+      navigate('/admin/payroll/reports');
+    }
+  }, [user]);
   
   // Calculate elapsed hours for an entry if not provided
   const calculateElapsedHours = (entry) => {

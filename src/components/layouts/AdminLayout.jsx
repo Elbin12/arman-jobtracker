@@ -51,6 +51,7 @@ import { useState, useMemo } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { useDispatch, useSelector } from "react-redux"
 import { logoutUser } from "../../store/slices/authSlice"
+import AdminFooter from "../admin/AdminFooter"
 
 // Navigation configuration based on roles
 const getNavItemsByRole = (role, fullAccessRoles, user_profile) => {
@@ -676,6 +677,7 @@ export const AdminLayout = ({ children }) => {
             boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
           }}
         >
+          {/* Desktop Navigation */}
           <Box
             sx={{
               display: { xs: "none", md: "flex" },
@@ -717,11 +719,52 @@ export const AdminLayout = ({ children }) => {
             ))}
           </Box>
 
-          {/* Mobile breadcrumb */}
-          <Box sx={{ display: { xs: "block", md: "none" }, px: 2, py: 1 }}>
-            <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.8)", fontWeight: 600 }}>
-              PAYROLL MODULE
-            </Typography>
+          {/* Mobile Navigation */}
+          <Box sx={{ display: { xs: "block", md: "none" } }}>
+            {/* Header */}
+            {/* <Box sx={{ px: 2, py: 1, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+              <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.8)", fontWeight: 600 }}>
+                PAYROLL MODULE
+              </Typography>
+            </Box> */}
+            
+            {/* Mobile Navigation Items */}
+            <Box
+              sx={{
+                display: "flex",
+                overflowX: "auto",
+                "&::-webkit-scrollbar": {
+                  height: 4,
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  backgroundColor: "rgba(255,255,255,0.3)",
+                  borderRadius: 2,
+                },
+              }}
+            >
+              {payrollSubNavItems.map((item) => (
+                <Button
+                  key={item.text}
+                  onClick={() => handleNavigate(item.path)}
+                  startIcon={<item.icon sx={{ fontSize: 16 }} />}
+                  sx={{
+                    color: location.pathname === item.path ? "hsl(var(--primary))" : "#FFFFFF",
+                    fontWeight: location.pathname === item.path ? 600 : 400,
+                    textTransform: "none",
+                    fontSize: "0.75rem",
+                    borderRadius: 0,
+                    whiteSpace: "nowrap",
+                    minWidth: "auto",
+                    backgroundColor: location.pathname === item.path ? "white" : "transparent",
+                    "&:hover": {
+                      backgroundColor: location.pathname === item.path ? "white" : "rgba(255,255,255,0.1)",
+                    },
+                  }}
+                >
+                  {item.text}
+                </Button>
+              ))}
+            </Box>
           </Box>
         </Box>
       )}
@@ -764,6 +807,7 @@ export const AdminLayout = ({ children }) => {
         )} */}
         {children}
       </Box>
+      <AdminFooter />
     </Box>
   )
 }

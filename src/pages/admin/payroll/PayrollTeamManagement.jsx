@@ -72,7 +72,14 @@ const PayrollTeamManagement = () => {
     is_administrator: false,
     is_active: null,
     status: 'active',
+    emergency_contact_name: '',
+    emergency_contact_number: '',
+    hire_date: '',
+    date_of_birth: '',
+    address: '',
   });
+
+  const [collaborationRates, setCollaborationRates] = useState([1]);
 
   const [page, setPage] = useState(1);
   const limit = 20;
@@ -92,6 +99,7 @@ const PayrollTeamManagement = () => {
 
   const handleAddEmployee = () => {
     setSelectedEmployee(null);
+    setCollaborationRates([1]);
     setFormData({
       user: '',
       phone: '',
@@ -103,12 +111,31 @@ const PayrollTeamManagement = () => {
       is_administrator: false,
       status: 'active',
       is_active: true,
+      emergency_contact_name: '',
+      emergency_contact_number: '',
+      hire_date: '',
+      date_of_birth: '',
+      address: '',
     });
     setShowDialog(true);
   };
 
   const handleEditEmployee = (employee) => {
     setSelectedEmployee(employee);
+    // Set collaboration rates from employee data
+    const memberCounts = employee.collaboration_rates?.length > 0
+      ? employee.collaboration_rates.map(r => r.member_count)
+      : [1];
+    
+    setCollaborationRates(memberCounts);
+
+    const ratesData = Object.fromEntries(
+      employee.collaboration_rates?.map(r => [
+        `rate_${r.member_count}`, 
+        r.percentage
+      ]) || []
+    );
+
     setFormData({
       user: employee.user_id,
       phone: employee.phone || '',
@@ -120,17 +147,29 @@ const PayrollTeamManagement = () => {
       is_administrator: employee.is_administrator || false,
       status: employee.is_active ? 'active' : 'inactive',
       is_active: employee.is_active ? true : false,
+      emergency_contact_name: employee.emergency_contact_name || '',
+      emergency_contact_number: employee.emergency_contact_number || '',
+      hire_date: employee.hire_date || '',
+      date_of_birth: employee.date_of_birth || '',
+      address: employee.address || '',
+      ...ratesData
     });
-    setFormData(existing => ({
-      ...existing,
-      ...Object.fromEntries(
-        employee.collaboration_rates?.map(r => [
-          `rate_${r.member_count}`, 
-          r.percentage
-        ]) || []
-      )
-    }));
     setShowDialog(true);
+  };
+
+  // Add functions to manage collaboration rates
+  const addCollaborationRate = () => {
+    const maxCount = Math.max(...collaborationRates, 0);
+    setCollaborationRates([...collaborationRates, maxCount + 1]);
+  };
+  
+  const removeCollaborationRate = (count) => {
+    if (collaborationRates.length > 1) {
+      setCollaborationRates(collaborationRates.filter(c => c !== count));
+      const newFormData = { ...formData };
+      delete newFormData[`rate_${count}`];
+      setFormData(newFormData);
+    }
   };
 
   const handleSave = async () => {
@@ -144,7 +183,7 @@ const PayrollTeamManagement = () => {
       };
 
       if (formData.pay_scale_type === "project") {
-        payload.collaboration_rates = [1,2,3,4,5]
+        payload.collaboration_rates = collaborationRates
           .filter(c => formData[`rate_${c}`] != null)
           .map(c => ({
             member_count: c,
@@ -677,8 +716,49 @@ const PayrollTeamManagement = () => {
             </Box>
 
             <Box display="flex" gap={2} sx={{flexWrap: { xs: 'wrap', sm: 'nowrap' }}}>
+              <TextField
+                fullWidth
+                label="Address"
+                type="text"
+                size="small"
+                value={formData.address || ''}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                // InputProps={{ readOnly: !!selectedEmployee }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1,
+                  }
+                }}
+              />
+
+              <TextField
+                fullWidth
+                label="Date of birth"
+                type="date"
+                InputLabelProps={{ shrink: true }}
+                size="small"
+                value={formData.date_of_birth}
+                onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1,
+                  }
+                }}
+              />
+            </Box>
+
+            <Box display="flex" gap={2} sx={{flexWrap: { xs: 'wrap', sm: 'nowrap' }}}>
               <TextField fullWidth size='small' label="Position" value={formData.position} onChange={(e) => setFormData({ ...formData, position: e.target.value })} />
               <TextField fullWidth size='small' label="Department" value={formData.department} onChange={(e) => setFormData({ ...formData, department: e.target.value })} />
+            </Box>
+
+            <Box display="flex" gap={2} sx={{flexWrap: { xs: 'wrap', sm: 'nowrap' }}}>
+              <TextField fullWidth size='small' label="Emergeny Contact Name" value={formData.emergency_contact_name} onChange={(e) => setFormData({ ...formData, emergency_contact_name: e.target.value })} />
+              <TextField type="tel" fullWidth size='small' label="Emergency Contact Number" value={formData.emergency_contact_number} onChange={(e) => setFormData({ ...formData, emergency_contact_number: e.target.value })} />
+            </Box>
+
+            <Box display="flex" gap={2} sx={{flexWrap: { xs: 'wrap', sm: 'nowrap' }}}>
+              <TextField fullWidth size='small' label="Hire Date" type="date" InputLabelProps={{ shrink: true }} value={formData.hire_date} onChange={(e) => setFormData({ ...formData, hire_date: e.target.value })} />
             </Box>
 
             {/* Timezone */}
@@ -735,42 +815,81 @@ const PayrollTeamManagement = () => {
             {/* Collaboration Rates for project-based */}
             {formData.pay_scale_type === 'project' && (
               <Box>
-                <Typography
-                  variant="caption"
-                  sx={{ 
-                    mb: 1.5, 
-                    display: "block", 
-                    fontWeight: 500, 
-                    color: "text.secondary",
-                    fontSize: { xs: '0.75rem', sm: '0.813rem' }
-                  }}
-                >
-                  Collaboration Rates (%)
-                </Typography>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
+                  <Typography
+                    variant="caption"
+                    sx={{ 
+                      fontWeight: 500, 
+                      color: "text.secondary",
+                      fontSize: { xs: '0.75rem', sm: '0.813rem' }
+                    }}
+                  >
+                    Collaboration Rates (%)
+                  </Typography>
+                  <Button
+                    size="small"
+                    startIcon={<AddIcon />}
+                    onClick={addCollaborationRate}
+                    sx={{
+                      textTransform: 'none',
+                      fontSize: '0.813rem',
+                      minWidth: 'auto',
+                      px: 1.5,
+                      py: 0.5,
+                    }}
+                  >
+                    Add Rate
+                  </Button>
+                </Box>
+                
                 <Grid container spacing={{ xs: 1, sm: 1.5 }}>
-                  {[1,2,3,4,5].map((count) => (
+                  {collaborationRates.map((count) => (
                     <Grid item xs={6} sm={4} key={count}>
-                      <TextField
-                        fullWidth
-                        label={`${count} Member${count > 1 ? 's' : ''}`}
-                        type="number"
-                        size="small"
-                        value={formData[`rate_${count}`] || ""}
-                        onChange={(e) =>
-                          setFormData({ ...formData, [`rate_${count}`]: e.target.value })
-                        }
-                        InputProps={{
-                          endAdornment: <InputAdornment position="end">%</InputAdornment>,
-                        }}
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 1,
-                          },
-                          '& .MuiInputLabel-root': {
-                            fontSize: { xs: '0.875rem', sm: '1rem' }
+                      <Box position="relative">
+                        <TextField
+                          fullWidth
+                          label={`${count} Member${count > 1 ? 's' : ''}`}
+                          type="number"
+                          size="small"
+                          value={formData[`rate_${count}`] || ""}
+                          onChange={(e) =>
+                            setFormData({ ...formData, [`rate_${count}`]: e.target.value })
                           }
-                        }}
-                      />
+                          InputProps={{
+                            endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                          }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1,
+                            },
+                            '& .MuiInputLabel-root': {
+                              fontSize: { xs: '0.875rem', sm: '1rem' }
+                            }
+                          }}
+                        />
+                        {collaborationRates.length > 1 && (
+                          <IconButton
+                            size="small"
+                            onClick={() => removeCollaborationRate(count)}
+                            sx={{
+                              position: 'absolute',
+                              top: -8,
+                              right: -8,
+                              bgcolor: 'background.paper',
+                              border: '1px solid',
+                              borderColor: 'divider',
+                              color: 'error.main',
+                              width: 24,
+                              height: 24,
+                              '&:hover': {
+                                bgcolor: 'error.lighter',
+                              }
+                            }}
+                          >
+                            <CloseIcon sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        )}
+                      </Box>
                     </Grid>
                   ))}
                 </Grid>

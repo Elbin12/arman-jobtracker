@@ -609,6 +609,40 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
               </>
             )}
           </Box>
+          
+          {job?.submission &&
+            <Box sx={{ mb: 3 }}>
+              <Box
+                component="a"
+                href={`/quote/details/${job.submission}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.5,
+                  p: 2,
+                  borderRadius: 2,
+                  bgcolor: "primary.200",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  textDecoration: "none",
+                  transition: "all 0.2s ease",
+                  "&:hover": {
+                    transform: "translateY(-1px)",
+                    boxShadow: 1,
+                  },
+                }}
+              >
+                <Typography variant="body2" sx={{ fontWeight: 600, color: "primary.main", mb: 0.25 }}>
+                  View Job
+                </Typography>
+                <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.75rem" }}>
+                  Click to open job in a new tab
+                </Typography>
+              </Box>
+            </Box>
+          }
 
           {/* Notes (Collapsible) - Fixed height */}
           <Box sx={{ mb: 3, minHeight: job.notes ? '50px' : '0px' }}>
@@ -660,14 +694,12 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                 }}
               >
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  {/* Appointment Title */}
                   {job.slot_reserved_info.appointment.title && (
                     <Typography variant="body2" sx={{ fontWeight: 600, color: "info.main", mb: 0.5 }}>
                       {job.slot_reserved_info.appointment.title}
                     </Typography>
                   )}
 
-                  {/* Appointment Time */}
                   {job.slot_reserved_info.appointment.start_time && (
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <Calendar size={16} style={{ color: 'rgba(0, 0, 0, 0.54)', flexShrink: 0 }} />
@@ -680,7 +712,6 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                     </Box>
                   )}
 
-                  {/* Assigned User */}
                   {job.slot_reserved_info.appointment.assigned_user && (
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <User size={16} style={{ color: 'rgba(0, 0, 0, 0.54)', flexShrink: 0 }} />
@@ -693,7 +724,6 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                     </Box>
                   )}
 
-                  {/* Contact */}
                   {job.slot_reserved_info.appointment.contact && (
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <User size={16} style={{ color: 'rgba(0, 0, 0, 0.54)', flexShrink: 0 }} />
@@ -706,7 +736,6 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                     </Box>
                   )}
 
-                  {/* Address */}
                   {job.slot_reserved_info.appointment.address && (
                     <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
                       <MapPin size={16} style={{ color: 'rgba(0, 0, 0, 0.54)', flexShrink: 0, marginTop: '2px' }} />
@@ -716,7 +745,6 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                     </Box>
                   )}
 
-                  {/* Calendar Name */}
                   {job.slot_reserved_info.appointment.calendar_name && (
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <Calendar size={16} style={{ color: 'rgba(0, 0, 0, 0.54)', flexShrink: 0 }} />
@@ -726,7 +754,6 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                     </Box>
                   )}
 
-                  {/* Appointment Status */}
                   {job.slot_reserved_info.appointment.appointment_status && (
                     <Box>
                       <Chip
@@ -743,7 +770,6 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                     </Box>
                   )}
 
-                  {/* Notes */}
                   {job.slot_reserved_info.appointment.notes && (
                     <Box sx={{ mt: 1, pt: 1.5, borderTop: '1px solid', borderColor: 'info.200' }}>
                       <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 0.5 }}>

@@ -51,8 +51,8 @@ import {
   Cell,
 } from 'recharts';
 import { format } from 'date-fns';
-import { useGetAnalyticsQuery, useGetHeatMapQuery } from '../../store/api/dashboardApi';
-import { AlertCircle, AlertTriangle, CheckCircle, Clock, File, FileText } from 'lucide-react';
+import { useGetAnalyticsQuery, useGetHeatMapQuery, useGetLeadFunnelReportQuery, useGetSalesForecastingQuery } from '../../store/api/dashboardApi';
+import { AlertCircle, AlertTriangle, CheckCircle, Clock, File, FileText, PersonStandingIcon } from 'lucide-react';
 
 const STATUS_COLORS = {
   paid: '#22c55e',
@@ -94,6 +94,20 @@ export const AdminDashboard = () => {
 
   const { data: analyticsData, isLoading: analyticsLoading, refetch: refetchAnalytics } = useGetAnalyticsQuery(filters);
   const { data: heatmapData, isLoading: heatmapLoading, refetch: refetchHeatmap } = useGetHeatMapQuery(heatmapParams);
+
+  const { data: salesForecastData, isLoading: forecastLoading } = useGetSalesForecastingQuery(filters);
+  const { data: leadFunnelData, isLoading: leadFunnelLoading } = useGetLeadFunnelReportQuery(filters);
+
+  const formatForecastChartData = () => {
+    if (!salesForecastData?.forecasts?.monthly?.periods) return [];
+    return salesForecastData.forecasts.monthly.periods
+      .slice(0, 6)
+      .map((period) => ({
+        month: format(new Date(period.month), 'MMM yyyy'),
+        revenue: period.forecasted_revenue,
+        invoices: period.forecasted_invoice_count,
+      }));
+  };
 
   const formatCurrency = (amount) =>
     new Intl.NumberFormat('en-US', {
@@ -198,24 +212,58 @@ export const AdminDashboard = () => {
           </Card>
         </div>
 
-        {/* Top Customers Table Skeleton */}
-        <Card sx={{ mb: 3, boxShadow: 1 }}>
-          <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-            <Skeleton variant="text" width="30%" height={24} sx={{ mb: 1, bgcolor: 'rgba(0,0,0,0.1)' }} />
-            <Skeleton variant="text" width="50%" height={16} sx={{ mb: 2, bgcolor: 'rgba(0,0,0,0.08)' }} />
-            <Box sx={{ mt: 2 }}>
+        {/* Lead Funnel Skeleton - Replace Top Customers skeleton */}
+          <Card sx={{ mb: 3, boxShadow: 1 }}>
+            <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+              <Skeleton variant="text" width="30%" height={24} sx={{ mb: 1, bgcolor: 'rgba(0,0,0,0.1)' }} />
+              <Skeleton variant="text" width="50%" height={16} sx={{ mb: 3, bgcolor: 'rgba(0,0,0,0.08)' }} />
+              
+              {/* Summary skeleton */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2, mb: 3 }}>
+                {[1,2,3,4].map(i => (
+                  <Skeleton key={i} variant="rectangular" height={70} sx={{ borderRadius: 1, bgcolor: 'rgba(0,0,0,0.08)' }} />
+                ))}
+              </Box>
+              
+              {/* Funnel stages skeleton */}
               {[1, 2, 3, 4, 5].map((i) => (
-                <Box key={i} sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
-                  <Skeleton variant="text" width="25%" height={20} sx={{ bgcolor: 'rgba(0,0,0,0.08)' }} />
-                  <Skeleton variant="text" width="30%" height={20} sx={{ bgcolor: 'rgba(0,0,0,0.08)' }} />
-                  <Skeleton variant="text" width="15%" height={20} sx={{ bgcolor: 'rgba(0,0,0,0.08)' }} />
-                  <Skeleton variant="text" width="10%" height={20} sx={{ bgcolor: 'rgba(0,0,0,0.08)' }} />
-                  <Skeleton variant="text" width="15%" height={20} sx={{ bgcolor: 'rgba(0,0,0,0.08)' }} />
-                </Box>
+                <Skeleton key={i} variant="rectangular" height={80} sx={{ mb: 2, borderRadius: 2, bgcolor: 'rgba(0,0,0,0.08)' }} />
               ))}
-            </Box>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          {/* Sales Forecasting Skeleton */}
+          <Card sx={{ mb: 3, boxShadow: 1 }}>
+            <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+              <Skeleton variant="text" width="30%" height={24} sx={{ mb: 1, bgcolor: 'rgba(0,0,0,0.1)' }} />
+              <Skeleton variant="text" width="50%" height={16} sx={{ mb: 3, bgcolor: 'rgba(0,0,0,0.08)' }} />
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 2, mb: 3 }}>
+                {[1,2,3,4].map(i => (
+                  <Skeleton key={i} variant="rectangular" height={70} sx={{ borderRadius: 1, bgcolor: 'rgba(0,0,0,0.08)' }} />
+                ))}
+              </Box>
+              <Skeleton variant="rectangular" width="100%" height={300} sx={{ borderRadius: 1, bgcolor: 'rgba(0,0,0,0.08)' }} />
+            </CardContent>
+          </Card>
+
+          {/* Top Customers Skeleton - now at the end */}
+          <Card sx={{ mb: 3, boxShadow: 1 }}>
+            <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+              <Skeleton variant="text" width="30%" height={24} sx={{ mb: 1, bgcolor: 'rgba(0,0,0,0.1)' }} />
+              <Skeleton variant="text" width="50%" height={16} sx={{ mb: 2, bgcolor: 'rgba(0,0,0,0.08)' }} />
+              <Box sx={{ mt: 2 }}>
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Box key={i} sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
+                    <Skeleton variant="text" width="25%" height={20} sx={{ bgcolor: 'rgba(0,0,0,0.08)' }} />
+                    <Skeleton variant="text" width="30%" height={20} sx={{ bgcolor: 'rgba(0,0,0,0.08)' }} />
+                    <Skeleton variant="text" width="15%" height={20} sx={{ bgcolor: 'rgba(0,0,0,0.08)' }} />
+                    <Skeleton variant="text" width="10%" height={20} sx={{ bgcolor: 'rgba(0,0,0,0.08)' }} />
+                    <Skeleton variant="text" width="15%" height={20} sx={{ bgcolor: 'rgba(0,0,0,0.08)' }} />
+                  </Box>
+                ))}
+              </Box>
+            </CardContent>
+          </Card>
 
         {/* Heatmap Skeleton */}
         <Card sx={{ boxShadow: 1 }}>
@@ -593,60 +641,410 @@ export const AdminDashboard = () => {
           </Card>
         </div>
 
-        {/* Top Customers Table - Responsive */}
-        <Card sx={{ mb: 3, boxShadow: 1 }}>
-          <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-            <Typography variant="subtitle1" fontWeight="600" gutterBottom>
-              Top Customers
-            </Typography>
-            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
-              Highest revenue generating customers
-            </Typography>
-            <TableContainer>
-              <Table size={isMobile ? 'small' : 'medium'}>
-                <TableHead>
-                  <TableRow sx={{ bgcolor: '#f9fafb' }}>
-                    <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Name</TableCell>
-                    {!isMobile && <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Email</TableCell>}
-                    <TableCell align="right" sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Invoiced</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Count</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Paid</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {analyticsData?.top_customers?.slice(0, 5).map((customer, index) => (
-                    <TableRow key={index} hover>
-                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                        {isMobile ? customer.contact_name.split(' ')[0] : customer.contact_name}
-                      </TableCell>
-                      {!isMobile && (
-                        <TableCell sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
-                          {customer.contact_email}
-                        </TableCell>
-                      )}
-                      <TableCell align="right" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                        {isMobile ? `$${(customer.total_invoiced / 1000).toFixed(1)}k` : formatCurrency(customer.total_invoiced)}
-                      </TableCell>
-                      <TableCell align="right">
-                        <Chip 
-                          label={customer.invoices_count} 
-                          size="small"
-                          sx={{ 
-                            height: isMobile ? 20 : 24,
-                            fontSize: isMobile ? '0.65rem' : '0.75rem'
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell align="right" sx={{ color: 'success.main', fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                        {isMobile ? `$${(customer.total_paid / 1000).toFixed(1)}k` : formatCurrency(customer.total_paid)}
-                      </TableCell>
-                    </TableRow>
+        {/* Lead Funnel Report - Replace Top Customers position */}
+          <Card sx={{ mb: 3, boxShadow: 1 }}>
+            <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+              <Typography variant="subtitle1" fontWeight="600" gutterBottom>
+                Lead Funnel Report
+              </Typography>
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 3 }}>
+                Pipeline overview for the last 7 days
+              </Typography>
+
+              {leadFunnelLoading ? (
+                <Box sx={{ mt: 2 }}>
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <Box key={i} sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
+                      <Skeleton variant="text" width="30%" height={20} />
+                      <Skeleton variant="text" width="20%" height={20} />
+                      <Skeleton variant="text" width="25%" height={20} />
+                    </Box>
                   ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </CardContent>
-        </Card>
+                </Box>
+              ) : leadFunnelData ? (
+                <>
+                  {/* Summary Metrics */}
+                  <Box sx={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+                    gap: 2,
+                    mb: 3,
+                    p: 2,
+                    bgcolor: '#f9fafb',
+                    borderRadius: 2
+                  }}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Pipeline Value
+                      </Typography>
+                      <Typography variant="h6" fontWeight="600" color="primary.main">
+                        {formatCurrency(leadFunnelData.summary_metrics.pipeline_value)}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Total Items
+                      </Typography>
+                      <Typography variant="h6" fontWeight="600">
+                        {leadFunnelData.summary_metrics.total_pipeline_items}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Acceptance Rate
+                      </Typography>
+                      <Typography variant="h6" fontWeight="600" color="success.main">
+                        {leadFunnelData.summary_metrics.acceptance_rate_percent.toFixed(1)}%
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Closed Revenue
+                      </Typography>
+                      <Typography variant="h6" fontWeight="600" color="success.main">
+                        {formatCurrency(leadFunnelData.summary_metrics.total_revenue_closed_jobs)}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  {/* Funnel Stages */}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {/* New Leads */}
+                    <Box sx={{ 
+                      p: 2, 
+                      border: '1px solid', 
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      bgcolor: 'background.paper',
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        boxShadow: 2,
+                        borderColor: 'primary.main'
+                      }
+                    }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          <Box sx={{ 
+                            width: 40, 
+                            height: 40, 
+                            borderRadius: '50%', 
+                            bgcolor: 'blue.50',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <PersonStandingIcon sx={{ color: 'primary.main', fontSize: 20 }} />
+                          </Box>
+                          <Box>
+                            <Typography variant="body2" fontWeight="600">
+                              {leadFunnelData.lead_funnel.new_leads.label}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              New opportunities
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Chip 
+                          label={leadFunnelData.lead_funnel.new_leads.count} 
+                          color="primary" 
+                          sx={{ fontWeight: 600, fontSize: '0.875rem' }}
+                        />
+                      </Box>
+                    </Box>
+
+                    {/* Open Estimates */}
+                    <Box sx={{ 
+                      p: 2, 
+                      border: '1px solid', 
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      bgcolor: 'background.paper',
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        boxShadow: 2,
+                        borderColor: 'warning.main'
+                      }
+                    }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          <Box sx={{ 
+                            width: 40, 
+                            height: 40, 
+                            borderRadius: '50%', 
+                            bgcolor: 'orange.50',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <Description sx={{ color: 'warning.main', fontSize: 20 }} />
+                          </Box>
+                          <Box>
+                            <Typography variant="body2" fontWeight="600">
+                              {leadFunnelData.lead_funnel.open_estimates.label}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Pending decision
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box sx={{ textAlign: 'right' }}>
+                          <Chip 
+                            label={leadFunnelData.lead_funnel.open_estimates.count} 
+                            color="warning" 
+                            variant="outlined"
+                            sx={{ fontWeight: 600, fontSize: '0.875rem', mb: 0.5 }}
+                          />
+                          <Typography variant="caption" color="warning.main" fontWeight="600" display="block">
+                            {formatCurrency(leadFunnelData.lead_funnel.open_estimates.total_value)}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+
+                    {/* Accepted Estimates */}
+                    <Box sx={{ 
+                      p: 2, 
+                      border: '1px solid', 
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      bgcolor: 'background.paper',
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        boxShadow: 2,
+                        borderColor: 'success.main'
+                      }
+                    }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          <Box sx={{ 
+                            width: 40, 
+                            height: 40, 
+                            borderRadius: '50%', 
+                            bgcolor: 'success.lighter',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <CheckCircle sx={{ color: 'success.main', fontSize: 20 }} />
+                          </Box>
+                          <Box>
+                            <Typography variant="body2" fontWeight="600">
+                              {leadFunnelData.lead_funnel.accepted_estimates.label}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Ready to schedule
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box sx={{ textAlign: 'right' }}>
+                          <Chip 
+                            label={leadFunnelData.lead_funnel.accepted_estimates.count} 
+                            color="success" 
+                            sx={{ fontWeight: 600, fontSize: '0.875rem', mb: 0.5 }}
+                          />
+                          <Typography variant="caption" color="success.main" fontWeight="600" display="block">
+                            {formatCurrency(leadFunnelData.lead_funnel.accepted_estimates.total_value)}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+
+                    {/* Scheduled Jobs */}
+                    <Box sx={{ 
+                      p: 2, 
+                      border: '1px solid', 
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      bgcolor: 'background.paper',
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        boxShadow: 2,
+                        borderColor: 'info.main'
+                      }
+                    }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          <Box sx={{ 
+                            width: 40, 
+                            height: 40, 
+                            borderRadius: '50%', 
+                            bgcolor: 'info.lighter',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <Clock sx={{ color: 'info.main', fontSize: 20 }} />
+                          </Box>
+                          <Box>
+                            <Typography variant="body2" fontWeight="600">
+                              {leadFunnelData.lead_funnel.scheduled_jobs.label}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              In progress
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box sx={{ textAlign: 'right' }}>
+                          <Chip 
+                            label={leadFunnelData.lead_funnel.scheduled_jobs.count} 
+                            color="info" 
+                            sx={{ fontWeight: 600, fontSize: '0.875rem', mb: 0.5 }}
+                          />
+                          <Typography variant="caption" color="info.main" fontWeight="600" display="block">
+                            {formatCurrency(leadFunnelData.lead_funnel.scheduled_jobs.total_value)}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+
+                    {/* Closed Jobs */}
+                    <Box sx={{ 
+                      p: 2, 
+                      border: '2px solid', 
+                      borderColor: 'success.main',
+                      borderRadius: 2,
+                      bgcolor: 'success.lighter',
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        boxShadow: 3,
+                      }
+                    }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          <Box sx={{ 
+                            width: 40, 
+                            height: 40, 
+                            borderRadius: '50%', 
+                            bgcolor: 'success.main',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <CheckCircle sx={{ color: 'white', fontSize: 20 }} />
+                          </Box>
+                          <Box>
+                            <Typography variant="body2" fontWeight="600" color="success.dark">
+                              {leadFunnelData.lead_funnel.closed_jobs.label}
+                            </Typography>
+                            <Typography variant="caption" color="success.dark">
+                              Revenue generated
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box sx={{ textAlign: 'right' }}>
+                          <Chip 
+                            label={leadFunnelData.lead_funnel.closed_jobs.count} 
+                            sx={{ 
+                              fontWeight: 600, 
+                              fontSize: '0.875rem', 
+                              mb: 0.5,
+                              bgcolor: 'success.main',
+                              color: 'white'
+                            }}
+                          />
+                          <Typography variant="body2" color="success.dark" fontWeight="700" display="block">
+                            {formatCurrency(leadFunnelData.lead_funnel.closed_jobs.total_value)}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+                  </Box>
+                </>
+              ) : (
+                <Alert severity="info">No lead funnel data available</Alert>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Sales Forecasting */}
+          <Card sx={{ mb: 3, boxShadow: 1 }}>
+            <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+              <Typography variant="subtitle1" fontWeight="600" gutterBottom>
+                Sales Forecasting
+              </Typography>
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 3 }}>
+                Revenue predictions for the next 6 months
+              </Typography>
+
+              {forecastLoading ? (
+                <Skeleton variant="rectangular" height={300} />
+              ) : salesForecastData ? (
+                <>
+                  {/* Forecast Summary Cards */}
+                  <Box sx={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
+                    gap: 2,
+                    mb: 3
+                  }}>
+                    <Paper sx={{ p: 2, bgcolor: '#f0f9ff', border: '1px solid #bae6fd' }}>
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                        Next 8 Weeks
+                      </Typography>
+                      <Typography variant="h6" fontWeight="700" color="primary.main">
+                        {formatCurrency(salesForecastData.forecasts.weekly.total_forecasted_revenue_8_weeks)}
+                      </Typography>
+                    </Paper>
+                    <Paper sx={{ p: 2, bgcolor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                        Next 12 Months
+                      </Typography>
+                      <Typography variant="h6" fontWeight="700" color="success.main">
+                        {formatCurrency(salesForecastData.forecasts.monthly.total_forecasted_revenue_12_months)}
+                      </Typography>
+                    </Paper>
+                    <Paper sx={{ p: 2, bgcolor: '#fef3c7', border: '1px solid #fde68a' }}>
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                        Next 4 Quarters
+                      </Typography>
+                      <Typography variant="h6" fontWeight="700" sx={{ color: '#d97706' }}>
+                        {formatCurrency(salesForecastData.forecasts.quarterly.total_forecasted_revenue_4_quarters)}
+                      </Typography>
+                    </Paper>
+                    <Paper sx={{ p: 2, bgcolor: '#fce7f3', border: '1px solid #fbcfe8' }}>
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                        Historical Revenue
+                      </Typography>
+                      <Typography variant="h6" fontWeight="700" sx={{ color: '#db2777' }}>
+                        {formatCurrency(salesForecastData.historical_period.total_revenue)}
+                      </Typography>
+                    </Paper>
+                  </Box>
+
+                  {/* Forecast Chart */}
+                  <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
+                    <BarChart data={formatForecastChartData()}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis 
+                        dataKey="month" 
+                        tick={{ fontSize: isMobile ? 10 : 12 }}
+                        angle={isMobile ? -45 : 0}
+                        textAnchor={isMobile ? 'end' : 'middle'}
+                        height={isMobile ? 60 : 30}
+                      />
+                      <YAxis tick={{ fontSize: isMobile ? 10 : 12 }} />
+                      <Tooltip 
+                        formatter={(value, name) => [
+                          name === 'revenue' ? formatCurrency(Number(value)) : value,
+                          name === 'revenue' ? 'Forecasted Revenue' : 'Invoice Count'
+                        ]}
+                      />
+                      <Legend wrapperStyle={{ fontSize: isMobile ? 10 : 12 }} />
+                      <Bar dataKey="revenue" fill="#3b82f6" name="Forecasted Revenue" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
+                    Based on {salesForecastData.historical_period.total_invoices} historical invoices from{' '}
+                    {format(new Date(salesForecastData.historical_period.start_date), 'MMM dd, yyyy')} to{' '}
+                    {format(new Date(salesForecastData.historical_period.end_date), 'MMM dd, yyyy')}
+                  </Typography>
+                </>
+              ) : (
+                <Alert severity="info">No forecasting data available</Alert>
+              )}
+            </CardContent>
+          </Card>
 
         {/* Technician Workload Heatmap - Responsive */}
         {heatmapData && (
@@ -765,6 +1163,60 @@ export const AdminDashboard = () => {
             </CardContent>
           </Card>
         )}
+
+        <Card sx={{ mt: 3, boxShadow: 1 }}>
+          <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+            <Typography variant="subtitle1" fontWeight="600" gutterBottom>
+              Top Customers
+            </Typography>
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+              Highest revenue generating customers
+            </Typography>
+            <TableContainer>
+              <Table size={isMobile ? 'small' : 'medium'}>
+                <TableHead>
+                  <TableRow sx={{ bgcolor: '#f9fafb' }}>
+                    <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Name</TableCell>
+                    {!isMobile && <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Email</TableCell>}
+                    <TableCell align="right" sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Invoiced</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Count</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Paid</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {analyticsData?.top_customers?.slice(0, 5).map((customer, index) => (
+                    <TableRow key={index} hover>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                        {isMobile ? customer.contact_name.split(' ')[0] : customer.contact_name}
+                      </TableCell>
+                      {!isMobile && (
+                        <TableCell sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
+                          {customer.contact_email}
+                        </TableCell>
+                      )}
+                      <TableCell align="right" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                        {isMobile ? `$${(customer.total_invoiced / 1000).toFixed(1)}k` : formatCurrency(customer.total_invoiced)}
+                      </TableCell>
+                      <TableCell align="right">
+                        <Chip 
+                          label={customer.invoices_count} 
+                          size="small"
+                          sx={{ 
+                            height: isMobile ? 20 : 24,
+                            fontSize: isMobile ? '0.65rem' : '0.75rem'
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell align="right" sx={{ color: 'success.main', fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                        {isMobile ? `$${(customer.total_paid / 1000).toFixed(1)}k` : formatCurrency(customer.total_paid)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
           
       </Box>
     </LocalizationProvider>

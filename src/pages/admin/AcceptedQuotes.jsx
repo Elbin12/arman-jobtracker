@@ -76,7 +76,10 @@ const AcceptedQuotes = () => {
     }
 
     try {
-      await deleteJob(jobId).unwrap();
+      // await deleteJob(jobId).unwrap();
+
+      setQuoteToDelete(null);
+      setDeleteDialogOpen(false);
       
       // Update the cache to remove the deleted quote
       dispatch(
@@ -101,9 +104,6 @@ const AcceptedQuotes = () => {
         title: "Success",
         description: "Quote deleted successfully",
       });
-
-      setDeleteDialogOpen(false);
-      setQuoteToDelete(null);
     } catch (error) {
       toast({
         title: "Error",
@@ -173,7 +173,8 @@ const AcceptedQuotes = () => {
             gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))',
             gap: 2, // 16px gap between cards
             width: '100%',
-            alignItems:"stretch"
+            alignItems:"stretch",
+            bgcolor: 'primary.red'
           }}
         >
           {jobsData.results.map((quote) => (
