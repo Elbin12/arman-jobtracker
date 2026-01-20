@@ -40,6 +40,7 @@ import {
 } from "lucide-react"
 import DeleteJobDialog from "./DeleteJobDialog"
 import StatusChangeConfirmationDialog from "./StatusChangeConfirmationDialog"
+import { JobCompletionDetails } from "./JobCompletionDetails"
 
 export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTimezone = "America/Chicago" }) {
   const [updating, setUpdating] = useState(false)
@@ -152,24 +153,37 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
         status: newStatus,
       }).unwrap()
       
+      // Update display status first
+      setDisplayStatus(newStatus)
+      
+      // Close the status change dialog
+      setStatusChangeDialogOpen(false)
+      setPendingStatus(null)
+      
+      // Update the job data via onUpdate callback
       if (onUpdate) {
         onUpdate(result)
       }
       
-      // Update display status and close dialog after successful update
-      setDisplayStatus(newStatus)
-      setStatusChangeDialogOpen(false)
-      setPendingStatus(null)
+      // Small delay to ensure dialog closes before any other updates
+      await new Promise(resolve => setTimeout(resolve, 100))
     } catch (error) {
       // Keep dialog open on error so user can retry
+      toast({
+        title: "Error",
+        description: "Failed to update job status. Please try again.",
+        variant: "destructive",
+      })
     } finally {
       setUpdating(false)
     }
   }
 
-  const handleConfirmStatusChange = () => {
+  const handleConfirmStatusChange = async () => {
     if (pendingStatus) {
-      updateJobStatus(pendingStatus)
+      // For completed status, the completion form handles images and payment method
+      // and then calls this to update the status
+      await updateJobStatus(pendingStatus)
     }
   }
 
@@ -635,7 +649,7 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                 }}
               >
                 <Typography variant="body2" sx={{ fontWeight: 600, color: "primary.main", mb: 0.25 }}>
-                  View Job
+                  View Approved Estimate
                 </Typography>
                 <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.75rem" }}>
                   Click to open job in a new tab
@@ -783,6 +797,11 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                 </Box>
               </Box>
             </Box>
+          )}
+
+          {/* Completion Details - Only show for completed jobs */}
+          {job?.status === "completed" && (
+            <JobCompletionDetails job={job} onUpdate={onUpdate} />
           )}
 
           {/* Status Selector */}

@@ -25,10 +25,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Users, RotateCcw, Plus, XSquare } from "lucide-react";
 import moment from "moment-timezone";
-import { jobsApi, useUpdateJobMutation } from "../../../store/api/jobsApi";
+import { jobsApi, useUpdateJobMutation, useSearchContactsQuery, useGetAddressesByContactQuery } from "../../../store/api/jobsApi";
 import { useGetEmployeesQuery } from "../../../store/api/payrollApi";
 import { useGetServicesQuery } from "../../../store/api/servicesApi";
 import { useDispatch } from "react-redux";
+import ContactSearchableSelect from "./ContactSearchableSelect";
+import { Select as ShadcnSelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2 } from "lucide-react";
 
 export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, accountTimezone = "America/Chicago" }) {
   const [updateJob, { isLoading, error }] = useUpdateJobMutation();
@@ -69,6 +72,7 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
     status: "pending",
     total_price: 0,
     quoted_by: null,
+    contact_id: null,
     ghl_contact_id: "",
     repeat_every: null,
     repeat_unit: null,
@@ -76,6 +80,23 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
     items: [],
     assignments: [],
   });
+
+  // Contact search and address state
+  const [selectedContactId, setSelectedContactId] = useState(null);
+  const [selectedContact, setSelectedContact] = useState(null);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [addressEdited, setAddressEdited] = useState(false);
+  const [originalAddressString, setOriginalAddressString] = useState("");
+  
+  // Fetch addresses when contact is selected
+  const { data: addressesData, isFetching: isFetchingAddresses } = useGetAddressesByContactQuery(selectedContactId, {
+    skip: !selectedContactId,
+  });
+
+  // Handle different possible response structures
+  const addresses = Array.isArray(addressesData) 
+    ? addressesData 
+    : addressesData?.results || addressesData?.data || [];
 
   const [timeData, setTimeData] = useState({
     date: "",
@@ -87,6 +108,8 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
   // Initialize form data directly from job
   useEffect(() => {
     if (open && job) {
+      // Reset all state when modal opens or job changes
+      setSelectedContact(null);
       // Parse scheduled date (parse as UTC to show time directly from API)
       let parsedTimeData = { date: "", hour: "12", minute: "00", period: "PM" };
       if (job.scheduled_at) {
@@ -143,6 +166,7 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
         status: objective === 'convert'? "pending": job.status || "pending",
         total_price: job.total_price || 0,
         quoted_by: job.quoted_by || null,
+        contact_id: job.contact_id || null,
         ghl_contact_id: job.ghl_contact_id || "",
         repeat_every: job.repeat_every || null,
         repeat_unit: job.repeat_unit || null,
@@ -151,8 +175,31 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
         assignments: job.assignments || [],
         day_of_week: job.day_of_week
       });
+
+      // Set contact state if contact_id exists
+      if (job.contact_id) {
+        setSelectedContactId(job.contact_id);
+        // Try to find address_id if job has address_id field
+        if (job.address_id) {
+          setSelectedAddressId(job.address_id);
+          setAddressEdited(false);
+          // Set original address string from job data
+          setOriginalAddressString(job.customer_address || "");
+        } else {
+          setSelectedAddressId(null);
+          setAddressEdited(true); // If no address_id, address was likely manually entered
+          setOriginalAddressString(job.customer_address || "");
+        }
+      } else {
+        // If no contact_id but we have customer data, allow editing
+        // User can search and select a contact to update
+        setSelectedContactId(null);
+        setSelectedAddressId(null);
+        setAddressEdited(false);
+        setOriginalAddressString("");
+      }
     }
-  }, [open, job]);
+  }, [open, job?.id, job?.customer_address, job?.contact_id, job?.address_id, job?.scheduled_at, job?.status]);
 
   // Helper to get selected service IDs
   const getSelectedServiceIds = () => {
@@ -307,6 +354,79 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
     return formData.assignments.some(a => a.user === userId);
   };
 
+  // Handle contact selection
+  const handleContactSelect = (contact) => {
+    if (!contact) return;
+
+    setSelectedContact(contact);
+    setSelectedContactId(contact.id);
+    setSelectedAddressId(null);
+    setAddressEdited(false);
+    setOriginalAddressString("");
+
+    // Auto-fill customer fields
+    const fullName = `${contact.first_name || ""} ${contact.last_name || ""}`.trim();
+    setFormData(prev => ({
+      ...prev,
+      contact_id: contact.id,
+      customer_name: fullName,
+      customer_phone: contact.phone || "",
+      customer_email: contact.email || "",
+      ghl_contact_id: contact.contact_id || "",
+      customer_address: "",
+    }));
+  };
+
+  // Handle address selection from dropdown
+  const handleAddressSelect = (addressId) => {
+    // Convert to number if it's a string
+    const addressIdNum = typeof addressId === 'string' ? parseInt(addressId, 10) : addressId;
+    setSelectedAddressId(addressIdNum);
+    setAddressEdited(false);
+    const selectedAddress = addresses.find(addr => addr.id === addressIdNum || addr.id === addressId);
+    if (selectedAddress) {
+      const addressParts = [
+        selectedAddress.street_address,
+        selectedAddress.city,
+        selectedAddress.state,
+        selectedAddress.postal_code
+      ].filter(Boolean);
+      const addressString = addressParts.join(", ");
+      setOriginalAddressString(addressString);
+      
+      setFormData(prev => ({
+        ...prev,
+        customer_address: addressString,
+      }));
+    }
+  };
+
+  // Handle manual address editing
+  const handleAddressChange = (e) => {
+    const newValue = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      customer_address: newValue,
+    }));
+    
+    if (selectedAddressId && originalAddressString) {
+      // Address was selected from dropdown - check if it's been modified
+      const isEdited = newValue.trim() !== originalAddressString.trim();
+      setAddressEdited(isEdited);
+      // If address was manually edited, clear the selected address from dropdown
+      if (isEdited) {
+        setSelectedAddressId(null);
+      }
+    } else {
+      // If no address was selected from dropdown, consider it manually entered
+      setAddressEdited(newValue.trim() !== "");
+      // Ensure selectedAddressId is null when manually entering
+      if (selectedAddressId) {
+        setSelectedAddressId(null);
+      }
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -338,12 +458,37 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
         }
       });
 
+      // Prepare payload - remove customer_name, customer_phone, customer_email
+      // Add address_id if address was selected from dropdown and not edited
+      // Add customer_address if address was manually edited or entered manually
       const payload = {
         ...formData,
         items: cleanedItems,
         duration_hours: parseFloat(formData.duration_hours),
         total_price: parseFloat(formData.total_price),
+        // Remove customer_name, customer_phone, customer_email from payload
+        customer_name: undefined,
+        customer_phone: undefined,
+        customer_email: undefined,
+        // Add address_id if address was selected from dropdown and not manually edited
+        // Add customer_address if address was manually edited or entered manually
+        ...(selectedAddressId && !addressEdited && formData.customer_address.trim() 
+          ? { address_id: selectedAddressId }
+          : formData.customer_address.trim() 
+            ? { customer_address: formData.customer_address.trim() }
+            : {}
+        ),
+        contact_id: formData.contact_id,
+        // Remove ghl_contact_id if we have contact_id
+        ...(formData.contact_id ? { ghl_contact_id: undefined } : {}),
       };
+
+      // Clean up undefined values
+      Object.keys(payload).forEach(key => {
+        if (payload[key] === undefined) {
+          delete payload[key];
+        }
+      });
 
       const result = await updateJob({ id: job.id, filter:objective==='convert'&&'status=to_convert', ...payload}).unwrap();
 
@@ -824,14 +969,32 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
               title="Customer Information"
             />
             <CardContent className="space-y-4">
+              {/* Contact Search */}
+              <div className="space-y-2">
+                <ContactSearchableSelect
+                  label="Search Contact"
+                  useSearchHook={useSearchContactsQuery}
+                  onSelect={handleContactSelect}
+                  value={selectedContact ? `${selectedContact.first_name || ""} ${selectedContact.last_name || ""}`.trim() : formData.customer_name}
+                />
+                {!selectedContactId && (
+                  <p className="text-sm text-amber-600 mt-1">
+                    Please search and select a contact to update customer information. Fields will be auto-filled once a contact is selected.
+                  </p>
+                )}
+              </div>
+
+              {/* Customer Fields - Read-only when contact is selected */}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="customer_name">Customer Name</Label>
                   <Input
                     id="customer_name"
                     value={formData.customer_name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, customer_name: e.target.value }))}
                     placeholder="John Doe"
+                    disabled={true}
+                    readOnly
+                    className="bg-gray-50 cursor-not-allowed"
                   />
                 </div>
 
@@ -840,8 +1003,10 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
                   <Input
                     id="ghl_contact_id"
                     value={formData.ghl_contact_id}
-                    onChange={(e) => setFormData(prev => ({ ...prev, ghl_contact_id: e.target.value }))}
                     placeholder="GoHighLevel contact ID"
+                    disabled={true}
+                    readOnly
+                    className="bg-gray-50 cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -852,8 +1017,10 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
                   <Input
                     id="customer_phone"
                     value={formData.customer_phone}
-                    onChange={(e) => setFormData(prev => ({ ...prev, customer_phone: e.target.value }))}
                     placeholder="(555) 123-4567"
+                    disabled={true}
+                    readOnly
+                    className="bg-gray-50 cursor-not-allowed"
                   />
                 </div>
 
@@ -863,21 +1030,65 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
                     id="customer_email"
                     type="email"
                     value={formData.customer_email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, customer_email: e.target.value }))}
                     placeholder="john@example.com"
+                    disabled={true}
+                    readOnly
+                    className="bg-gray-50 cursor-not-allowed"
                   />
                 </div>
               </div>
 
+              {/* Address Selection */}
+              {(selectedContactId || formData.contact_id) && (
+                <div className="space-y-2">
+                  <Label htmlFor="address_select">Select Address</Label>
+                  {isFetchingAddresses ? (
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading addresses...
+                    </div>
+                  ) : addresses.length > 0 ? (
+                    <ShadcnSelect
+                      value={selectedAddressId ? String(selectedAddressId) : ""}
+                      onValueChange={(value) => handleAddressSelect(value)}
+                    >
+                      <SelectTrigger id="address_select">
+                        <SelectValue placeholder="Select an address" />
+                      </SelectTrigger>
+                      <SelectContent className="z-[1500]" position="popper">
+                        {addresses.map((address) => {
+                          const addressLabel = address.name 
+                            ? `${address.name} — ${address.street_address}, ${address.city}, ${address.state}, ${address.postal_code}`
+                            : `${address.street_address}, ${address.city}, ${address.state}, ${address.postal_code}`;
+                          return (
+                            <SelectItem key={address.id} value={String(address.id)}>
+                              {addressLabel}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </ShadcnSelect>
+                  ) : (
+                    <p className="text-sm text-gray-500">No addresses found for this contact.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Address Field - Always Editable in Edit Mode */}
               <div className="space-y-2">
                 <Label htmlFor="customer_address">Address</Label>
                 <Textarea
                   id="customer_address"
                   value={formData.customer_address}
-                  onChange={(e) => setFormData(prev => ({ ...prev, customer_address: e.target.value }))}
+                  onChange={handleAddressChange}
                   placeholder="123 Main St, City, State 12345"
                   rows={2}
                 />
+                {(selectedContactId || formData.contact_id) && (
+                  <p className="text-xs text-gray-500">
+                    You can edit the address above after selecting one from the dropdown, or enter it manually.
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>

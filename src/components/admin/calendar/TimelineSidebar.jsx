@@ -34,6 +34,18 @@ const APPOINTMENT_STATUS_CHOICES = [
   { value: 'invalid', label: 'Invalid' },
 ];
 
+// Estimate status options
+const ESTIMATE_STATUS_CHOICES = [
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'on_my_way', label: 'On My Way' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'quoted', label: 'Quoted' },
+  { value: 'canceled', label: 'Canceled' },
+  { value: 'accepted', label: 'Accepted' },
+  { value: 'declined', label: 'Declined' },
+  { value: 'expired', label: 'Expired' },
+];
+
 // Helper function to parse comma-separated string or array to array
 const parseIds = (ids) => {
   if (Array.isArray(ids)) {
@@ -83,6 +95,7 @@ export function TimelineSidebar({
   const [filterOpen, setFilterOpen] = useState(true);
   const [jobsFilterOpen, setJobsFilterOpen] = useState(true);
   const [appointmentsFilterOpen, setAppointmentsFilterOpen] = useState(true);
+  const [estimatesFilterOpen, setEstimatesFilterOpen] = useState(true);
   const [statusLegendOpen, setStatusLegendOpen] = useState(true);
   const [jobsLegendOpen, setJobsLegendOpen] = useState(true);
   const [appointmentsLegendOpen, setAppointmentsLegendOpen] = useState(true);
@@ -91,13 +104,16 @@ export function TimelineSidebar({
   // Parse filter params for local state
   const jobStatuses = parseStatuses(filterParams.job_status || filterParams.status || '');
   const appointmentStatuses = parseStatuses(filterParams.appointment_status || '');
+  const estimateStatuses = parseStatuses(filterParams.estimate_status || '');
   
   // Local state for filters
   const [localFilters, setLocalFilters] = useState({
     job_search: filterParams.job_search || filterParams.search || '',
     appointment_search: filterParams.appointment_search || '',
+    estimate_search: filterParams.estimate_search || '',
     job_status: jobStatuses,
     appointment_status: appointmentStatuses,
+    estimate_status: estimateStatuses,
   });
 
   // Update local filters when filterParams change
@@ -105,8 +121,10 @@ export function TimelineSidebar({
     setLocalFilters({
       job_search: filterParams.job_search || filterParams.search || '',
       appointment_search: filterParams.appointment_search || '',
+      estimate_search: filterParams.estimate_search || '',
       job_status: parseStatuses(filterParams.job_status || filterParams.status || ''),
       appointment_status: parseStatuses(filterParams.appointment_status || ''),
+      estimate_status: parseStatuses(filterParams.estimate_status || ''),
     });
   }, [filterParams]);
 
@@ -144,6 +162,18 @@ export function TimelineSidebar({
       } else {
         onFilterChange?.('appointment_status', '');
       }
+    } else if (field === 'estimate_search') {
+      onFilterChange?.('estimate_search', value);
+      // Clear general search if estimate_search is set
+      if (value && filterParams.search) {
+        onFilterChange?.('search', '');
+      }
+    } else if (field === 'estimate_status') {
+      if (Array.isArray(value) && value.length > 0) {
+        onFilterChange?.('estimate_status', value.join(','));
+      } else {
+        onFilterChange?.('estimate_status', '');
+      }
     }
   };
 
@@ -160,10 +190,17 @@ export function TimelineSidebar({
     parseIds(filterParams.assigned_user_ids || []).length
   ].filter(Boolean).length;
 
+  const estimateFilterCount = [
+    localFilters.estimate_search,
+    localFilters.estimate_status.length,
+    parseIds(filterParams.assigned_user_ids || []).length
+  ].filter(Boolean).length;
+
   // Categories for filtering events
   const categories = [
     { id: "jobs", label: "Jobs", color: "#9ca3ef" },
     { id: "appointments", label: "Appointments", color: "#06b6d4" },
+    { id: "estimates", label: "Estimates", color: "#8b5cf6" },
   ];
 
   // Generate mini calendar days
@@ -179,15 +216,21 @@ export function TimelineSidebar({
   }
 
   return (
-    <div className="w-64 border-r bg-white flex flex-col h-full overflow-y-auto">
+    <div className="w-full border-l border-gray-200 bg-white flex flex-col h-full overflow-y-auto shadow-sm">
+      {/* Header Section */}
+      <div className="p-5 border-b border-gray-200 bg-gray-50/50">
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Calendar</h2>
+        <p className="text-xs text-gray-500">Scheduled jobs grouped by day.</p>
+      </div>
+
       {/* Mini Calendar */}
-      <div className="p-4 border-b">
-        <div className="text-sm font-semibold mb-2">
+      <div className="p-5 border-b border-gray-200">
+        <div className="text-sm font-semibold text-gray-900 mb-3">
           {moment(currentDate).format("MMMM YYYY")}
         </div>
         <div className="grid grid-cols-7 gap-1 text-xs">
           {["S", "M", "T", "W", "T", "F", "S"].map((day, idx) => (
-            <div key={idx} className="text-center text-gray-500 font-medium py-1">
+            <div key={idx} className="text-center text-gray-500 font-medium py-1.5 text-[11px]">
               {day}
             </div>
           ))}
@@ -200,11 +243,11 @@ export function TimelineSidebar({
                 key={idx}
                 onClick={() => onDateChange?.(day.toDate())}
                 className={cn(
-                  "text-center py-1 rounded cursor-pointer text-xs",
+                  "text-center py-1.5 rounded-md cursor-pointer text-xs transition-colors",
                   !isCurrentMonth && "text-gray-300",
-                  isToday && "bg-blue-100 font-semibold",
-                  isSelected && "bg-blue-500 text-white",
-                  isCurrentMonth && !isToday && !isSelected && "hover:bg-gray-100"
+                  isToday && !isSelected && "bg-blue-50 text-blue-700 font-semibold",
+                  isSelected && "bg-blue-600 text-white font-semibold shadow-sm",
+                  isCurrentMonth && !isToday && !isSelected && "hover:bg-gray-100 text-gray-700"
                 )}
               >
                 {day.format("D")}
@@ -216,24 +259,24 @@ export function TimelineSidebar({
 
       {/* Calendars Section */}
       <Collapsible open={calendarsOpen} onOpenChange={setCalendarsOpen}>
-        <CollapsibleTrigger className="w-full px-4 py-2 flex items-center justify-between hover:bg-gray-50 border-t">
-          <span className="text-sm font-semibold">Calendars</span>
+        <CollapsibleTrigger className="w-full px-5 py-3 flex items-center justify-between hover:bg-gray-50/50 border-t border-gray-200 transition-colors">
+          <span className="text-sm font-semibold text-gray-900">Calendars</span>
           {calendarsOpen ? (
-            <ChevronDown className="h-4 w-4" />
+            <ChevronDown className="h-4 w-4 text-gray-500" />
           ) : (
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-4 w-4 text-gray-500" />
           )}
         </CollapsibleTrigger>
-        <CollapsibleContent className="px-4 pb-2">
+        <CollapsibleContent className="px-5 pb-3">
           {/* Categories */}
-          <div className="mb-3">
+          <div className="space-y-2.5">
             {categories.map((cat) => (
-              <div key={cat.id} className="flex items-center gap-2 mb-2">
+              <div key={cat.id} className="flex items-center gap-3 py-1">
                 <div
-                  className="w-4 h-4 rounded"
+                  className="w-3.5 h-3.5 rounded flex-shrink-0 shadow-sm"
                   style={{ backgroundColor: cat.color }}
                 />
-                <span className="text-xs flex-1">{cat.label}</span>
+                <span className="text-sm text-gray-700 flex-1">{cat.label}</span>
                 <Checkbox
                   checked={selectedCategories[cat.id] !== false}
                   onCheckedChange={(checked) =>
@@ -250,16 +293,16 @@ export function TimelineSidebar({
       {/* Team Members Section - Only show for admin, manager, or supervisor */}
       {canViewStaff && (
         <Collapsible open={staffOpen} onOpenChange={setStaffOpen}>
-          <CollapsibleTrigger className="w-full px-4 py-2 flex items-center justify-between hover:bg-gray-50 border-t">
-            <span className="text-sm font-semibold">Team Members</span>
+          <CollapsibleTrigger className="w-full px-5 py-3 flex items-center justify-between hover:bg-gray-50/50 border-t border-gray-200 transition-colors">
+            <span className="text-sm font-semibold text-gray-900">Team Members</span>
             {staffOpen ? (
-              <ChevronDown className="h-4 w-4" />
+              <ChevronDown className="h-4 w-4 text-gray-500" />
             ) : (
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4 text-gray-500" />
             )}
           </CollapsibleTrigger>
-          <CollapsibleContent className="px-4 pb-2">
-            <div className="max-h-[400px] overflow-y-auto pr-1">
+          <CollapsibleContent className="px-5 pb-3">
+            <div className="max-h-[400px] overflow-y-auto pr-1 space-y-1">
               {isLoadingUsers ? (
                 // Shimmer loader for staff
                 <>
@@ -308,15 +351,15 @@ export function TimelineSidebar({
 
       {/* Filters Section */}
       <Collapsible open={filterOpen} onOpenChange={setFilterOpen}>
-        <CollapsibleTrigger className="w-full px-4 py-2 flex items-center justify-between hover:bg-gray-50 border-t">
-          <span className="text-sm font-semibold">Filters</span>
+        <CollapsibleTrigger className="w-full px-5 py-3 flex items-center justify-between hover:bg-gray-50/50 border-t border-gray-200 transition-colors">
+          <span className="text-sm font-semibold text-gray-900">Filters</span>
           {filterOpen ? (
-            <ChevronDown className="h-4 w-4" />
+            <ChevronDown className="h-4 w-4 text-gray-500" />
           ) : (
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-4 w-4 text-gray-500" />
           )}
         </CollapsibleTrigger>
-        <CollapsibleContent className="px-4 pb-4 space-y-3">
+        <CollapsibleContent className="px-5 pb-4 space-y-3">
           
           {/* Jobs Filter Section */}
           <Collapsible open={jobsFilterOpen} onOpenChange={setJobsFilterOpen}>
@@ -522,14 +565,118 @@ export function TimelineSidebar({
             </CollapsibleContent>
           </Collapsible>
 
+          {/* Estimates Filter Section */}
+          <Collapsible open={estimatesFilterOpen} onOpenChange={setEstimatesFilterOpen}>
+            <CollapsibleTrigger className="w-full flex items-center justify-between py-1.5">
+              <div className="flex items-center gap-2">
+                <CalendarIcon className="h-3.5 w-3.5 text-gray-600" />
+                <span className="text-xs font-semibold text-gray-700">Estimates</span>
+                {estimateFilterCount > 0 && (
+                  <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
+                    {estimateFilterCount}
+                  </Badge>
+                )}
+              </div>
+              {estimatesFilterOpen ? (
+                <ChevronDown className="h-3 w-3 text-gray-500" />
+              ) : (
+                <ChevronRight className="h-3 w-3 text-gray-500" />
+              )}
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-2 space-y-3 pl-5">
+              {/* Estimate Search */}
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-medium text-gray-600">Search Estimates</Label>
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                  <Input
+                    placeholder="Title, notes..."
+                    value={localFilters.estimate_search}
+                    onChange={(e) => handleFilterChange('estimate_search', e.target.value)}
+                    className="pl-7 h-7 text-xs"
+                  />
+                </div>
+          </div>
+
+              {/* Estimate Status - Multi-select */}
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-medium text-gray-600">Status</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="h-7 text-xs justify-between w-full"
+                    >
+                      <span>
+                        {localFilters.estimate_status.length === 0
+                          ? 'All Statuses'
+                          : localFilters.estimate_status.length === 1
+                          ? ESTIMATE_STATUS_CHOICES.find(s => s.value === localFilters.estimate_status[0])?.label || 'Selected'
+                          : `${localFilters.estimate_status.length} Selected`}
+                      </span>
+                      <ChevronDown className="h-3 w-3 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-2" align="start">
+          <div className="space-y-2">
+                      {ESTIMATE_STATUS_CHOICES.map((status) => (
+                        <div
+                          key={status.value}
+                          className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1.5 rounded"
+                          onClick={() => {
+                            const current = localFilters.estimate_status;
+                            const newStatuses = current.includes(status.value)
+                              ? current.filter(s => s !== status.value)
+                              : [...current, status.value];
+                            handleFilterChange('estimate_status', newStatuses);
+                          }}
+                        >
+                          <Checkbox
+                            checked={localFilters.estimate_status.includes(status.value)}
+                            className="h-3.5 w-3.5"
+                          />
+                          <Label className="text-xs cursor-pointer flex-1">
+                            {status.label}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                {localFilters.estimate_status.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {localFilters.estimate_status.map((statusValue) => {
+                      const status = ESTIMATE_STATUS_CHOICES.find(s => s.value === statusValue);
+                      return status ? (
+                        <Badge
+                          key={statusValue}
+                          variant="secondary"
+                          className="h-5 px-1.5 text-[10px] cursor-pointer hover:bg-gray-200"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleFilterChange('estimate_status', localFilters.estimate_status.filter(s => s !== statusValue));
+                          }}
+                        >
+                          {status.label} ×
+                        </Badge>
+                      ) : null;
+                    })}
+                  </div>
+                )}
+          </div>
+            </CollapsibleContent>
+          </Collapsible>
+
           {/* Clear All Filters Button */}
-          {(jobFilterCount > 0 || appointmentFilterCount > 0) && (
+          {(jobFilterCount > 0 || appointmentFilterCount > 0 || estimateFilterCount > 0) && (
             <button
               onClick={() => {
                 handleFilterChange('job_search', '');
                 handleFilterChange('appointment_search', '');
+                handleFilterChange('estimate_search', '');
                 handleFilterChange('job_status', []);
                 handleFilterChange('appointment_status', []);
+                handleFilterChange('estimate_status', []);
                 // Clear assignee filters
                 onFilterChange?.('assignee_ids', '');
                 onFilterChange?.('assigned_user_ids', '');
@@ -544,19 +691,19 @@ export function TimelineSidebar({
 
       {/* Status Legend - Read-only */}
       <Collapsible open={statusLegendOpen} onOpenChange={setStatusLegendOpen}>
-        <CollapsibleTrigger className="w-full px-4 py-2 flex items-center justify-between hover:bg-gray-50 border-t">
-          <span className="text-sm font-semibold">Status Legend</span>
+        <CollapsibleTrigger className="w-full px-5 py-3 flex items-center justify-between hover:bg-gray-50/50 border-t border-gray-200 transition-colors">
+          <span className="text-sm font-semibold text-gray-900">Status Legend</span>
           {statusLegendOpen ? (
-            <ChevronDown className="h-4 w-4" />
+            <ChevronDown className="h-4 w-4 text-gray-500" />
           ) : (
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-4 w-4 text-gray-500" />
           )}
         </CollapsibleTrigger>
-        <CollapsibleContent className="px-4 pb-3">
+        <CollapsibleContent className="px-5 pb-3">
           <div className="space-y-3">
             {/* Job Statuses - Collapsible */}
             <Collapsible open={jobsLegendOpen} onOpenChange={setJobsLegendOpen}>
-              <CollapsibleTrigger className="w-full flex items-center justify-between py-1">
+              <CollapsibleTrigger className="w-full flex items-center justify-between py-1.5">
                 <div className="text-xs font-semibold text-gray-700">Jobs</div>
                 {jobsLegendOpen ? (
                   <ChevronDown className="h-3 w-3 text-gray-500" />
@@ -643,15 +790,15 @@ export function TimelineSidebar({
 
       {/* About Section */}
       <Collapsible open={aboutOpen} onOpenChange={setAboutOpen}>
-        <CollapsibleTrigger className="w-full px-4 py-2 flex items-center justify-between hover:bg-gray-50 border-t">
-          <span className="text-sm font-semibold">About</span>
+        <CollapsibleTrigger className="w-full px-5 py-3 flex items-center justify-between hover:bg-gray-50/50 border-t border-gray-200 transition-colors">
+          <span className="text-sm font-semibold text-gray-900">About</span>
           {aboutOpen ? (
-            <ChevronDown className="h-4 w-4" />
+            <ChevronDown className="h-4 w-4 text-gray-500" />
           ) : (
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-4 w-4 text-gray-500" />
           )}
         </CollapsibleTrigger>
-        <CollapsibleContent className="px-4 pb-3">
+        <CollapsibleContent className="px-5 pb-3">
           <div className="space-y-4 text-xs text-gray-600">
             {/* Calendar Overview */}
             <div className="space-y-1.5">
@@ -783,7 +930,7 @@ function DraggableStaff({ user, color, selectedAssignees, onAssigneeToggle, jobs
   const badgeColorClass = getBadgeColor(assignedJobs, totalJobs);
 
   return (
-    <div className="flex items-center gap-3 mb-3 min-w-0 py-1">
+    <div className="flex items-center gap-3 min-w-0 py-2 px-2 rounded-md hover:bg-gray-50/50 transition-colors">
       {/* Draggable area - avatar, name, role */}
       <div
         ref={drag}
@@ -794,7 +941,7 @@ function DraggableStaff({ user, color, selectedAssignees, onAssigneeToggle, jobs
       >
         {/* Circular Avatar with Initials */}
         <div
-          className="w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0"
+          className="w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0 shadow-sm"
           style={{ backgroundColor: color }}
         >
           {initials}
@@ -803,7 +950,7 @@ function DraggableStaff({ user, color, selectedAssignees, onAssigneeToggle, jobs
         {/* Name and Role */}
         <div className="flex-1 min-w-0">
           <div 
-            className="text-sm font-medium truncate"
+            className="text-sm font-medium text-gray-900 truncate"
             title={fullName}
           >
             {fullName}
@@ -816,7 +963,7 @@ function DraggableStaff({ user, color, selectedAssignees, onAssigneeToggle, jobs
 
       {/* Fraction Badge */}
       <div className={cn(
-        "px-2 py-0.5 rounded-full text-xs font-medium border flex-shrink-0",
+        "px-2 py-0.5 rounded-full text-xs font-medium border flex-shrink-0 shadow-sm",
         badgeColorClass
       )}>
         {fraction}

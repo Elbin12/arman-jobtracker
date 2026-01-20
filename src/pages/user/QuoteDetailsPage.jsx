@@ -211,6 +211,7 @@ const QuoteDetailsPage = () => {
     custom_products,
     custom_service_total,
     quote_schedule,
+    quoted_by_details,
   } = quote
 
   const formatPrice = (price) => {
@@ -1161,7 +1162,7 @@ const QuoteDetailsPage = () => {
               )}
 
               {/* Additional Information */}
-              {additional_data && (additional_data?.signature || additional_data?.additional_notes) && (
+              {(additional_data && (additional_data?.signature || additional_data?.additional_notes)) || quoted_by_details ? (
                 <Card>
                   <Box sx={{ p: 3, py: 2 }}>
                     <Stack direction="row" alignItems="center" spacing={2}>
@@ -1176,6 +1177,31 @@ const QuoteDetailsPage = () => {
                   <Divider />
                   <CardContent sx={{ p: 3 }}>
                     <Stack spacing={3}>
+                      {quoted_by_details && (
+                        <Box>
+                          <Typography variant="subtitle2" sx={{ color: "#64748b", mb: 1 }}>
+                            Quoted By
+                          </Typography>
+                          <Box
+                            sx={{
+                              border: "1px solid #e2e8f0",
+                              borderRadius: 1,
+                              p: 2,
+                              bgcolor: "#f8fafc",
+                            }}
+                          >
+                            <Typography variant="body1" sx={{ fontWeight: 500, color: "#023c8f" }}>
+                              {quoted_by_details.full_name || `${quoted_by_details.first_name || ""} ${quoted_by_details.last_name || ""}`.trim()}
+                            </Typography>
+                            {quoted_by_details.email && (
+                              <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5 }}>
+                                {quoted_by_details.email}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+                      )}
+
                       <Box>
                         <Typography variant="subtitle2" sx={{ color: "#64748b", mb: 2 }}>
                           Terms & Conditions
@@ -1197,7 +1223,7 @@ const QuoteDetailsPage = () => {
                         </Button>
                       </Box>
 
-                      {additional_data.signature && (
+                      {additional_data?.signature && (
                         <Box>
                           <Typography variant="subtitle2" sx={{ color: "#64748b", mb: 1 }}>
                             Signature
@@ -1210,7 +1236,7 @@ const QuoteDetailsPage = () => {
                         </Box>
                       )}
 
-                      {additional_data.additional_notes && (
+                      {additional_data?.additional_notes && (
                         <Box>
                           <Typography variant="subtitle2" sx={{ color: "#64748b", mb: 1 }}>
                             Additional Notes
@@ -1229,7 +1255,7 @@ const QuoteDetailsPage = () => {
                     </Stack>
                   </CardContent>
                 </Card>
-              )}
+              ) : null}
             </Box>
 
             {/* Right column - pricing */}

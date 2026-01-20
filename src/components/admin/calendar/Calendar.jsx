@@ -1194,8 +1194,11 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
       )
     );
     
-    // If this is the selected job, update it
-    if (selectedJob && (selectedJob.id === result.id || selectedJob.job_id === result.id || selectedJob.job_id === result.job_id)) {
+    // Update the selected job with the new data and ensure modal is shown
+    const jobId = result.id || result.job_id;
+    if (jobId) {
+      // Always set both selectedJobId and selectedJob to ensure modal opens
+      setSelectedJobId(jobId);
       setSelectedJob(result);
     }
   }
@@ -1723,19 +1726,6 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
     <style>{calendarStyles}</style>
     <DndProvider backend={HTML5Backend}>
       <div className="space-y-4 w-full overflow-hidden">
-        {/* Mobile Sidebar Toggle Button */}
-        <div className="md:hidden flex justify-between items-center mb-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowSidebar(!showSidebar)}
-            className="flex items-center gap-2"
-          >
-            <Filter className="h-4 w-4" />
-            Filters
-          </Button>
-        </div>
-
         <div className="flex flex-col md:flex-row gap-4 w-full min-w-0 relative">
           {/* Mobile Overlay - Must be before sidebar for proper z-index */}
           {showSidebar && (
@@ -1746,73 +1736,25 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
             />
           )}
 
-          {/* Left Sidebar - Mobile: Full width overlay, Desktop: Sidebar */}
-          {showSidebar && (
-            <div className={cn(
-              "flex-shrink-0",
-              "md:relative md:w-auto",
-              "fixed md:static inset-y-0 left-0 md:inset-auto z-50 md:z-auto",
-              "bg-background md:bg-transparent",
-              "overflow-y-auto md:overflow-visible",
-              "w-[85vw] max-w-[320px] md:w-[280px] lg:w-[320px]",
-              "shadow-lg md:shadow-none"
-            )}>
-              {/* Mobile Close Button */}
-              <div className="md:hidden flex justify-between items-center p-4 border-b sticky top-0 bg-background z-10">
-                <Typography variant="h6" className="font-semibold">Filters</Typography>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowSidebar(false)}
-                  className="h-8 w-8"
-                  aria-label="Close filters"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              
-              <div className="w-full">
-                <TimelineSidebar
-                  currentDate={currentDate}
-                  onDateChange={(date) => setCurrentDate(date)}
-                  users={users}
-                  isLoadingUsers={isLoadingUsers}
-                  canViewStaff={canViewStaff}
-                  userRole={userRole}
-                  selectedCategories={selectedCategories}
-                  onCategoryToggle={handleCategoryToggle}
-                  selectedAssignees={selectedAssignees}
-                  onAssigneeToggle={handleAssigneeToggle}
-                  filterParams={filterParams}
-                  onFilterChange={(field, value) => {
-                    setFilterParams((prev) => ({
-                      ...prev,
-                      [field]: value,
-                    }));
-                  }}
-                  jobs={jobs}
-                />
-              </div>
-            </div>
-          )}
-
           {/* Main Calendar */}
           <div className="flex-1 min-w-0 overflow-hidden w-full">
             <Card className="w-full">
           <CardHeader>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <CardTitle className="flex items-center gap-2">
                 <CalendarDays className="h-5 w-5" />
                 Calendar
               </CardTitle>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap justify-end">
                 {(userRole === "admin" || userRole === "supervisor" || userRole === "manager") && (
                     <Button
                       onClick={() => navigate("/admin/calendar/create-job")}
-                      className="bg-primary text-primary-foreground hover:bg-primary/90"
+                      className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs sm:text-sm px-2 sm:px-4"
+                      size="sm"
                     >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Job
+                      <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                      <span className="hidden sm:inline">Create Job</span>
+                      <span className="sm:hidden">Job</span>
                     </Button>
                 )}
                 <Link 
@@ -1821,29 +1763,54 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
                   rel="noopener noreferrer"
                   >
                   <Button
-                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs sm:text-sm px-2 sm:px-4"
+                    size="sm"
                     >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Appointment
+                    <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">Create Appointment</span>
+                    <span className="sm:hidden">Appt</span>
                   </Button>
                 </Link>
+                {/* Mobile Sidebar Toggle Button - Right side */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowSidebar(!showSidebar)}
+                  className="flex items-center gap-2 md:hidden"
+                >
+                  <Filter className="h-4 w-4" />
+                  Filters
+                </Button>
               </div>
             </div>
 
             <div className="flex flex-col gap-3">
               {/* Mobile: Stack controls vertically, Desktop: Horizontal */}
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Button variant="outline" size="sm" onClick={navigateToday} className="text-xs sm:text-sm">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-3">
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={navigateToday} 
+                    className="text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-3"
+                  >
                     Today
                   </Button>
                   <div className="flex items-center border rounded-md">
-                    <Button variant="ghost" size="icon" onClick={navigateBack} className="rounded-r-none border-r h-8 w-8 sm:h-9 sm:w-9">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={navigateBack} 
+                      className="rounded-r-none border-r h-8 w-8 sm:h-9 sm:w-9"
+                    >
                       <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="ghost" className="font-semibold min-w-[120px] sm:min-w-[180px] rounded-none text-xs sm:text-sm px-2 sm:px-4">
+                        <Button 
+                          variant="ghost" 
+                          className="font-semibold min-w-[100px] sm:min-w-[140px] md:min-w-[180px] rounded-none text-xs sm:text-sm px-2 sm:px-4 h-8 sm:h-9"
+                        >
                           {getDateTitle()}
                         </Button>
                       </PopoverTrigger>
@@ -1861,7 +1828,12 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
                         />
                       </PopoverContent>
                     </Popover>
-                    <Button variant="ghost" size="icon" onClick={navigateNext} className="rounded-l-none border-l h-8 w-8 sm:h-9 sm:w-9">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={navigateNext} 
+                      className="rounded-l-none border-l h-8 w-8 sm:h-9 sm:w-9"
+                    >
                       <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
                   </div>
@@ -1871,7 +1843,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
                     onValueChange={(value) => setView(value)}
                     aria-label="Select calendar view"
                   >
-                    <SelectTrigger className="w-[100px] sm:w-[140px] text-xs sm:text-sm min-h-[44px]">
+                    <SelectTrigger className="w-[90px] sm:w-[120px] md:w-[140px] text-xs sm:text-sm h-8 sm:h-9">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="z-[1300]">
@@ -1948,6 +1920,56 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
           </CardContent>
             </Card>
         </div>
+
+          {/* Right Sidebar - Mobile: Full width overlay, Desktop: Sidebar */}
+          {showSidebar && (
+            <div className={cn(
+              "flex-shrink-0",
+              "md:relative md:w-auto",
+              "fixed md:static inset-y-0 right-0 md:inset-auto z-50 md:z-auto",
+              "bg-background md:bg-transparent",
+              "overflow-y-auto md:overflow-visible",
+              "w-[85vw] max-w-[320px] md:w-[300px] lg:w-[340px]",
+              "shadow-lg md:shadow-none"
+            )}>
+              {/* Mobile Close Button */}
+              <div className="md:hidden flex justify-between items-center p-4 border-b sticky top-0 bg-background z-10">
+                <Typography variant="h6" className="font-semibold">Filters</Typography>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowSidebar(false)}
+                  className="h-8 w-8"
+                  aria-label="Close filters"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              <div className="w-full">
+                <TimelineSidebar
+                  currentDate={currentDate}
+                  onDateChange={(date) => setCurrentDate(date)}
+                  users={users}
+                  isLoadingUsers={isLoadingUsers}
+                  canViewStaff={canViewStaff}
+                  userRole={userRole}
+                  selectedCategories={selectedCategories}
+                  onCategoryToggle={handleCategoryToggle}
+                  selectedAssignees={selectedAssignees}
+                  onAssigneeToggle={handleAssigneeToggle}
+                  filterParams={filterParams}
+                  onFilterChange={(field, value) => {
+                    setFilterParams((prev) => ({
+                      ...prev,
+                      [field]: value,
+                    }));
+                  }}
+                  jobs={jobs}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </DndProvider>
@@ -1956,46 +1978,50 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
         setSelectedJob(null);
         setSelectedJobId(null);
       }}>
-        <DialogContent className="max-w-[100vw] sm:max-w-md max-h-[100vh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle>Job Details</DialogTitle>
-            <DialogDescription>View and manage job information</DialogDescription>
-          </DialogHeader>
-          {(() => {
-            // Check if selectedJob matches selectedJobId
-            const jobMatches = selectedJob && selectedJobId && (
-              selectedJob.id === selectedJobId || 
-              selectedJob.job_id === selectedJobId
-            );
-            
-            // Show loading if: API is loading OR we have a jobId but no matching job data
-            if (isLoadingJobDetails || (selectedJobId && !jobMatches)) {
-              return (
-                <div className="flex items-center justify-center py-8">
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                    <span className="text-sm text-muted-foreground">Loading job details...</span>
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md max-h-[calc(100vh-2rem)] sm:max-h-[90vh] flex flex-col p-0 sm:p-6">
+          <div className="flex-shrink-0 px-4 pt-6 pb-4 sm:px-0 sm:pt-0">
+            <DialogHeader>
+              <DialogTitle>Job Details</DialogTitle>
+              <DialogDescription>View and manage job information</DialogDescription>
+            </DialogHeader>
+          </div>
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 sm:px-0 sm:pb-0 min-h-0">
+            {(() => {
+              // Check if selectedJob matches selectedJobId
+              const jobMatches = selectedJob && selectedJobId && (
+                selectedJob.id === selectedJobId || 
+                selectedJob.job_id === selectedJobId
+              );
+              
+              // Show loading if: API is loading OR we have a jobId but no matching job data
+              if (isLoadingJobDetails || (selectedJobId && !jobMatches)) {
+                return (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-sm text-muted-foreground">Loading job details...</span>
+                    </div>
                   </div>
-                </div>
-              );
-            }
-            
-            // Show job details only if we have matching job data
-            if (selectedJob && jobMatches) {
-              return (
-                <JobCard
-                  job={selectedJob}
-                  onEdit={handleEdit}
-                  onDelete={handleDeleteJob}
-                  onUpdate={handleJobUpdate}
-                  users={users}
-                  accountTimezone={accountTimezone}
-                />
-              );
-            }
-            
-            return null;
-          })()}
+                );
+              }
+              
+              // Show job details only if we have matching job data
+              if (selectedJob && jobMatches) {
+                return (
+                  <JobCard
+                    job={selectedJob}
+                    onEdit={handleEdit}
+                    onDelete={handleDeleteJob}
+                    onUpdate={handleJobUpdate}
+                    users={users}
+                    accountTimezone={accountTimezone}
+                  />
+                );
+              }
+              
+              return null;
+            })()}
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -2007,7 +2033,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
         }}
       >
         <DialogContent 
-          className="max-w-[100vw] sm:max-w-md max-h-[100vh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6"
+          className="max-w-[calc(100vw-2rem)] sm:max-w-md max-h-[calc(100vh-2rem)] sm:max-h-[90vh] flex flex-col p-0 sm:p-6"
           onInteractOutside={(e) => {
             // Prevent closing when clicking on Select dropdown
             const target = e.target;
@@ -2016,12 +2042,15 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
             }
           }}
         >
-          <DialogHeader>
-            <DialogTitle>Appointment Details</DialogTitle>
-            <DialogDescription>View appointment information</DialogDescription>
-          </DialogHeader>
-          {selectedAppointment && (
-            <div className="space-y-4">
+          <div className="flex-shrink-0 px-4 pt-6 pb-4 sm:px-0 sm:pt-0">
+            <DialogHeader>
+              <DialogTitle>Appointment Details</DialogTitle>
+              <DialogDescription>View appointment information</DialogDescription>
+            </DialogHeader>
+          </div>
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 sm:px-0 sm:pb-0 min-h-0">
+            {selectedAppointment && (
+              <div className="space-y-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-semibold">Title</Label>
@@ -2149,6 +2178,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
               </div>
             </div>
           )}
+          </div>
         </DialogContent>
       </Dialog>
 

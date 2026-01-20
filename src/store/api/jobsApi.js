@@ -1,10 +1,10 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
-import { axiosBaseQuery, BASE_URL } from '../axios/axios';
+import { axiosBaseQuery, BASE_URL, axiosInstance } from '../axios/axios';
 
 export const jobsApi = createApi({
   reducerPath: 'jobsApi',
   baseQuery: axiosBaseQuery({ baseUrl: BASE_URL + '/job/' }),
-  tagTypes: ['Job', 'Assignment', 'Schedule'],
+  tagTypes: ['Job', 'Assignment', 'Schedule', 'Appointment', 'Estimate'],
   endpoints: (builder) => ({
     getJobs: builder.query({
       query: (params = {}) => ({ url: 'jobs/', params }),
@@ -86,6 +86,126 @@ export const jobsApi = createApi({
       query: (id) => ({ url: `appointments/${id}/`, method: 'DELETE' }),
       invalidatesTags: ['Appointment'],
     }),
+
+    // Estimates
+    getEstimateAppointmentsCalendar: builder.query({
+      query: (params = {}) => {
+        // Build query params for estimates API
+        const queryParams = {};
+        if (params.start) queryParams.start = params.start;
+        if (params.end) queryParams.end = params.end;
+        if (params.status) queryParams.status = params.status;
+        if (params.assigned_user_ids) queryParams.assigned_user_ids = params.assigned_user_ids;
+        if (params.search) queryParams.search = params.search;
+        return { url: 'estimate-appointments/', params: queryParams };
+      },
+      providesTags: ['Estimate'],
+    }),
+    updateEstimateStatus: builder.mutation({
+      query: ({ id, estimate_status }) => ({ 
+        url: `estimate-appointments/${id}/update-status/`, 
+        method: 'PATCH', 
+        data: { estimate_status },
+      }),
+      invalidatesTags: (r, e, { id }) => [{ type: 'Estimate', id }],
+    }),
+    deleteEstimate: builder.mutation({
+      query: (id) => ({ url: `appointments/${id}/`, method: 'DELETE' }),
+      invalidatesTags: ['Estimate'],
+    }),
+
+    // Job Images - uses different base URL (/api/jobtracker/ instead of /api/job/)
+    uploadJobImage: builder.mutation({
+      queryFn: async (formData) => {
+        try {
+          const result = await axiosInstance({
+            url: '/job/job-images/',
+            method: 'POST',
+            data: formData,
+          });
+          return { data: result.data };
+        } catch (error) {
+          return {
+            error: {
+              status: error.response?.status,
+              data: error.response?.data || error.message,
+            },
+          };
+        }
+      },
+      invalidatesTags: ['Job'],
+    }),
+
+    // Delete Job Image
+    deleteJobImage: builder.mutation({
+      queryFn: async (imageId) => {
+        try {
+          const result = await axiosInstance({
+            url: `/job/job-images/${imageId}/`,
+            method: 'DELETE',
+          });
+          return { data: result.data };
+        } catch (error) {
+          return {
+            error: {
+              status: error.response?.status,
+              data: error.response?.data || error.message,
+            },
+          };
+        }
+      },
+      invalidatesTags: ['Job'],
+    }),
+
+    // Update Payment Method
+    updateJobPaymentMethod: builder.mutation({
+      query: ({ id, payment_method }) => ({ 
+        url: `jobs/${id}/update-payment-method/`, 
+        method: 'PATCH', 
+        data: { payment_method },
+      }),
+      invalidatesTags: (r, e, { id }) => [{ type: 'Job', id }],
+    }),
+
+    // Search Contacts (for admin job creation) - uses quote API
+    searchContacts: builder.query({
+      queryFn: async (searchTerm) => {
+        try {
+          const result = await axiosInstance({
+            url: `/quote/contacts/search/?search=${searchTerm}`,
+            method: 'GET',
+          });
+          return { data: result.data };
+        } catch (error) {
+          return {
+            error: {
+              status: error.response?.status,
+              data: error.response?.data || error.message,
+            },
+          };
+        }
+      },
+    }),
+
+    // Get Addresses by Contact (for admin job creation) - uses quote API
+    getAddressesByContact: builder.query({
+      queryFn: async (contactId) => {
+        try {
+          const result = await axiosInstance({
+            url: `/quote/address/by-contact/${contactId}/`,
+            method: 'GET',
+          });
+          return { data: result.data };
+        } catch (error) {
+          return {
+            error: {
+              status: error.response?.status,
+              data: error.response?.data || error.message,
+            },
+          };
+        }
+      },
+    }),
   }),
 });
 
@@ -105,6 +225,16 @@ export const {
   useCreateAppointmentMutation,
   useUpdateAppointmentMutation,
   useDeleteAppointmentMutation,
+
+  useGetEstimateAppointmentsCalendarQuery,
+  useUpdateEstimateStatusMutation,
+  useDeleteEstimateMutation,
+
+  useUploadJobImageMutation,
+  useUpdateJobPaymentMethodMutation,
+  useDeleteJobImageMutation,
+  useSearchContactsQuery,
+  useGetAddressesByContactQuery,
 } = jobsApi;
 
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge, FormControl, Grid, InputLabel, MenuItem, Select, TextField, Typography, OutlinedInput } from "@mui/material";
+import { Badge, FormControl, Grid, InputLabel, MenuItem, Select as MuiSelect, TextField, Typography, OutlinedInput } from "@mui/material";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@mui/material";
@@ -12,8 +12,11 @@ import { useToast } from "@/hooks/use-toast";
 import { CalendarDays, Users, RotateCcw, Plus } from "lucide-react";
 import moment from "moment-timezone";
 import { useGetEmployeesQuery } from "../../../store/api/payrollApi";
-import { useCreateJobMutation } from "../../../store/api/jobsApi";
+import { useCreateJobMutation, useSearchContactsQuery, useGetAddressesByContactQuery } from "../../../store/api/jobsApi";
 import { useGetServicesQuery } from "../../../store/api/servicesApi";
+import ContactSearchableSelect from "./ContactSearchableSelect";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2 } from "lucide-react";
 
 export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, onJobCreatedError }) {
   const [loading, setLoading] = useState(false);
@@ -68,8 +71,103 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
 
   const employees = employeesData?.results || [];
 
+  // Contact search and address state
+  const [selectedContactId, setSelectedContactId] = useState(null);
+  const [selectedContact, setSelectedContact] = useState(null);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [addressEdited, setAddressEdited] = useState(false); // Track if address was manually edited
+  const [originalAddressString, setOriginalAddressString] = useState(""); // Store original address from dropdown
+  
+  // Fetch addresses when contact is selected
+  const { data: addressesData, isFetching: isFetchingAddresses } = useGetAddressesByContactQuery(selectedContactId, {
+    skip: !selectedContactId,
+  });
+
+  // Handle different possible response structures
+  const addresses = Array.isArray(addressesData) 
+    ? addressesData 
+    : addressesData?.results || addressesData?.data || [];
+
+  // Handle contact selection
+  const handleContactSelect = (contact) => {
+    if (!contact) return;
+
+    setSelectedContact(contact);
+    setSelectedContactId(contact.id);
+    setSelectedAddressId(null);
+    setAddressEdited(false);
+    setOriginalAddressString("");
+
+    // Auto-fill customer fields
+    const fullName = `${contact.first_name || ""} ${contact.last_name || ""}`.trim();
+    setFormData(prev => ({
+      ...prev,
+      contact_id: contact.id,
+      customer_name: fullName,
+      customer_phone: contact.phone || "",
+      customer_email: contact.email || "",
+      ghl_contact_id: contact.contact_id || "", // Use contact.id for GHL Contact ID
+      customer_address: "", // Reset address
+    }));
+  };
+
+  // Handle address selection from dropdown
+  const handleAddressSelect = (addressId) => {
+    // Convert to number if it's a string (Select returns strings)
+    const addressIdNum = typeof addressId === 'string' ? parseInt(addressId, 10) : addressId;
+    setSelectedAddressId(addressIdNum);
+    setAddressEdited(false); // Reset edited flag when selecting from dropdown
+    const selectedAddress = addresses.find(addr => addr.id === addressIdNum || addr.id === addressId);
+    if (selectedAddress) {
+      // Format address string
+      const addressParts = [
+        selectedAddress.street_address,
+        selectedAddress.city,
+        selectedAddress.state,
+        selectedAddress.postal_code
+      ].filter(Boolean);
+      const addressString = addressParts.join(", ");
+      setOriginalAddressString(addressString); // Store original address
+      
+      setFormData(prev => ({
+        ...prev,
+        customer_address: addressString,
+      }));
+    }
+  };
+
+  // Handle manual address editing
+  const handleAddressChange = (e) => {
+    const newValue = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      customer_address: newValue,
+    }));
+    
+    // Check if address was edited (different from original)
+    if (selectedAddressId && originalAddressString) {
+      // Address was selected from dropdown - check if it's been modified
+      const isEdited = newValue.trim() !== originalAddressString.trim();
+      setAddressEdited(isEdited);
+      // If address was manually edited, clear the selected address from dropdown
+      if (isEdited) {
+        setSelectedAddressId(null);
+      }
+    } else {
+      // If no address was selected from dropdown, consider it manually entered
+      setAddressEdited(newValue.trim() !== "");
+      // Ensure selectedAddressId is null when manually entering
+      if (selectedAddressId) {
+        setSelectedAddressId(null);
+      }
+    }
+  };
+
   // Reset form function
   const resetForm = () => {
+    setSelectedContactId(null);
+    setSelectedContact(null);
+    setSelectedAddressId(null);
     setFormData({
       title: "",
       description: "",
@@ -432,6 +530,16 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
       return;
     }
 
+    // Validation: Contact must be selected
+    if (!selectedContactId) {
+      toast({
+        title: "Error",
+        description: "Please search and select a contact to continue",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Validation: Customer Name
     if (!formData.customer_name || !formData.customer_name.trim()) {
       toast({
@@ -443,14 +551,14 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
     }
 
     // Validation: Customer Phone
-    if (!formData.customer_phone || !formData.customer_phone.trim()) {
-      toast({
-        title: "Error",
-        description: "Customer phone is required",
-        variant: "destructive",
-      });
-      return;
-    }
+    // if (!formData.customer_phone || !formData.customer_phone.trim()) {
+    //   toast({
+    //     title: "Error",
+    //     description: "Customer phone is required",
+    //     variant: "destructive",
+    //   });
+    //   return;
+    // }
 
     // Validation: Customer Email
     if (!formData.customer_email || !formData.customer_email.trim()) {
@@ -543,11 +651,16 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
         duration_hours: parseFloat(formData.duration_hours),
         scheduled_at: formData.scheduled_at,
         job_type: formData.job_type,
-        customer_name: formData.customer_name,
-        customer_phone: formData.customer_phone,
-        customer_email: formData.customer_email,
-        customer_address: formData.customer_address,
-        ghl_contact_id: formData.ghl_contact_id,
+        // Remove customer_name, customer_phone, customer_email from payload
+        // Add address_id if address was selected from dropdown and not manually edited
+        // Add customer_address if address was manually edited or entered manually
+        ...(selectedAddressId && !addressEdited && formData.customer_address.trim() 
+          ? { address_id: selectedAddressId }
+          : formData.customer_address.trim() 
+            ? { customer_address: formData.customer_address.trim() }
+            : {}
+        ),
+        contact_id: formData.contact_id,
         quoted_by: formData.quoted_by,
         created_by: formData.created_by,
         notes: formData.notes,
@@ -864,7 +977,7 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
         <div className="flex gap-1">
           <FormControl fullWidth size="small">
             <InputLabel id="priority-label">Priority</InputLabel>
-            <Select
+            <MuiSelect
               labelId="priority-label"
               id="priority"
               value={priorityToNumber(formData.priority).toString()}
@@ -874,7 +987,7 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
               <MenuItem value="1">Low</MenuItem>
               <MenuItem value="2">Medium</MenuItem>
               <MenuItem value="3">High</MenuItem>
-            </Select>
+            </MuiSelect>
           </FormControl>
 
           {/* Duration */}
@@ -924,7 +1037,7 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
           />
           <FormControl fullWidth size="small">
             <InputLabel id="hour-label">Hour</InputLabel>
-            <Select
+            <MuiSelect
               labelId="hour-label"
               value={timeData.hour || ""}
               label="Hour"
@@ -942,14 +1055,14 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
                   {h}
                 </MenuItem>
               ))}
-            </Select>
+            </MuiSelect>
           </FormControl>
         </div>
         
         <div className="flex justify-between gap-2">
           <FormControl fullWidth size="small">
             <InputLabel id="minute-label">Minute</InputLabel>
-            <Select
+            <MuiSelect
               labelId="minute-label"
               value={timeData.minute || ""}
               label="Minute"
@@ -967,11 +1080,11 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
                   {m}
                 </MenuItem>
               ))}
-            </Select>
+            </MuiSelect>
           </FormControl>
           <FormControl fullWidth size="small">
             <InputLabel id="period-label">Period</InputLabel>
-            <Select
+            <MuiSelect
               labelId="period-label"
               value={timeData.period || ""}
               label="Period"
@@ -986,7 +1099,7 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
             >
               <MenuItem value="AM">AM</MenuItem>
               <MenuItem value="PM">PM</MenuItem>
-            </Select>
+            </MuiSelect>
           </FormControl>
         </div>
       </div>
@@ -998,14 +1111,32 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
           title="Customer Information"
         />
         <CardContent className="space-y-4">
+          {/* Contact Search */}
+          <div className="space-y-2">
+            <ContactSearchableSelect
+              label="Search Contact"
+              useSearchHook={useSearchContactsQuery}
+              onSelect={handleContactSelect}
+              value={selectedContact ? `${selectedContact.first_name || ""} ${selectedContact.last_name || ""}`.trim() : ""}
+            />
+            {!selectedContactId && (
+              <p className="text-sm text-amber-600 mt-1">
+                Please search and select a contact to continue. Fields will be auto-filled once a contact is selected.
+              </p>
+            )}
+          </div>
+
+          {/* Customer Fields - Read-only when contact is selected */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="customer_name">Customer Name</Label>
               <Input
                 id="customer_name"
                 value={formData.customer_name}
-                onChange={(e) => setFormData(prev => ({ ...prev, customer_name: e.target.value }))}
                 placeholder="John Doe"
+                disabled={true}
+                readOnly
+                className="bg-gray-50 cursor-not-allowed"
               />
             </div>
 
@@ -1014,8 +1145,10 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
               <Input
                 id="ghl_contact_id"
                 value={formData.ghl_contact_id}
-                onChange={(e) => setFormData(prev => ({ ...prev, ghl_contact_id: e.target.value }))}
                 placeholder="GoHighLevel contact ID"
+                disabled={true}
+                readOnly
+                className="bg-gray-50 cursor-not-allowed"
               />
             </div>
           </div>
@@ -1026,8 +1159,10 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
               <Input
                 id="customer_phone"
                 value={formData.customer_phone}
-                onChange={(e) => setFormData(prev => ({ ...prev, customer_phone: e.target.value }))}
                 placeholder="(555) 123-4567"
+                disabled={true}
+                readOnly
+                className="bg-gray-50 cursor-not-allowed"
               />
             </div>
 
@@ -1037,21 +1172,66 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
                 id="customer_email"
                 type="email"
                 value={formData.customer_email}
-                onChange={(e) => setFormData(prev => ({ ...prev, customer_email: e.target.value }))}
                 placeholder="john@example.com"
+                disabled={true}
+                readOnly
+                className="bg-gray-50 cursor-not-allowed"
               />
             </div>
           </div>
 
+          {/* Address Selection */}
+          {selectedContactId && (
+            <div className="space-y-2">
+              <Label htmlFor="address_select">Select Address</Label>
+              {isFetchingAddresses ? (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading addresses...
+                </div>
+              ) : addresses.length > 0 ? (
+                <Select
+                  value={selectedAddressId ? String(selectedAddressId) : ""}
+                  onValueChange={handleAddressSelect}
+                >
+                  <SelectTrigger id="address_select">
+                    <SelectValue placeholder="Select an address" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {addresses.map((address) => {
+                      const addressLabel = address.name 
+                        ? `${address.name} — ${address.street_address}, ${address.city}, ${address.state}, ${address.postal_code}`
+                        : `${address.street_address}, ${address.city}, ${address.state}, ${address.postal_code}`;
+                      return (
+                        <SelectItem key={address.id} value={String(address.id)}>
+                          {addressLabel}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-sm text-gray-500">No addresses found for this contact.</p>
+              )}
+            </div>
+          )}
+
+          {/* Address Field - Editable */}
           <div className="space-y-2">
             <Label htmlFor="customer_address">Address</Label>
             <Textarea
               id="customer_address"
               value={formData.customer_address}
-              onChange={(e) => setFormData(prev => ({ ...prev, customer_address: e.target.value }))}
+              onChange={handleAddressChange}
               placeholder="123 Main St, City, State 12345"
               rows={2}
+              disabled={!selectedContactId}
             />
+            {selectedContactId && (
+              <p className="text-xs text-gray-500">
+                You can edit the address above after selecting one from the dropdown, or enter it manually.
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -1065,7 +1245,7 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
         <CardContent className="space-y-4">
           <FormControl fullWidth>
             <InputLabel id="quoted-by-label">Quoted By</InputLabel>
-            <Select
+            <MuiSelect
               labelId="quoted-by-label"
               id="quoted_by"
               value={formData.quoted_by || ""}
@@ -1077,7 +1257,7 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
                   {employee.full_name}
                 </MenuItem>
               ))}
-            </Select>
+            </MuiSelect>
           </FormControl>
 
           <div className="space-y-2">
@@ -1163,7 +1343,7 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
                 <div className="space-y-1">
                   <Label id="frequency-label">Unit</Label>
                   <FormControl fullWidth size="small">
-                    <Select
+                    <MuiSelect
                       labelId="frequency-label"
                       id="frequency"
                       value={formData.repeat_unit || "day"}
@@ -1178,7 +1358,7 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
                       <MenuItem value="quarter">Quarter(s)</MenuItem>
                       <MenuItem value="semi_annual">Semi Annual(s)</MenuItem>
                       <MenuItem value="year">Year(s)</MenuItem>
-                    </Select>
+                    </MuiSelect>
                   </FormControl>
                 </div>
 
@@ -1199,7 +1379,7 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
                 <div className="space-y-1">
                   <FormControl fullWidth>
                     <InputLabel id="day-of-week-label">Day of Week</InputLabel>
-                    <Select
+                    <MuiSelect
                       labelId="day-of-week-label"
                       id="day_of_week"
                       value={formData.day_of_week !== null ? formData.day_of_week : ""}
@@ -1213,7 +1393,7 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
                       <MenuItem value="4">Thursday</MenuItem>
                       <MenuItem value="5">Friday</MenuItem>
                       <MenuItem value="6">Saturday</MenuItem>
-                    </Select>
+                    </MuiSelect>
                   </FormControl>
                 </div>
               )}

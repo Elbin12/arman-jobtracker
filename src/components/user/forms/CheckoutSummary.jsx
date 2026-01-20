@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Box,
   Typography,
@@ -22,6 +23,8 @@ import {
   DialogContent,
   DialogTitle,
   DialogActions,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   Check,
@@ -35,8 +38,7 @@ import {
   DeleteForever,
 } from '@mui/icons-material';
 import { useCalculatePriceMutation } from '../../../store/api/user/priceApi';
-import { useCreateCustomProductMutation, useDeleteCustomProductMutation, useGetQuoteDetailsQuery, useUpdateCustomProductMutation, useDeleteServiceMutation, useGetGlobalPriceQuery, useRejectQuoteMutation } from '../../../store/api/user/quoteApi';
-import { useRef } from 'react';
+import { useCreateCustomProductMutation, useDeleteCustomProductMutation, useGetQuoteDetailsQuery, useUpdateCustomProductMutation, useDeleteServiceMutation, useGetGlobalPriceQuery, useRejectQuoteMutation, useUpdateAdditionalDataMutation } from '../../../store/api/user/quoteApi';
 import SignatureCanvas from 'react-signature-canvas';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -88,6 +90,9 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
   const [currentProductId, setCurrentProductId] = useState(null);
 
   const [basePriceApplied, setBasePriceApplied] = useState(false);
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   const [searchParams] = useSearchParams();
   const submissionIdFromUrl = searchParams.get("submission_id");
@@ -110,8 +115,10 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
   const [deleteCustomProduct] = useDeleteCustomProductMutation();
   const [deleteService, { isLoading: isDeleting }] = useDeleteServiceMutation();
   const [rejectQuote, { isLoading: isRejecting }] = useRejectQuoteMutation();
+  const [updateAdditionalData] = useUpdateAdditionalDataMutation();
 
   const sigCanvasRef = useRef(null);
+  const autoSaveTimeoutRef = useRef(null);
 
   const quoteData = useMemo(() => response, [response]);
 
@@ -129,6 +136,8 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
   //       selectedServices: updatedServices
   //     });
   //   }, [quoteData])
+
+  console.log(selectedPackages, 'oaa')
 
   useEffect(() => {
     onUpdate({selectedPackages:[]})
@@ -189,6 +198,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
 
   useEffect(() => {
     if (quoteData && !isLoading) {
+      console.log(quoteData, 'datad')
       onUpdate({
         quoteDetails: quoteData,
         selectedCustomProducts: quoteData?.custom_products.filter((p) => p.is_active),
@@ -208,12 +218,67 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
     }
   }, [quoteData]);
 
+  // Load additional notes from quoteData when it's available (only if not already set)
+  useEffect(() => {
+    if (quoteData?.additional_data?.additional_notes !== undefined && 
+        (!additionalNotes || additionalNotes === '')) {
+      setAdditionalNotes(quoteData.additional_data.additional_notes || '');
+    }
+  }, [quoteData?.additional_data?.additional_notes]);
+
   const toggleServiceExpansion = (serviceId) => {
     setExpandedServices((prev) => ({
       ...prev,
       [serviceId]: !prev[serviceId],
     }));
   };
+
+  // Auto-save additional notes with debouncing
+  const autoSaveAdditionalNotes = useCallback((notes) => {
+    // Clear existing timeout
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    // Only auto-save if submission_id exists
+    if (!data.submission_id) {
+      return;
+    }
+
+    // Set new timeout for debounced save
+    autoSaveTimeoutRef.current = setTimeout(async () => {
+      setIsSavingNotes(true);
+      try {
+        await updateAdditionalData({
+          submissionId: data.submission_id,
+          payload: {
+            additional_data: {
+              additional_notes: notes || '',
+            },
+          },
+        }).unwrap();
+        // Show success toast
+        setToastMessage('Additional notes saved successfully');
+        setToastOpen(true);
+      } catch (error) {
+        console.error('Failed to auto-save additional notes:', error);
+        // Show error toast
+        setToastMessage('Failed to save additional notes. Please try again.');
+        setToastOpen(true);
+      } finally {
+        setIsSavingNotes(false);
+      }
+    }, 1000); // Wait 1 second after user stops typing
+  }, [data.submission_id, updateAdditionalData]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handlePackageSelect = (serviceSelectionId, packageQuote) => {
     const newSelected = {
@@ -307,7 +372,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
       setDeleteServiceDialogOpen(false);
       setServiceToDelete(null);
     } catch (err) {
-      // Error handled by toast notification
+      console.error("Failed to delete service", err);
     }
   };
 
@@ -337,7 +402,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
       setCurrentProductId(null);
       setNewProduct({ product_name: '', description: '', price: '' });
     } catch (err) {
-      // Error handled by toast notification
+      console.error("Failed to save custom product", err);
     }
   };
 
@@ -348,7 +413,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
       setCustomProducts(updatedList);
       onUpdate({ selectedPackages, customProducts: updatedList });
     } catch (err) {
-      // Error handled by toast notification
+      console.error("Failed to delete custom product", err);
     }
   };
 
@@ -372,7 +437,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
         selectedCustomProducts: updatedList.filter((p) => p.is_active),
       });
     } catch (error) {
-      // Error handled by toast notification
+      console.error("Failed to update custom product:", error);
     }
   };
 
@@ -914,18 +979,31 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
         {/* Additional Notes */}
         <Card sx={{ mb: 3 }}>
           <CardContent sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f' }}>
-              Additional Notes
-            </Typography>
+            <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+              <Typography variant="h6" fontWeight={600} sx={{ color: '#023c8f' }}>
+                Additional Notes
+              </Typography>
+              {isSavingNotes && (
+                <Box display="flex" alignItems="center" gap={1}>
+                  <CircularProgress size={16} sx={{ color: '#023c8f' }} />
+                  <Typography variant="caption" sx={{ color: '#023c8f', fontSize: '0.75rem' }}>
+                    Saving...
+                  </Typography>
+                </Box>
+              )}
+            </Box>
             <TextField
               placeholder="Any special requests or notes..."
               multiline
               rows={3}
               fullWidth
-              value={additionalNotes}
+              value={additionalNotes || ''}
               onChange={(e) => {
-                setAdditionalNotes(e.target.value);
-                onUpdate({ additionalNotes: e.target.value, termsAccepted });
+                const newValue = e.target.value;
+                setAdditionalNotes(newValue);
+                onUpdate({ additionalNotes: newValue, termsAccepted });
+                // Auto-save with debouncing
+                autoSaveAdditionalNotes(newValue);
               }}
               sx={{
                 '& .MuiOutlinedInput-root': {
@@ -1287,7 +1365,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                 await rejectQuote(data.submission_id).unwrap();
                 navigate(`/quote/details/${data.submission_id}`);
               } catch (error) {
-                // Error handled by toast notification
+                console.error('Failed to reject quote:', error);
               }
             }}
             disabled={isRejecting}
@@ -1302,6 +1380,31 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Toast Notification for Additional Notes - Rendered via Portal */}
+      {createPortal(
+        <Snackbar
+          open={toastOpen}
+          autoHideDuration={3000}
+          onClose={() => setToastOpen(false)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          sx={{
+            position: 'fixed',
+            bottom: '24px !important',
+            right: '24px !important',
+            zIndex: 9999,
+          }}
+        >
+          <Alert
+            onClose={() => setToastOpen(false)}
+            severity={toastMessage.includes('Failed') ? 'error' : 'success'}
+            sx={{ width: '100%', minWidth: '300px' }}
+          >
+            {toastMessage}
+          </Alert>
+        </Snackbar>,
+        document.body
+      )}
     </Box>
   );
 };

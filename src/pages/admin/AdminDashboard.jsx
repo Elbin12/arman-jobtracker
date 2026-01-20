@@ -647,9 +647,9 @@ export const AdminDashboard = () => {
               <Typography variant="subtitle1" fontWeight="600" gutterBottom>
                 Lead Funnel Report
               </Typography>
-              <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 3 }}>
+              {/* <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 3 }}>
                 Pipeline overview for the last 7 days
-              </Typography>
+              </Typography> */}
 
               {leadFunnelLoading ? (
                 <Box sx={{ mt: 2 }}>

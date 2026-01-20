@@ -121,9 +121,18 @@ export const quoteApi = createApi({
       }),
     }),
     rejectQuote: builder.mutation({
-      query: (submissionId) => ({
+      query: ({ submissionId, payload }) => ({
         url: `${submissionId}/reject/`,
         method: 'POST',
+        data: payload,
+      }),
+      invalidatesTags: ['quote', 'Details'],
+    }),
+    updateAdditionalData: builder.mutation({
+      query: ({ submissionId, payload }) => ({
+        url: `${submissionId}/additional-data/`,
+        method: 'PATCH',
+        data: payload,
       }),
       invalidatesTags: ['quote', 'Details'],
     }),
@@ -133,5 +142,5 @@ export const quoteApi = createApi({
 export const { useGetInitialDataQuery, useGetServiceQuestionsQuery, useCreateSubmissionMutation, useUpdateSubmissionMutation, useCreateQuestionResponsesMutation,
   useCreateServiceToSubmissionMutation,   useGetQuoteDetailsQuery,useSubmitQuoteMutation, useGetAddressesByContactQuery, useSearchContactsQuery, useCreateCustomProductMutation,
   useUpdateCustomProductMutation, useDeleteCustomProductMutation, useGetServicesQuery, useCreateScheduleMutation, useDeleteServiceMutation, useGetGlobalPriceQuery,
-  useSubmitOnlyCustomProductsMutation, useRejectQuoteMutation
+  useSubmitOnlyCustomProductsMutation, useRejectQuoteMutation, useUpdateAdditionalDataMutation
  } = quoteApi;
