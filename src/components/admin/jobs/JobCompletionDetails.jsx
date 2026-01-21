@@ -197,20 +197,20 @@ export function JobCompletionDetails({ job, onUpdate }) {
     // Update payment method if changed and job is completed
     const isCompleted = job?.status === "completed"
     if (isCompleted) {
-      const currentPaymentMethod = freshJobData?.payment_method || job?.payment_method || ""
-      if (paymentMethod && paymentMethod !== currentPaymentMethod) {
-        try {
-          await updatePaymentMethod({
-            id: jobId,
-            payment_method: paymentMethod,
-          }).unwrap()
-        } catch (error) {
-          errors.push("Failed to update payment method")
-          toast({
-            title: "Error",
-            description: error?.data?.message || "Failed to update payment method. Please try again.",
-            variant: "destructive",
-          })
+    const currentPaymentMethod = freshJobData?.payment_method || job?.payment_method || ""
+    if (paymentMethod && paymentMethod !== currentPaymentMethod) {
+      try {
+        await updatePaymentMethod({
+          id: jobId,
+          payment_method: paymentMethod,
+        }).unwrap()
+      } catch (error) {
+        errors.push("Failed to update payment method")
+        toast({
+          title: "Error",
+          description: error?.data?.message || "Failed to update payment method. Please try again.",
+          variant: "destructive",
+        })
         }
       }
     }
@@ -249,34 +249,34 @@ export function JobCompletionDetails({ job, onUpdate }) {
     <Box sx={{ mb: 3 }}>
       <Divider sx={{ mb: 3 }} />
       {isCompleted && (
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-            <DollarSign size={18} />
-            Completion Details
-          </Typography>
-        </Box>
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <DollarSign size={18} />
+          Completion Details
+        </Typography>
+      </Box>
       )}
 
       <div className="space-y-4">
         {/* Payment Method Section - Only show for completed jobs */}
         {isCompleted && (
-          <div className="space-y-2">
-            <Label htmlFor="payment-method" className="text-sm font-semibold">
-              Payment Method
-            </Label>
-            <Select value={paymentMethod} onValueChange={setPaymentMethod} disabled={isProcessing}>
-              <SelectTrigger id="payment-method" className="w-full">
-                <SelectValue placeholder="Select payment method" />
-              </SelectTrigger>
-              <SelectContent className="z-[1500]">
-                {PAYMENT_METHOD_CHOICES.map((method) => (
-                  <SelectItem key={method.value} value={method.value}>
-                    {method.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="payment-method" className="text-sm font-semibold">
+            Payment Method
+          </Label>
+          <Select value={paymentMethod} onValueChange={setPaymentMethod} disabled={isProcessing}>
+            <SelectTrigger id="payment-method" className="w-full">
+              <SelectValue placeholder="Select payment method" />
+            </SelectTrigger>
+            <SelectContent className="z-[1500]">
+              {PAYMENT_METHOD_CHOICES.map((method) => (
+                <SelectItem key={method.value} value={method.value}>
+                  {method.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         )}
 
         {/* Image Upload Section - Show for all jobs */}
@@ -290,9 +290,9 @@ export function JobCompletionDetails({ job, onUpdate }) {
         )}
         <div className="space-y-2">
           {isCompleted && (
-            <Label className="text-sm font-semibold">
-              Job Images
-            </Label>
+          <Label className="text-sm font-semibold">
+            Job Images
+          </Label>
           )}
           <p className="text-xs text-gray-500 mb-3">
             Upload photos related to this job.

@@ -86,6 +86,7 @@ export function TimelineSidebar({
   onCategoryToggle,
   selectedAssignees = {},
   onAssigneeToggle,
+  onSelectAllTeamMembers,
   filterParams = {},
   onFilterChange,
   jobs = [], // Add jobs prop to calculate assignments
@@ -215,6 +216,31 @@ export function TimelineSidebar({
     day.add(1, "day");
   }
 
+  // Check if all calendars are selected
+  const allCalendarsSelected = categories.every(cat => selectedCategories[cat.id] !== false);
+  
+  // Check if all team members are selected
+  const allTeamMembersSelected = users.length > 0 && users.every(user => selectedAssignees[user.user_id] === true);
+
+  // Handle select/deselect all calendars
+  const handleSelectAllCalendars = (checked) => {
+    categories.forEach(cat => {
+      onCategoryToggle?.(cat.id, checked);
+    });
+  };
+
+  // Handle select/deselect all team members
+  const handleSelectAllTeamMembers = (checked) => {
+    if (onSelectAllTeamMembers) {
+      onSelectAllTeamMembers(checked);
+    } else {
+      // Fallback to individual toggles if handler not provided
+      users.forEach(user => {
+        onAssigneeToggle?.(user.user_id, checked);
+      });
+    }
+  };
+
   return (
     <div className="w-full border-l border-gray-200 bg-white flex flex-col h-full overflow-y-auto shadow-sm">
       {/* Header Section */}
@@ -268,6 +294,16 @@ export function TimelineSidebar({
           )}
         </CollapsibleTrigger>
         <CollapsibleContent className="px-5 pb-3">
+          {/* Select All Calendars */}
+          <div className="flex items-center gap-2 py-2 mb-2 border-b border-gray-200">
+            <Checkbox
+              checked={allCalendarsSelected}
+              onCheckedChange={handleSelectAllCalendars}
+            />
+            <Label className="text-sm text-gray-700 cursor-pointer" onClick={() => handleSelectAllCalendars(!allCalendarsSelected)}>
+              {allCalendarsSelected ? "Deselect All" : "Select All"}
+            </Label>
+          </div>
           {/* Categories */}
           <div className="space-y-2.5">
             {categories.map((cat) => (
@@ -302,6 +338,20 @@ export function TimelineSidebar({
             )}
           </CollapsibleTrigger>
           <CollapsibleContent className="px-5 pb-3">
+            {/* Select All Team Members */}
+            {!isLoadingUsers && users.length > 0 && (
+              <div className="flex items-center gap-2 py-2 mb-2 border-b border-gray-200">
+                <Checkbox
+                  checked={allTeamMembersSelected}
+                  onCheckedChange={(checked) => {
+                    handleSelectAllTeamMembers(checked);
+                  }}
+                />
+                <Label className="text-sm text-gray-700 cursor-pointer" onClick={() => handleSelectAllTeamMembers(!allTeamMembersSelected)}>
+                  {allTeamMembersSelected ? "Deselect All" : "Select All"}
+                </Label>
+              </div>
+            )}
             <div className="max-h-[400px] overflow-y-auto pr-1 space-y-1">
               {isLoadingUsers ? (
                 // Shimmer loader for staff

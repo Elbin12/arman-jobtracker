@@ -25,6 +25,10 @@ import {
   DialogActions,
   Snackbar,
   Alert,
+  Select,
+  MenuItem,
+  InputLabel,
+  FormHelperText,
 } from '@mui/material';
 import {
   Check,
@@ -81,6 +85,9 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
   const [deleteServiceDialogOpen, setDeleteServiceDialogOpen] = useState(false);
   const [serviceToDelete, setServiceToDelete] = useState(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectionNotes, setRejectionNotes] = useState('');
+  const [rejectionErrors, setRejectionErrors] = useState({});
   const [newProduct, setNewProduct] = useState({
     product_name: '',
     description: '',
@@ -1337,34 +1344,189 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
       </Dialog>
 
       {/* Reject Quote Confirmation Dialog */}
-      <Dialog open={rejectDialogOpen} onClose={() => !isRejecting && setRejectDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#ef4444' }}>
-          <Close sx={{ color: '#ef4444' }} />
-          Reject Quote
+      <Dialog 
+        open={rejectDialogOpen} 
+        onClose={() => {
+          if (!isRejecting) {
+            setRejectDialogOpen(false);
+            setRejectionReason('');
+            setRejectionNotes('');
+            setRejectionErrors({});
+          }
+        }} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+          }
+        }}
+      >
+        <DialogTitle 
+          sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 1, 
+            color: '#ef4444',
+            pb: 1,
+            borderBottom: '1px solid #e0e0e0'
+          }}
+        >
+          <Close sx={{ color: '#ef4444', fontSize: 24 }} />
+          <Typography variant="h6" component="span" fontWeight={600}>
+            Reject Quote
+          </Typography>
         </DialogTitle>
-        <DialogContent>
-          <Typography variant="body1" gutterBottom>
-            Are you sure you want to reject this quote?
+        <DialogContent sx={{ pt: 3, pb: 1 }}>
+          <Typography variant="body1" gutterBottom sx={{ mb: 3, color: '#333' }}>
+            We're sorry to see you go. Please help us understand why you're rejecting this quote so we can improve our service.
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            This action will mark the quote as rejected. You will be redirected to the quote details page after confirmation.
-          </Typography>
+
+          <FormControl 
+            fullWidth 
+            required 
+            error={!!rejectionErrors.reason}
+            sx={{ mb: 3 }}
+          >
+            <InputLabel id="rejection-reason-label" sx={{ color: '#666' }}>
+              Reason for Rejection *
+            </InputLabel>
+            <Select
+              labelId="rejection-reason-label"
+              id="rejection-reason"
+              value={rejectionReason}
+              label="Reason for Rejection *"
+              onChange={(e) => {
+                setRejectionReason(e.target.value);
+                if (rejectionErrors.reason) {
+                  setRejectionErrors(prev => ({ ...prev, reason: '' }));
+                }
+              }}
+              sx={{
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: '#e0e0e0',
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: '#023c8f',
+                },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: '#023c8f',
+                },
+              }}
+            >
+              <MenuItem value="Price">Price</MenuItem>
+              <MenuItem value="Timing">Timing</MenuItem>
+              <MenuItem value="Chose another company">Chose another company</MenuItem>
+              <MenuItem value="Not ready">Not ready</MenuItem>
+              <MenuItem value="Other">Other</MenuItem>
+            </Select>
+            {rejectionErrors.reason && (
+              <FormHelperText>{rejectionErrors.reason}</FormHelperText>
+            )}
+          </FormControl>
+
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            label="Additional Notes (Optional)"
+            placeholder="Please provide any additional feedback that might help us improve..."
+            value={rejectionNotes}
+            onChange={(e) => {
+              setRejectionNotes(e.target.value);
+              if (rejectionErrors.notes) {
+                setRejectionErrors(prev => ({ ...prev, notes: '' }));
+              }
+            }}
+            error={!!rejectionErrors.notes}
+            helperText={rejectionErrors.notes || 'Your feedback is valuable to us'}
+            sx={{
+              mb: 2,
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': {
+                  borderColor: '#e0e0e0',
+                },
+                '&:hover fieldset': {
+                  borderColor: '#023c8f',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#023c8f',
+                },
+              },
+              '& .MuiInputLabel-root': {
+                color: '#666',
+              },
+            }}
+          />
+
+          <Box 
+            sx={{ 
+              bgcolor: '#fff3cd', 
+              border: '1px solid #ffc107',
+              borderRadius: 1,
+              p: 2,
+              mt: 2
+            }}
+          >
+            <Typography variant="body2" sx={{ color: '#856404', fontSize: '0.875rem' }}>
+              <strong>Note:</strong> This action will mark the quote as rejected. You will be redirected to the quote details page after confirmation.
+            </Typography>
+          </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 3, pt: 1 }}>
+        <DialogActions sx={{ p: 3, pt: 2, borderTop: '1px solid #e0e0e0', gap: 1 }}>
           <Button 
-            onClick={() => setRejectDialogOpen(false)}
+            onClick={() => {
+              setRejectDialogOpen(false);
+              setRejectionReason('');
+              setRejectionNotes('');
+              setRejectionErrors({});
+            }}
             disabled={isRejecting}
-            sx={{ color: '#666' }}
+            sx={{ 
+              color: '#666',
+              textTransform: 'none',
+              fontWeight: 500,
+              '&:hover': {
+                bgcolor: '#f5f5f5'
+              }
+            }}
           >
             Cancel
           </Button>
           <Button 
             variant="contained" 
             onClick={async () => {
+              // Validate form
+              const errors = {};
+              if (!rejectionReason || rejectionReason.trim() === '') {
+                errors.reason = 'Please select a reason for rejection';
+              }
+              
+              if (Object.keys(errors).length > 0) {
+                setRejectionErrors(errors);
+                return;
+              }
+
               try {
-                await rejectQuote(data.submission_id).unwrap();
+                await rejectQuote({
+                  submissionId: data.submission_id,
+                  payload: {
+                    rejection_reason: rejectionReason,
+                    rejection_notes: rejectionNotes.trim() || '',
+                  }
+                }).unwrap();
+                
+                // Reset form and close dialog
+                setRejectionReason('');
+                setRejectionNotes('');
+                setRejectionErrors({});
+                setRejectDialogOpen(false);
+                
+                // Navigate to quote details
                 navigate(`/quote/details/${data.submission_id}`);
               } catch (error) {
+                // Error handled by toast notification
                 console.error('Failed to reject quote:', error);
               }
             }}
@@ -1372,8 +1534,18 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
             startIcon={isRejecting ? <CircularProgress size={16} color="inherit" /> : <Close />}
             sx={{
               bgcolor: '#ef4444',
-              '&:hover': { bgcolor: '#dc2626' },
-              '&:disabled': { bgcolor: '#ffcdd2' }
+              color: '#fff',
+              textTransform: 'none',
+              fontWeight: 600,
+              px: 3,
+              '&:hover': { 
+                bgcolor: '#dc2626',
+                boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+              },
+              '&:disabled': { 
+                bgcolor: '#ffcdd2',
+                color: '#fff'
+              }
             }}
           >
             {isRejecting ? 'Rejecting...' : 'Reject Quote'}

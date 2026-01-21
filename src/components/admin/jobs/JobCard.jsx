@@ -800,7 +800,7 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
           )}
 
           {/* Completion Details - Show for all jobs */}
-          <JobCompletionDetails job={job} onUpdate={onUpdate} />
+            <JobCompletionDetails job={job} onUpdate={onUpdate} />
 
           {/* Status Selector */}
           <Box>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Calendar as BigCalendar, momentLocalizer } from "react-big-calendar";
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
@@ -86,6 +86,7 @@ const calendarStyles = `
     transition: all 0.2s ease !important;
     overflow: visible !important;
     cursor: pointer !important;
+    pointer-events: auto !important;
   }
   @media (min-width: 640px) {
     .rbc-event {
@@ -105,6 +106,11 @@ const calendarStyles = `
     padding: 0 !important;
     border-radius: 6px !important;
     overflow: visible !important;
+    pointer-events: auto !important;
+    cursor: pointer !important;
+  }
+  .rbc-event-wrapper * {
+    pointer-events: auto !important;
   }
   .rbc-event:hover {
     box-shadow: none !important;
@@ -148,11 +154,17 @@ const calendarStyles = `
     font-size: 13px !important;
     min-height: 20px !important;
     box-shadow: none !important;
+    pointer-events: auto !important;
+    cursor: pointer !important;
   }
   .rbc-event-content-responsive,
   .rbc-event-content-responsive span,
   .rbc-event-content-responsive * {
     font-size: 13px !important;
+  }
+  .rbc-event-content-responsive span,
+  .rbc-event-content-responsive * {
+    pointer-events: none !important;
   }
   @media (min-width: 640px) {
     .rbc-event-content-responsive {
@@ -164,6 +176,10 @@ const calendarStyles = `
     .rbc-event-content-responsive span,
     .rbc-event-content-responsive * {
       font-size: 13px !important;
+    }
+    .rbc-event-content-responsive span,
+    .rbc-event-content-responsive * {
+      pointer-events: none !important;
     }
   }
   @media (min-width: 1024px) {
@@ -177,6 +193,10 @@ const calendarStyles = `
     .rbc-event-content-responsive * {
       font-size: 13px !important;
     }
+    .rbc-event-content-responsive span,
+    .rbc-event-content-responsive * {
+      pointer-events: none !important;
+    }
   }
   .rbc-event-content-responsive .recurring-indicator {
     font-size: 11px !important;
@@ -189,10 +209,12 @@ const calendarStyles = `
       margin: 1px 0 !important;
       border-radius: 4px !important;
     }
-    .rbc-event-wrapper {
-      width: 100% !important;
-      min-width: 100% !important;
-    }
+  .rbc-event-wrapper {
+    width: 100% !important;
+    min-width: 100% !important;
+    pointer-events: auto !important;
+    cursor: pointer !important;
+  }
     .rbc-event-content-responsive {
       padding: 4px 6px !important;
       font-size: 10px !important;
@@ -213,6 +235,11 @@ const calendarStyles = `
       text-align: center !important;
       font-size: 10px !important;
       font-weight: 500 !important;
+      pointer-events: none !important;
+    }
+    .rbc-event-content-responsive span,
+    .rbc-event-content-responsive * {
+      pointer-events: none !important;
     }
     .rbc-event-content-responsive,
     .rbc-event-content-responsive span:not(.recurring-indicator) {
@@ -309,9 +336,86 @@ const calendarStyles = `
   .rbc-month-view .rbc-row-content {
     overflow: visible !important;
   }
+  .rbc-day-bg {
+    position: relative !important;
+  }
+  .rbc-month-view .rbc-day-bg {
+    position: relative !important;
+  }
+  .rbc-month-view .rbc-day-bg.has-daily-total {
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: visible !important;
+  }
+  .rbc-month-view .rbc-day-bg.has-daily-total .rbc-events-container {
+    flex: 1 1 auto !important;
+    overflow: visible !important;
+  }
+  @media (max-width: 639px) {
+    .rbc-month-view .rbc-day-bg.has-daily-total {
+      min-height: auto !important;
+      padding-bottom: 0 !important;
+    }
+  }
+  .rbc-month-view .rbc-row-content {
+    overflow: visible !important;
+  }
+  .rbc-month-row {
+    overflow: visible !important;
+  }
+  .rbc-month-view .rbc-day-slot {
+    position: relative !important;
+  }
+  .rbc-month-view .rbc-events-container {
+    position: relative !important;
+  }
+  .daily-job-total {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+    letter-spacing: 0.01em !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    flex-shrink: 0 !important;
+    min-height: 24px !important;
+  }
+  @media (min-width: 640px) {
+    .daily-job-total {
+      min-height: 28px !important;
+      padding: 0px 0px 0px 0px !important;
+    }
+  }
+  @media (max-width: 639px) {
+    .daily-job-total {
+      padding: 0px 0px 0px 0px !important;
+      min-height: 24px !important;
+    }
+    .daily-job-total span:first-child {
+      font-size: 8px !important;
+    }
+    .daily-job-total span:last-child {
+      font-size: 10px !important;
+    }
+  }
+  .rbc-month-view .rbc-day-bg.has-daily-total .rbc-events-container {
+    margin-bottom: 0 !important;
+  }
+  .rbc-month-view .rbc-events-container {
+    padding: 2px 1px !important;
+    position: relative !important;
+  }
+  .rbc-month-view .rbc-day-bg {
+    padding: 2px !important;
+  }
+  .rbc-month-view .rbc-event {
+    position: relative !important;
+    z-index: 2 !important;
+  }
+  .daily-job-total {
+    z-index: 1 !important;
+  }
 `;
 import { JobCard } from "../jobs/JobCard";
-import { jobsApi, useGetCalendarJobsQuery, useGetAppointmentsCalendarQuery, useGetJobDetailsQuery, useUpdateAppointmentMutation, useDeleteAppointmentMutation } from "../../../store/api/jobsApi";
+import { jobsApi, useGetCalendarJobsQuery, useGetAppointmentsCalendarQuery, useGetEstimateAppointmentsCalendarQuery, useGetJobDetailsQuery, useUpdateAppointmentMutation, useDeleteAppointmentMutation, useUpdateEstimateStatusMutation, useDeleteEstimateMutation } from "../../../store/api/jobsApi";
 import { useSelector, useDispatch } from "react-redux";
 import { EditJobDialog } from "../jobs/EditJobDialog";
 import { TimelineSidebar } from "./TimelineSidebar";
@@ -322,7 +426,7 @@ const localizer = momentLocalizer(moment);
 const DnDCalendar = withDragAndDrop(BigCalendar);
 
 // Custom Event Component that accepts staff drops
-function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, ...props }) {
+function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, continuesPrior, continuesAfter, ...props }) {
   // Detect mobile view
   const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
   
@@ -427,6 +531,36 @@ function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, ...pr
     }),
   });
 
+  // Use a ref to ensure click handler works on first render
+  const eventRef = useRef(null);
+  const clickHandlerRef = useRef(null);
+  
+  useEffect(() => {
+    // Attach click handler directly to DOM element to ensure it works on first render
+    const element = eventRef.current;
+    if (element && onSelectEvent && event) {
+      const handleClick = (e) => {
+        // Handle all clicks on this element
+        e.stopPropagation();
+        e.preventDefault();
+        console.log('Direct DOM click handler:', event.type, 'target:', e.target.className);
+        if (onSelectEvent && event) {
+          onSelectEvent(event);
+        }
+      };
+      // Use capture phase to catch clicks early, before any other handlers
+      element.addEventListener('mousedown', handleClick, true);
+      element.addEventListener('click', handleClick, true);
+      clickHandlerRef.current = handleClick;
+      return () => {
+        if (clickHandlerRef.current && element) {
+          element.removeEventListener('mousedown', clickHandlerRef.current, true);
+          element.removeEventListener('click', clickHandlerRef.current, true);
+        }
+      };
+    }
+  }, [event, onSelectEvent]);
+
   const eventStyle = style || {};
   const eventTitle = title || event?.title || "";
   
@@ -494,41 +628,74 @@ function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, ...pr
   // We'll apply the background color and padding directly to our inner content div
   return (
     <div
-      ref={drop}
+      ref={(node) => {
+        drop(node);
+        eventRef.current = node;
+      }}
       className={cn(
         "rbc-event",
         isOver && "rbc-event-droppable"
       )}
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        // Call onSelectEvent directly
+        if (onSelectEvent && event) {
+          console.log('Event clicked in wrapper:', event.type);
+          onSelectEvent(event);
+        }
+      }}
       style={{
-        backgroundColor: "transparent",
+        backgroundColor: backgroundColor,
         border: "none",
         outline: "none",
-        borderRadius: "8px",
-        padding: "0",
+        borderRadius: isMobile ? "4px" : "6px",
+        padding: isMobile ? "4px 6px" : "6px 10px",
         boxShadow: "none",
         margin: "0",
+        cursor: "pointer",
+        pointerEvents: "auto",
+        position: "relative",
+        zIndex: 10,
+        width: "100%",
+        height: "100%",
+        minHeight: "20px",
+        lineHeight: isMobile ? "1.2" : "1.3",
+        fontWeight: "500",
+        color: "white",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: isMobile ? "center" : "space-between",
+        gap: isMobile ? "2px" : "4px",
+        overflow: "hidden",
+        transition: "all 0.2s ease",
+        border: isOver ? "2px dashed rgba(255, 255, 255, 0.8)" : "none",
+        userSelect: "none",
+        WebkitUserSelect: "none",
       }}
       title={eventTitle}
-      {...props}
     >
       <div 
         className="rbc-event-content-responsive"
         style={{ 
           lineHeight: isMobile ? "1.2" : "1.3",
-          backgroundColor: backgroundColor,
-          borderRadius: isMobile ? "4px" : "6px",
+          backgroundColor: "transparent",
           fontWeight: "500",
           color: "white",
-          boxShadow: "none",
-          transition: "all 0.2s ease",
-          border: isOver ? "2px dashed rgba(255, 255, 255, 0.8)" : "none",
           display: "flex",
           alignItems: "center",
           justifyContent: isMobile ? "center" : "space-between",
           gap: isMobile ? "2px" : "4px",
           width: "100%",
+          height: "100%",
           overflow: "hidden",
-          padding: isMobile ? "4px 6px" : undefined,
+          padding: 0,
+          cursor: "pointer",
+          pointerEvents: "none",
+          position: "relative",
+          zIndex: 11,
+          userSelect: "none",
+          WebkitUserSelect: "none",
         }}
       >
         <span className="truncate" style={{ 
@@ -541,7 +708,8 @@ function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, ...pr
           fontSize: isMobile ? "10px" : "13px",
           textAlign: isMobile ? "center" : "left",
           fontWeight: "500",
-          width: isMobile ? "100%" : "auto"
+          width: isMobile ? "100%" : "auto",
+          pointerEvents: "none",
         }}>
           {displayTitle}
         </span>
@@ -552,6 +720,7 @@ function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, ...pr
             fontSize: isMobile ? "8px" : "11px",
             opacity: 0.9,
             marginLeft: isMobile ? "2px" : "4px",
+            pointerEvents: "none",
           }}>
             (R)
           </span>
@@ -567,10 +736,13 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
   const [updateJob] = useUpdateJobMutation();
   const [updateAppointment, { isLoading: isUpdatingAppointment }] = useUpdateAppointmentMutation();
   const [deleteAppointment, { isLoading: isDeletingAppointment }] = useDeleteAppointmentMutation();
+  const [updateEstimateStatus, { isLoading: isUpdatingEstimate }] = useUpdateEstimateStatusMutation();
+  const [deleteEstimate, { isLoading: isDeletingEstimate }] = useDeleteEstimateMutation();
   const [events, setEvents] = useState([]);
   const [originalEvents, setOriginalEvents] = useState([]); // Store original events for height calculation
   const [selectedJob, setSelectedJob] = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [selectedEstimate, setSelectedEstimate] = useState(null);
   const [view, setView] = useState("month");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [monthRowHeight, setMonthRowHeight] = useState(140);
@@ -597,6 +769,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
   const [selectedCategories, setSelectedCategories] = useState({
     jobs: true,
     appointments: false,
+    estimates: false,
   });
   const [selectedAssignees, setSelectedAssignees] = useState({});
   const [filterParams, setFilterParams] = useState({});
@@ -604,6 +777,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editingJob, setEditingJob] = useState(null);
   const [deleteAppointmentDialogOpen, setDeleteAppointmentDialogOpen] = useState(false);
+  const [deleteEstimateDialogOpen, setDeleteEstimateDialogOpen] = useState(false);
   
   // Time picker dialog state for drag and drop
   const [timePickerOpen, setTimePickerOpen] = useState(false);
@@ -768,14 +942,50 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
   
   // Search - prioritize appointment_search
   if (filterParams.appointment_search && filterParams.appointment_search.trim()) {
-    appointmentsParams.search = filterParams.appointment_search;
+appointmentsParams.search = filterParams.appointment_search;
   } else if (filterParams.search && filterParams.search.trim()) {
     // Only use general search for appointments if no appointment_search is set
     appointmentsParams.search = filterParams.search;
   }
   
+  // Build filter params for estimates API
+  // API expects: start, end, status (comma-separated), assigned_user_ids (comma-separated), search
+  const estimatesParams = {
+    start,
+    end,
+  };
+  
+  // Estimate status - support comma-separated values
+  if (filterParams.estimate_status && filterParams.estimate_status.trim()) {
+    estimatesParams.status = filterParams.estimate_status;
+  }
+  
+  // Assigned user IDs - convert from array format to comma-separated string
+  if (filterParams.assigned_user_ids) {
+    if (typeof filterParams.assigned_user_ids === 'string') {
+      const cleaned = filterParams.assigned_user_ids.replace(/[\[\]]/g, '');
+      if (cleaned.trim()) {
+        estimatesParams.assigned_user_ids = cleaned;
+      }
+    } else if (Array.isArray(filterParams.assigned_user_ids) && filterParams.assigned_user_ids.length > 0) {
+      estimatesParams.assigned_user_ids = filterParams.assigned_user_ids.join(',');
+    }
+  }
+  
+  // Search - prioritize estimate_search
+  if (filterParams.estimate_search && filterParams.estimate_search.trim()) {
+    estimatesParams.search = filterParams.estimate_search;
+  } else if (filterParams.search && filterParams.search.trim()) {
+    // Only use general search for estimates if no estimate_search is set
+    estimatesParams.search = filterParams.search;
+  }
+  
   const { data: calendarJobs, isLoading, isFetching } = useGetCalendarJobsQuery(calendarJobsParams);
   const { data: appointments, isLoading: isLoadingAppointments, isFetching: isFetchingAppointments } = useGetAppointmentsCalendarQuery(appointmentsParams);
+  // Only fetch estimates when the estimates category is enabled (not false)
+  const { data: estimates, isLoading: isLoadingEstimates, isFetching: isFetchingEstimates } = useGetEstimateAppointmentsCalendarQuery(estimatesParams, {
+    skip: selectedCategories.estimates === false
+  });
   
   // New API returns array directly, not wrapped in results
   const jobs = Array.isArray(calendarJobs) ? calendarJobs : [];
@@ -784,6 +994,11 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
   const appointmentsList = Array.isArray(appointments) 
     ? appointments 
     : (appointments?.results ?? []);
+  
+  // Handle both array response and results-wrapped response for estimates
+  const estimatesList = Array.isArray(estimates) 
+    ? estimates 
+    : (estimates?.results ?? []);
   
   // State for fetching job details when clicked
   const [selectedJobId, setSelectedJobId] = useState(null);
@@ -796,6 +1011,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
     // Check if categories are enabled (default to true if not set)
     const showJobs = selectedCategories.jobs !== false;
     const showAppointments = selectedCategories.appointments !== false;
+    const showEstimates = selectedCategories.estimates !== false;
 
     // Transform jobs to events (only if jobs category is enabled)
     // New API returns job_id instead of id, and includes series_id
@@ -856,15 +1072,91 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
           })
       : [];
 
-    // Merge both events
-    const allEvents = [...jobEvents, ...appointmentEvents];
+    // Transform estimates to events (only if estimates category is enabled)
+    const estimateEvents = showEstimates
+      ? estimatesList
+          .filter((estimate) => {
+            if (!estimate.start_time) return false;
+            return true;
+          })
+          .map((estimate) => {
+            // Parse as UTC and convert to America/Chicago timezone for display
+            const startM = moment.utc(estimate.start_time).tz("America/Chicago");
+            const endM = moment.utc(estimate.end_time).tz("America/Chicago");
+            const startDate = new Date(startM.year(), startM.month(), startM.date(), startM.hour(), startM.minute(), startM.second());
+            const endDate = new Date(endM.year(), endM.month(), endM.date(), endM.hour(), endM.minute(), endM.second());
+            // Format time with minutes if not zero: "6 PM" or "6:30 PM"
+            const timeStr = startM.minute() === 0 ? startM.format("h A") : startM.format("h:mm A");
+
+            return {
+              id: estimate.appointment_id,
+              title: `${timeStr} ${estimate.title || estimate.contact_name || "Estimate"}`,
+              start: startDate,
+              end: endDate,
+              resource: estimate,
+              type: 'estimate',
+            };
+          })
+      : [];
+
+    // Merge all events
+    const allEvents = [...jobEvents, ...appointmentEvents, ...estimateEvents];
     
     // Store original events for height calculation
     setOriginalEvents(allEvents);
     
     // Show all events - no limiting, height will adjust dynamically
     setEvents(allEvents);
-  }, [jobs, appointmentsList, accountTimezone, selectedCategories]);
+  }, [jobs, appointmentsList, estimatesList, accountTimezone, selectedCategories]);
+
+  // Format price as currency (memoized to avoid dependency issues)
+  const formatPrice = useMemo(() => {
+    return (price) => {
+      if (!price || isNaN(price)) return "$0.00";
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(price);
+    };
+  }, []);
+
+  // Check if jobs category is enabled (used for totals display)
+  const showJobs = selectedCategories.jobs !== false;
+  
+  // Calculate daily totals for jobs (only jobs, not appointments or estimates)
+  // Only calculate if jobs category is enabled
+  const dailyTotals = useMemo(() => {
+    // If jobs are not selected, return empty totals
+    if (!showJobs) return {};
+    
+    const totals = {};
+    const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    // Only count jobs that are scheduled
+    jobs.forEach((job) => {
+      if (!job.scheduled_at) return;
+      if (job.total_price === null || job.total_price === undefined) return;
+      
+      const m = moment.utc(job.scheduled_at);
+      const jobDate = new Date(m.year(), m.month(), m.date());
+      
+      // Only include jobs in the current month view
+      if (jobDate >= monthStart && jobDate <= monthEnd) {
+        const year = jobDate.getFullYear();
+        const month = String(jobDate.getMonth() + 1).padStart(2, '0');
+        const date = String(jobDate.getDate()).padStart(2, '0');
+        const dayKey = `${year}-${month}-${date}`;
+        
+        const price = parseFloat(job.total_price) || 0;
+        totals[dayKey] = (totals[dayKey] || 0) + price;
+      }
+    });
+
+    return totals;
+  }, [jobs, currentDate, showJobs]);
 
   // Dynamically set month row height so all events fit
   useEffect(() => {
@@ -893,14 +1185,20 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
     // Each event needs: padding (6px top + 6px bottom = 12px) + content height (~20px) = ~32px per event
     const eventHeight = 32; // Height per event
     const baseHeight = 44; // Base height for day cell (date number + padding)
+    const dailyTotalHeight = 28; // Height needed for daily total display
+    
+    // Check if any day has totals (need extra space)
+    const hasAnyTotals = Object.keys(dailyTotals).length > 0;
+    const extraHeightForTotal = hasAnyTotals ? dailyTotalHeight : 0;
     
     // Use the maximum event count to calculate height - show all events
-    const calculatedHeight = baseHeight + (Math.max(maxCount, 1) * eventHeight);
+    // Add extra height for daily total to ensure events are fully visible
+    const calculatedHeight = baseHeight + (Math.max(maxCount, 1) * eventHeight) + extraHeightForTotal;
     
     // Set minimum height, but always use calculated height if it's larger
-    const minHeight = 140;
+    const minHeight = hasAnyTotals ? 170 : 140; // Increased minimum when totals are present
     setMonthRowHeight(Math.max(minHeight, calculatedHeight));
-  }, [originalEvents, view, currentDate]);
+  }, [originalEvents, view, currentDate, dailyTotals]);
 
   const weeksInMonth =
     view === "month"
@@ -922,19 +1220,207 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
 
   const monthTotalHeight = weekDayHeight();
 
+  // Calculate monthly total for jobs
+  const monthlyTotal = useMemo(() => {
+    return Object.values(dailyTotals).reduce((sum, dayTotal) => sum + dayTotal, 0);
+  }, [dailyTotals]);
+
+  // Inject daily totals into day cells using useEffect
+  useEffect(() => {
+    if (view !== "month") {
+      // Clean up when not in month view
+      const existingTotals = document.querySelectorAll('.daily-job-total');
+      existingTotals.forEach(el => el.remove());
+      return;
+    }
+
+    // Function to inject totals
+    const injectTotals = () => {
+      // Remove any existing daily total elements
+      const existingTotals = document.querySelectorAll('.daily-job-total');
+      existingTotals.forEach(el => el.remove());
+
+      // Find all month rows
+      const monthRows = document.querySelectorAll('.rbc-month-row');
+      
+      if (monthRows.length === 0) {
+        return; // Calendar not ready yet
+      }
+      
+      monthRows.forEach((row) => {
+        // Get all date cells in this row - these contain the actual date numbers
+        const dateCells = row.querySelectorAll('.rbc-date-cell');
+        // Get all day-bg cells in this row - these are the day containers
+        const dayBgCells = row.querySelectorAll('.rbc-day-bg');
+        
+        // Match date cells with day-bg cells by their column index
+        dateCells.forEach((dateCell, index) => {
+          // Get the date number from the date cell text
+          const dateText = dateCell.textContent?.trim();
+          if (!dateText) return;
+          
+          const dayNum = parseInt(dateText);
+          if (isNaN(dayNum)) return;
+          
+          // Find the corresponding day-bg cell at the same index
+          const dayBgCell = dayBgCells[index];
+          if (!dayBgCell) return;
+          
+          // Determine the actual date by checking which week row we're in
+          // Get the first day of the month to determine the starting day of week
+          const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+          const firstDayOfWeek = firstDayOfMonth.getDay();
+          
+          // Find which week row this is (0-based)
+          const allMonthRows = document.querySelectorAll('.rbc-month-row');
+          const rowIndex = Array.from(allMonthRows).indexOf(row);
+          if (rowIndex === -1) return;
+          
+          // Calculate the actual date: days from start of calendar grid
+          const daysFromStart = rowIndex * 7 + index - firstDayOfWeek;
+          const actualDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1 + daysFromStart);
+          
+          // Verify this date is actually in the current month (not from previous/next month)
+          if (actualDate.getMonth() !== currentDate.getMonth()) return;
+          
+          // Create date key using the actual date
+          const year = actualDate.getFullYear();
+          const month = String(actualDate.getMonth() + 1).padStart(2, '0');
+          const date = String(actualDate.getDate()).padStart(2, '0');
+          const dateKey = `${year}-${month}-${date}`;
+          
+          const dayTotal = dailyTotals[dateKey] || 0;
+          
+          // Check if there are any job events visible for this day
+          const hasJobEvents = events.some(event => {
+            if (event.type !== 'job') return false;
+            const eventDate = event.start;
+            const eventYear = eventDate.getFullYear();
+            const eventMonth = String(eventDate.getMonth() + 1).padStart(2, '0');
+            const eventDateNum = String(eventDate.getDate()).padStart(2, '0');
+            const eventDateKey = `${eventYear}-${eventMonth}-${eventDateNum}`;
+            return eventDateKey === dateKey;
+          });
+
+          // Only show total if: jobs are selected, there's a total, AND there are job events visible
+          if (showJobs && dayTotal > 0 && hasJobEvents) {
+            // Check if total already exists to avoid duplicates
+            if (dayBgCell.querySelector('.daily-job-total')) return;
+            
+            // Create and insert the total element with professional styling
+            const totalEl = document.createElement('div');
+            totalEl.className = 'daily-job-total';
+            
+            // Create a more structured display with label and amount
+            // Use responsive font sizes for mobile
+            totalEl.innerHTML = `
+              <span style="display: block; font-size: 8px; font-weight: 500; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1px;">Total</span>
+              <span style="display: block; font-size: 10px; font-weight: 700; color: #111827; line-height: 1.2;">${formatPrice(dayTotal)}</span>
+            `;
+            
+            // Add media query styles for larger screens
+            const style = document.createElement('style');
+            style.textContent = `
+              @media (min-width: 640px) {
+                .daily-job-total span:first-child {
+                  font-size: 9px !important;
+                  margin-bottom: 2px !important;
+                }
+                .daily-job-total span:last-child {
+                  font-size: 11px !important;
+                }
+              }
+            `;
+            if (!document.head.querySelector('style[data-daily-total]')) {
+              style.setAttribute('data-daily-total', 'true');
+              document.head.appendChild(style);
+            }
+            
+            totalEl.style.cssText = `
+              width: 100%;
+              text-align: center;
+              padding: 5px 3px 6px 3px;
+              margin-top: 4px;
+              margin-bottom: 4px;
+              background: linear-gradient(to bottom, #f9fafb 0%, #ffffff 100%);
+              pointer-events: none;
+              box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.03);
+              display: block !important;
+              visibility: visible !important;
+              opacity: 1 !important;
+              flex-shrink: 0;
+              min-height: 28px;
+            `;
+            
+            // Add responsive padding for mobile
+            if (window.innerWidth < 640) {
+              totalEl.style.padding = '4px 2px 5px 2px';
+              totalEl.style.minHeight = '24px';
+            }
+            
+            // Add class to identify cells with totals for CSS targeting
+            dayBgCell.classList.add('has-daily-total');
+            
+            // Find the events container and append the total after it (in normal flow)
+            const eventsContainer = dayBgCell.querySelector('.rbc-events-container');
+            if (eventsContainer) {
+              // Insert the total right after the events container
+              eventsContainer.parentNode.insertBefore(totalEl, eventsContainer.nextSibling);
+            } else {
+              // Fallback: append to day-bg cell
+              dayBgCell.appendChild(totalEl);
+            }
+          }
+        });
+      });
+    };
+
+    // Try with a delay to ensure calendar is rendered, then retry if needed
+    const timeoutId1 = setTimeout(() => {
+      injectTotals();
+    }, 150);
+
+    // Retry after a longer delay in case calendar wasn't ready
+    const timeoutId2 = setTimeout(() => {
+      injectTotals();
+    }, 400);
+
+    return () => {
+      clearTimeout(timeoutId1);
+      clearTimeout(timeoutId2);
+    };
+  }, [view, dailyTotals, currentDate, formatPrice, events.length, showJobs]);
+
   const handleSelectEvent = (event) => {
+    console.log('handleSelectEvent called:', event?.type, event?.resource?.job_id || event?.resource?.appointment_id);
+    
+    if (!event) {
+      console.error('handleSelectEvent: event is null/undefined');
+      return;
+    }
+    
     if (event.type === 'appointment') {
       setSelectedAppointment(event.resource);
       setSelectedJob(null);
       setSelectedJobId(null);
+      setSelectedEstimate(null);
+    } else if (event.type === 'estimate') {
+      setSelectedEstimate(event.resource);
+      setSelectedJob(null);
+      setSelectedJobId(null);
+      setSelectedAppointment(null);
     } else {
       // For jobs, fetch full job details using job_id
-      const jobId = event.resource.job_id || event.resource.id;
+      const jobId = event.resource?.job_id || event.resource?.id;
+      console.log('Job event clicked, jobId:', jobId);
       if (jobId) {
         // Clear previous job data immediately when selecting a new job
         setSelectedJob(null);
         setSelectedJobId(jobId);
         setSelectedAppointment(null);
+        setSelectedEstimate(null);
+      } else {
+        console.error('handleSelectEvent: jobId is missing', event);
       }
     }
   };
@@ -1594,6 +2080,37 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
     }));
   };
 
+  // Handle select/deselect all team members at once
+  const handleSelectAllTeamMembers = (checked) => {
+    const updatedAssignees = {};
+    users.forEach((user) => {
+      updatedAssignees[user.user_id] = checked;
+    });
+    setSelectedAssignees(updatedAssignees);
+    
+    // Convert selectedAssignees to assignee_ids - API expects comma-separated string
+    const selectedIds = checked
+      ? users.map((user) => {
+          // Support both numeric IDs and UUIDs/emails
+          const numId = parseInt(user.user_id);
+          return isNaN(numId) ? (user.user_id || user.email) : numId;
+        })
+      : [];
+    
+    // Mark as internal update to prevent sync loop
+    isInternalUpdate.current = true;
+    
+    const assigneeIdsString = selectedIds.length > 0 ? selectedIds.join(',') : '';
+    
+    // Update filterParams with assignee_ids for jobs AND assigned_user_ids for appointments
+    // Both APIs should use the same selected team members
+    setFilterParams((prev) => ({
+      ...prev,
+      assignee_ids: assigneeIdsString,
+      assigned_user_ids: assigneeIdsString, // Also update appointments filter
+    }));
+  };
+
   const { toast } = useToast();
 
   // Handle appointment status update
@@ -1721,6 +2238,134 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
     }
   };
 
+  // Handle estimate status update
+  const handleEstimateStatusChange = async (newStatus) => {
+    if (!selectedEstimate || !selectedEstimate.appointment_id) {
+      toast({
+        title: "Error",
+        description: "Estimate information is missing",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Get current status: use estimate_status if not null, otherwise fall back to appointment_status
+    const currentStatus = selectedEstimate.estimate_status ?? selectedEstimate.appointment_status;
+
+    // Don't proceed if status hasn't actually changed
+    if (newStatus === currentStatus) {
+      // Still update the local state to reflect the selection (UI feedback)
+      setSelectedEstimate({
+        ...selectedEstimate,
+        estimate_status: newStatus,
+      });
+      return;
+    }
+    
+    try {
+      const result = await updateEstimateStatus({
+        id: selectedEstimate.appointment_id,
+        estimate_status: newStatus,
+      }).unwrap();
+      
+      // Update the local state with the new status
+      setSelectedEstimate({
+        ...selectedEstimate,
+        estimate_status: newStatus,
+      });
+      
+      // Manually update the estimates cache for immediate calendar update
+      dispatch(
+        jobsApi.util.updateQueryData(
+          "getEstimateAppointmentsCalendar",
+          estimatesParams,
+          (draft) => {
+            if (Array.isArray(draft)) {
+              const index = draft.findIndex(e => e.appointment_id === selectedEstimate.appointment_id);
+              if (index !== -1) {
+                draft[index] = {
+                  ...draft[index],
+                  estimate_status: newStatus,
+                };
+              }
+            } else if (draft?.results) {
+              const index = draft.results.findIndex(e => e.appointment_id === selectedEstimate.appointment_id);
+              if (index !== -1) {
+                draft.results[index] = {
+                  ...draft.results[index],
+                  estimate_status: newStatus,
+                };
+              }
+            }
+          }
+        )
+      );
+
+      toast({
+        title: "Success",
+        description: "Estimate status updated successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error?.data?.message || "Failed to update estimate status. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle estimate deletion
+  const handleDeleteEstimate = async () => {
+    if (!selectedEstimate || !selectedEstimate.appointment_id) {
+      toast({
+        title: "Error",
+        description: "Estimate information is missing",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await deleteEstimate(selectedEstimate.appointment_id).unwrap();
+      
+      // Remove the estimate from the calendar cache
+      dispatch(
+        jobsApi.util.updateQueryData(
+          "getEstimateAppointmentsCalendar",
+          estimatesParams,
+          (draft) => {
+            if (Array.isArray(draft)) {
+              const filtered = draft.filter(
+                e => e.appointment_id !== selectedEstimate.appointment_id
+              );
+              draft.length = 0;
+              draft.push(...filtered);
+            } else if (draft?.results) {
+              draft.results = draft.results.filter(
+                e => e.appointment_id !== selectedEstimate.appointment_id
+              );
+            }
+          }
+        )
+      );
+
+      // Close dialogs
+      setDeleteEstimateDialogOpen(false);
+      setSelectedEstimate(null);
+
+      toast({
+        title: "Success",
+        description: "Estimate deleted successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error?.data?.message || "Failed to delete estimate. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <>
     <style>{calendarStyles}</style>
@@ -1785,6 +2430,15 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
             </div>
 
             <div className="flex flex-col gap-3">
+              {/* Monthly Total - Only show in month view and when jobs are selected */}
+              {view === "month" && showJobs && monthlyTotal > 0 && (
+                <div className="flex items-center justify-end">
+                  <div className="flex items-baseline gap-2 bg-white border border-gray-200 rounded-lg px-4 py-2.5 shadow-sm">
+                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Booked</span>
+                    <span className="text-lg sm:text-xl font-bold text-gray-900">{formatPrice(monthlyTotal)}</span>
+                  </div>
+                </div>
+              )}
               {/* Mobile: Stack controls vertically, Desktop: Horizontal */}
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-3">
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
@@ -1903,8 +2557,8 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
                 }}
                 key={
                   view === "month"
-                    ? `month-${currentDate.getFullYear()}-${currentDate.getMonth()}-${monthRowHeight}`
-                    : `view-${view}`
+                    ? `month-${currentDate.getFullYear()}-${currentDate.getMonth()}-${monthRowHeight}-${events.length}-${selectedCategories.jobs}-${selectedCategories.appointments}-${selectedCategories.estimates}`
+                    : `view-${view}-${events.length}`
                 }
                 style={{ height: view === "month" ? "100%" : "auto" }}
                 popup={false}
@@ -1958,6 +2612,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
                   onCategoryToggle={handleCategoryToggle}
                   selectedAssignees={selectedAssignees}
                   onAssigneeToggle={handleAssigneeToggle}
+                  onSelectAllTeamMembers={handleSelectAllTeamMembers}
                   filterParams={filterParams}
                   onFilterChange={(field, value) => {
                     setFilterParams((prev) => ({
@@ -2232,6 +2887,222 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
                 <>
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete Appointment
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Estimate Details Dialog */}
+      <Dialog 
+        open={!!selectedEstimate} 
+        onOpenChange={(open) => {
+          if (!open) setSelectedEstimate(null);
+        }}
+      >
+        <DialogContent 
+          className="max-w-[calc(100vw-2rem)] sm:max-w-md max-h-[calc(100vh-2rem)] sm:max-h-[90vh] flex flex-col p-0 sm:p-6"
+          onInteractOutside={(e) => {
+            // Prevent closing when clicking on Select dropdown
+            const target = e.target;
+            if (target && (target.closest('[role="listbox"]') || target.closest('[data-radix-portal]'))) {
+              e.preventDefault();
+            }
+          }}
+        >
+          <div className="flex-shrink-0 px-4 pt-6 pb-4 sm:px-0 sm:pt-0">
+            <DialogHeader>
+              <DialogTitle>Estimate Details</DialogTitle>
+              <DialogDescription>View estimate information</DialogDescription>
+            </DialogHeader>
+          </div>
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 sm:px-0 sm:pb-0 min-h-0">
+            {selectedEstimate && (
+              <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold">Title</Label>
+                  <span className="text-sm">{selectedEstimate.title || "N/A"}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold">Contact</Label>
+                  <span className="text-sm">{selectedEstimate.contact_name || "N/A"}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold">Assigned To</Label>
+                  <span className="text-sm">{selectedEstimate.assigned_user_name || "Unassigned"}</span>
+                </div>
+
+                {selectedEstimate.calendar && (
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-semibold">Calendar</Label>
+                    <a
+                      href={`https://app.theservicepilot.com/v2/location/b8qvo7VooP3JD3dIZU42/calendars/view?user_ids=${user?.ghl_user_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:text-primary/80 decoration-primary/30 hover:decoration-primary/60 transition-all duration-200 flex items-center gap-1.5 font-medium"
+                    >
+                      {selectedEstimate.calendar.name || "View Calendar"}
+                      <svg 
+                        className="h-3.5 w-3.5" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round" 
+                          strokeWidth={2} 
+                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" 
+                        />
+                      </svg>
+                    </a>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold">Status</Label>
+                  <Select
+                    value={selectedEstimate.estimate_status ?? selectedEstimate.appointment_status ?? ""}
+                    onValueChange={handleEstimateStatusChange}
+                    disabled={isUpdatingEstimate}
+                  >
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent 
+                      className="z-[1300] !fixed" 
+                      onCloseAutoFocus={(e) => e.preventDefault()}
+                      onEscapeKeyDown={(e) => {
+                        e.stopPropagation();
+                      }}
+                      onPointerDownOutside={(e) => {
+                        // Allow closing when clicking outside, but prevent dialog from closing
+                        const target = e.target;
+                        // Only prevent if clicking on the dialog overlay
+                        if (target && target.hasAttribute && target.hasAttribute('data-radix-dialog-overlay')) {
+                          e.preventDefault();
+                        }
+                      }}
+                    >
+                      <SelectItem value="confirmed">Confirmed</SelectItem>
+                      <SelectItem value="on_my_way">On My Way</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="quoted">Quoted</SelectItem>
+                      <SelectItem value="canceled">Canceled</SelectItem>
+                      <SelectItem value="accepted">Accepted</SelectItem>
+                      <SelectItem value="declined">Declined</SelectItem>
+                      <SelectItem value="expired">Expired</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-semibold">Start Time</Label>
+                  <div className="text-sm">
+                    {selectedEstimate.start_time 
+                      ? moment.utc(selectedEstimate.start_time).tz("America/Chicago").format("MMMM D, YYYY h:mm A")
+                      : "N/A"}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-semibold">End Time</Label>
+                  <div className="text-sm">
+                    {selectedEstimate.end_time 
+                      ? moment.utc(selectedEstimate.end_time).tz("America/Chicago").format("MMMM D, YYYY h:mm A")
+                      : "N/A"}
+                  </div>
+                </div>
+                {selectedEstimate.address && (
+                  <div className="space-y-1">
+                    <Label className="text-sm font-semibold">Address</Label>
+                    <div className="text-sm">{selectedEstimate.address}</div>
+                  </div>
+                )}
+                {selectedEstimate.notes && (
+                  <div className="space-y-1">
+                    <Label className="text-sm font-semibold">Notes</Label>
+                    <div className="text-sm whitespace-pre-wrap">{selectedEstimate.notes}</div>
+                  </div>
+                )}
+                {selectedEstimate.source && (
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-semibold">Source</Label>
+                    <span className="text-sm">{selectedEstimate.source}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold">Users Count</Label>
+                  <span className="text-sm">{selectedEstimate.users_count || 0}</span>
+                </div>
+              </div>
+              <div className="pt-4 border-t">
+                <Button
+                  variant="destructive"
+                  onClick={() => setDeleteEstimateDialogOpen(true)}
+                  className="w-full"
+                  disabled={isDeletingEstimate}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Estimate
+                </Button>
+              </div>
+            </div>
+          )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Estimate Confirmation Dialog */}
+      <Dialog 
+        open={deleteEstimateDialogOpen} 
+        onOpenChange={(open) => {
+          if (!isDeletingEstimate) {
+            setDeleteEstimateDialogOpen(open);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              Delete Estimate
+            </DialogTitle>
+            <DialogDescription>
+              You're about to delete "{selectedEstimate?.title || 'this estimate'}"
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <Alert variant="destructive">
+              <AlertDescription>
+                Are you sure you want to delete "{selectedEstimate?.title || 'this estimate'}"? This action cannot be undone.
+              </AlertDescription>
+            </Alert>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setDeleteEstimateDialogOpen(false)} 
+              disabled={isDeletingEstimate}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteEstimate} 
+              disabled={isDeletingEstimate}
+            >
+              {isDeletingEstimate ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
                 </>
               )}
             </Button>
