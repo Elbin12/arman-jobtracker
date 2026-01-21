@@ -1985,7 +1985,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
               <DialogDescription>View and manage job information</DialogDescription>
             </DialogHeader>
           </div>
-          <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 sm:px-0 sm:pb-0 min-h-0">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 sm:px-0 sm:pb-0 min-h-0 md:mb-0 mb-60">
             {(() => {
               // Check if selectedJob matches selectedJobId
               const jobMatches = selectedJob && selectedJobId && (

@@ -799,10 +799,8 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
             </Box>
           )}
 
-          {/* Completion Details - Only show for completed jobs */}
-          {job?.status === "completed" && (
-            <JobCompletionDetails job={job} onUpdate={onUpdate} />
-          )}
+          {/* Completion Details - Show for all jobs */}
+          <JobCompletionDetails job={job} onUpdate={onUpdate} />
 
           {/* Status Selector */}
           <Box>
