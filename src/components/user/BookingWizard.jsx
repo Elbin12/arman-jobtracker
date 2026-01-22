@@ -700,7 +700,7 @@ export const BookingWizard = () => {
                           : "bg-gray-100 border-gray-300 text-gray-400"
                     }`}
                   >
-                    {index < activeStep ? <CheckCircle className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
+                    {index < activeStep || activeStep === steps.length - 1 ? <CheckCircle className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
                   </div>
                   <span
                     className={`text-xs font-medium text-center max-w-20 ${
@@ -739,7 +739,7 @@ export const BookingWizard = () => {
                 >
                   Powered by{" "}
                   <a
-                    href="https://theservicepilot.com/"
+                    href={import.meta.env.VITE_SERVICE_PILOT_WEBSITE_URL || 'https://theservicepilot.com/'}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{

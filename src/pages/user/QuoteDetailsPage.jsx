@@ -106,14 +106,14 @@ const QuoteDetailsPage = () => {
   const paramsString = params.toString()
 
   const isInIframe = typeof window !== "undefined" && window.self !== window.top
-  const PRIMARY_BOOKING_ID = "1rwE7cUSN5MxPeI1CHiB"
-  const IFRAME_BOOKING_ID = "Bh99EZHXlRpJ0CfqwDEW"
+  const PRIMARY_BOOKING_ID = import.meta.env.VITE_PRIMARY_BOOKING_ID || "1rwE7cUSN5MxPeI1CHiB"
+  const IFRAME_BOOKING_ID = import.meta.env.VITE_IFRAME_BOOKING_ID || "Bh99EZHXlRpJ0CfqwDEW"
   const bookingId = isInIframe ? IFRAME_BOOKING_ID : PRIMARY_BOOKING_ID
-  const iframeSrc = `https://links.theservicepilot.com/widget/booking/${bookingId}${paramsString ? `?${paramsString}` : ""}`
+  const iframeSrc = `${import.meta.env.VITE_SERVICE_PILOT_LINKS_URL || 'https://links.theservicepilot.com'}/widget/booking/${bookingId}${paramsString ? `?${paramsString}` : ""}`
 
   useEffect(() => {
     const script = document.createElement("script")
-    script.src = "https://links.theservicepilot.com/js/form_embed.js"
+    script.src = `${import.meta.env.VITE_SERVICE_PILOT_LINKS_URL || 'https://links.theservicepilot.com'}/js/form_embed.js`
     script.async = true
 
     script.onload = () => {
@@ -678,7 +678,7 @@ const QuoteDetailsPage = () => {
           <Box display="flex" alignItems={"center"} flexDirection="row" gap={{xs:1, sm:2}}>
             <Box
               component="img"
-              src="https://storage.googleapis.com/msgsndr/b8qvo7VooP3JD3dIZU42/media/683efc8fd5817643ff8194f0.jpeg"
+              src={import.meta.env.VITE_COMPANY_LOGO_URL || 'https://storage.googleapis.com/msgsndr/b8qvo7VooP3JD3dIZU42/media/683efc8fd5817643ff8194f0.jpeg'}
               alt="Company Logo"
               sx={{
                 height: { xs: 55, sm: 75 },
@@ -1309,7 +1309,7 @@ const QuoteDetailsPage = () => {
 
                       const final = formatPrice(final_total + custom_service_total); // numeric addition
                       // const final = formatPrice(final_total) + formatPrice(custom_service_total)
-                      const taxRate = 0.0825 // 8.25% tax
+                      const taxRate = parseFloat(import.meta.env.VITE_TAX_RATE) || 0.0825
                       const taxAmount = final * taxRate
                       const finalWithTax = Number(final) + taxAmount
 
@@ -1323,7 +1323,7 @@ const QuoteDetailsPage = () => {
 
                           {/* Tax */}
                           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <Typography variant="body2">Tax (8.25%)</Typography>
+                            <Typography variant="body2">Tax ({(taxRate * 100).toFixed(2)}%)</Typography>
                             <Typography variant="subtitle2">${formatPrice(taxAmount)}</Typography>
                           </Box>
 

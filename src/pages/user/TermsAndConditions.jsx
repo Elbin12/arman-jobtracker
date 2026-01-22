@@ -6,7 +6,7 @@ function TermsAndConditions() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-3">
               <img
-                src="https://storage.googleapis.com/msgsndr/b8qvo7VooP3JD3dIZU42/media/683efc8fd5817643ff8194f0.jpeg"
+                src={import.meta.env.VITE_COMPANY_LOGO_URL || 'https://storage.googleapis.com/msgsndr/b8qvo7VooP3JD3dIZU42/media/683efc8fd5817643ff8194f0.jpeg'}
                 alt="TruShine Window Cleaning Logo"
                 className="h-14 w-14 rounded-lg object-cover"
               />

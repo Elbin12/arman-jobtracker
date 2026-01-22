@@ -343,18 +343,23 @@ const calendarStyles = `
     position: relative !important;
   }
   .rbc-month-view .rbc-day-bg.has-daily-total {
-    display: flex !important;
-    flex-direction: column !important;
     overflow: visible !important;
   }
-  .rbc-month-view .rbc-day-bg.has-daily-total .rbc-events-container {
-    flex: 1 1 auto !important;
-    overflow: visible !important;
+  @media (min-width: 640px) {
+    .rbc-month-view .rbc-day-bg.has-daily-total {
+      display: flex !important;
+      flex-direction: column !important;
+    }
+    .rbc-month-view .rbc-day-bg.has-daily-total .rbc-events-container {
+      flex: 1 1 auto !important;
+      overflow: visible !important;
+    }
   }
   @media (max-width: 639px) {
     .rbc-month-view .rbc-day-bg.has-daily-total {
       min-height: auto !important;
       padding-bottom: 0 !important;
+      display: block !important;
     }
   }
   .rbc-month-view .rbc-row-content {
@@ -375,25 +380,65 @@ const calendarStyles = `
     display: block !important;
     visibility: visible !important;
     opacity: 1 !important;
-    flex-shrink: 0 !important;
-    min-height: 24px !important;
+    pointer-events: none !important;
+    white-space: nowrap !important;
   }
-  @media (min-width: 640px) {
-    .daily-job-total {
-      min-height: 28px !important;
-      padding: 0px 0px 0px 0px !important;
-    }
-  }
+  /* Mobile styles - top left position */
   @media (max-width: 639px) {
     .daily-job-total {
-      padding: 0px 0px 0px 0px !important;
-      min-height: 24px !important;
+      position: absolute !important;
+      top: 2px !important;
+      left: 2px !important;
+      z-index: 999 !important;
+      max-width: calc(100% - 4px) !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      font-size: 7px !important;
+      font-weight: 700 !important;
+      color: #111827 !important;
+      padding: 2px 4px !important;
+      margin: 0 !important;
+      text-align: left !important;
     }
-    .daily-job-total span:first-child {
-      font-size: 8px !important;
+    .rbc-month-view .rbc-day-bg.has-daily-total {
+      position: relative !important;
+      overflow: visible !important;
     }
-    .daily-job-total span:last-child {
+    .rbc-month-view .rbc-date-cell {
+      z-index: 1 !important;
+      position: relative !important;
+    }
+  }
+  /* Desktop styles - top left position */
+  @media (min-width: 640px) {
+    .daily-job-total {
+      position: absolute !important;
+      top: 2px !important;
+      left: 2px !important;
+      z-index: 999 !important;
+      max-width: calc(100% - 4px) !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
       font-size: 10px !important;
+      font-weight: 700 !important;
+      color: #111827 !important;
+      padding: 2px 4px !important;
+      margin: 0 !important;
+      text-align: left !important;
+    }
+    .rbc-month-view .rbc-day-bg.has-daily-total {
+      position: relative !important;
+      overflow: visible !important;
+    }
+    .rbc-month-view .rbc-date-cell {
+      z-index: 1 !important;
+      position: relative !important;
     }
   }
   .rbc-month-view .rbc-day-bg.has-daily-total .rbc-events-container {
@@ -401,7 +446,7 @@ const calendarStyles = `
   }
   .rbc-month-view .rbc-events-container {
     padding: 2px 1px !important;
-    position: relative !important;
+    position: relative !important;image.png
   }
   .rbc-month-view .rbc-day-bg {
     padding: 2px !important;
@@ -409,9 +454,6 @@ const calendarStyles = `
   .rbc-month-view .rbc-event {
     position: relative !important;
     z-index: 2 !important;
-  }
-  .daily-job-total {
-    z-index: 1 !important;
   }
 `;
 import { JobCard } from "../jobs/JobCard";
@@ -1311,58 +1353,28 @@ appointmentsParams.search = filterParams.appointment_search;
             const totalEl = document.createElement('div');
             totalEl.className = 'daily-job-total';
             
-            // Create a more structured display with label and amount
-            // Use responsive font sizes for mobile
-            totalEl.innerHTML = `
-              <span style="display: block; font-size: 8px; font-weight: 500; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1px;">Total</span>
-              <span style="display: block; font-size: 10px; font-weight: 700; color: #111827; line-height: 1.2;">${formatPrice(dayTotal)}</span>
-            `;
+            // Single line format for all devices - CSS will handle positioning
+            totalEl.textContent = `Total: ${formatPrice(dayTotal)}`;
             
-            // Add media query styles for larger screens
-            const style = document.createElement('style');
-            style.textContent = `
-              @media (min-width: 640px) {
-                .daily-job-total span:first-child {
-                  font-size: 9px !important;
-                  margin-bottom: 2px !important;
-                }
-                .daily-job-total span:last-child {
-                  font-size: 11px !important;
-                }
-              }
-            `;
-            if (!document.head.querySelector('style[data-daily-total]')) {
-              style.setAttribute('data-daily-total', 'true');
-              document.head.appendChild(style);
-            }
-            
+            // Base styles that apply to all devices
             totalEl.style.cssText = `
-              width: 100%;
-              text-align: center;
-              padding: 5px 3px 6px 3px;
-              margin-top: 4px;
-              margin-bottom: 4px;
-              background: linear-gradient(to bottom, #f9fafb 0%, #ffffff 100%);
-              pointer-events: none;
-              box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.03);
               display: block !important;
               visibility: visible !important;
               opacity: 1 !important;
-              flex-shrink: 0;
-              min-height: 28px;
+              pointer-events: none !important;
+              white-space: nowrap !important;
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
             `;
-            
-            // Add responsive padding for mobile
-            if (window.innerWidth < 640) {
-              totalEl.style.padding = '4px 2px 5px 2px';
-              totalEl.style.minHeight = '24px';
-            }
             
             // Add class to identify cells with totals for CSS targeting
             dayBgCell.classList.add('has-daily-total');
+            dayBgCell.style.position = 'relative';
             
-            // Find the events container and append the total after it (in normal flow)
+            // Find the events container
             const eventsContainer = dayBgCell.querySelector('.rbc-events-container');
+            
+            // For desktop: Insert after events container in normal flow
+            // For mobile: CSS will position it absolutely at top left
             if (eventsContainer) {
               // Insert the total right after the events container
               eventsContainer.parentNode.insertBefore(totalEl, eventsContainer.nextSibling);
@@ -2403,7 +2415,9 @@ appointmentsParams.search = filterParams.appointment_search;
                     </Button>
                 )}
                 <Link 
-                  to={user?.role === "worker" ? `https://app.theservicepilot.com/v2/location/b8qvo7VooP3JD3dIZU42/calendars/view?user_ids=${user?.ghl_user_id}` : "https://app.theservicepilot.com/v2/location/b8qvo7VooP3JD3dIZU42/calendars/view"}
+                  to={user?.role === "worker" 
+                    ? `${import.meta.env.VITE_SERVICE_PILOT_APP_URL || 'https://app.theservicepilot.com'}/v2/location/${import.meta.env.VITE_LOCATION_ID || 'b8qvo7VooP3JD3dIZU42'}/calendars/view?user_ids=${user?.ghl_user_id}` 
+                    : `${import.meta.env.VITE_SERVICE_PILOT_APP_URL || 'https://app.theservicepilot.com'}/v2/location/${import.meta.env.VITE_LOCATION_ID || 'b8qvo7VooP3JD3dIZU42'}/calendars/view`}
                   target="_blank"
                   rel="noopener noreferrer"
                   >
@@ -2724,7 +2738,7 @@ appointmentsParams.search = filterParams.appointment_search;
                   <div className="flex items-center justify-between">
                     <Label className="text-sm font-semibold">Calendar</Label>
                     <a
-                      href={`https://app.theservicepilot.com/v2/location/b8qvo7VooP3JD3dIZU42/calendars/view?user_ids=${user?.ghl_user_id}`}
+                      href={`${import.meta.env.VITE_SERVICE_PILOT_APP_URL || 'https://app.theservicepilot.com'}/v2/location/${import.meta.env.VITE_LOCATION_ID || 'b8qvo7VooP3JD3dIZU42'}/calendars/view?user_ids=${user?.ghl_user_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-sm text-primary hover:text-primary/80 decoration-primary/30 hover:decoration-primary/60 transition-all duration-200 flex items-center gap-1.5 font-medium"
@@ -2938,7 +2952,7 @@ appointmentsParams.search = filterParams.appointment_search;
                   <div className="flex items-center justify-between">
                     <Label className="text-sm font-semibold">Calendar</Label>
                     <a
-                      href={`https://app.theservicepilot.com/v2/location/b8qvo7VooP3JD3dIZU42/calendars/view?user_ids=${user?.ghl_user_id}`}
+                      href={`${import.meta.env.VITE_SERVICE_PILOT_APP_URL || 'https://app.theservicepilot.com'}/v2/location/${import.meta.env.VITE_LOCATION_ID || 'b8qvo7VooP3JD3dIZU42'}/calendars/view?user_ids=${user?.ghl_user_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-sm text-primary hover:text-primary/80 decoration-primary/30 hover:decoration-primary/60 transition-all duration-200 flex items-center gap-1.5 font-medium"

@@ -40,6 +40,8 @@ import {
   Edit,
   Delete,
   DeleteForever,
+  Lock,
+  LockOpen,
 } from '@mui/icons-material';
 import { useCalculatePriceMutation } from '../../../store/api/user/priceApi';
 import { useCreateCustomProductMutation, useDeleteCustomProductMutation, useGetQuoteDetailsQuery, useUpdateCustomProductMutation, useDeleteServiceMutation, useGetGlobalPriceQuery, useRejectQuoteMutation, useUpdateAdditionalDataMutation } from '../../../store/api/user/quoteApi';
@@ -100,6 +102,9 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [lockNotesDialogOpen, setLockNotesDialogOpen] = useState(false);
+  const [showLockButton, setShowLockButton] = useState(false);
+  const [isLockingNotes, setIsLockingNotes] = useState(false);
 
   const [searchParams] = useSearchParams();
   const submissionIdFromUrl = searchParams.get("submission_id");
@@ -126,6 +131,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
 
   const sigCanvasRef = useRef(null);
   const autoSaveTimeoutRef = useRef(null);
+  const notesTextareaRef = useRef(null);
 
   const quoteData = useMemo(() => response, [response]);
 
@@ -233,12 +239,52 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
     }
   }, [quoteData?.additional_data?.additional_notes]);
 
+  // Check if notes are submitted (read-only)
+  const isNotesSubmitted = quoteData?.additional_data?.is_submitted === true;
+
+  // Reset lock button visibility when notes are already submitted
+  // Also show lock button if notes exist but aren't locked yet
+  useEffect(() => {
+    if (isNotesSubmitted) {
+      setShowLockButton(false);
+    } else if (additionalNotes && additionalNotes.trim().length > 0 && quoteData?.additional_data?.additional_notes) {
+      // Show lock button if notes exist in the database (have been saved before)
+      setShowLockButton(true);
+    }
+  }, [isNotesSubmitted, additionalNotes, quoteData?.additional_data?.additional_notes]);
+
   const toggleServiceExpansion = (serviceId) => {
     setExpandedServices((prev) => ({
       ...prev,
       [serviceId]: !prev[serviceId],
     }));
   };
+
+  // Auto-resize textarea based on content
+  const adjustTextareaHeight = useCallback(() => {
+    // Access the textarea element through the ref
+    const textarea = notesTextareaRef.current;
+    if (textarea && textarea.tagName === 'TEXTAREA') {
+      // Reset height to auto to get the correct scrollHeight
+      textarea.style.height = 'auto';
+      // Calculate new height based on content
+      const minHeight = 80; // Minimum height in pixels (approximately 3 rows)
+      const maxHeight = 300; // Maximum height in pixels
+      const newHeight = Math.min(Math.max(textarea.scrollHeight, minHeight), maxHeight);
+      textarea.style.height = `${newHeight}px`;
+      // Show scrollbar if content exceeds max height
+      textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden';
+    }
+  }, []);
+
+  // Adjust textarea height when content changes
+  useEffect(() => {
+    // Use a small timeout to ensure DOM is updated
+    const timer = setTimeout(() => {
+      adjustTextareaHeight();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [additionalNotes, adjustTextareaHeight]);
 
   // Auto-save additional notes with debouncing
   const autoSaveAdditionalNotes = useCallback((notes) => {
@@ -247,8 +293,8 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
       clearTimeout(autoSaveTimeoutRef.current);
     }
 
-    // Only auto-save if submission_id exists
-    if (!data.submission_id) {
+    // Only auto-save if submission_id exists and notes are not submitted
+    if (!data.submission_id || isNotesSubmitted) {
       return;
     }
 
@@ -267,6 +313,10 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
         // Show success toast
         setToastMessage('Additional notes saved successfully');
         setToastOpen(true);
+        // Show lock button after successful save (only if not already submitted)
+        if (!isNotesSubmitted && notes && notes.trim().length > 0) {
+          setShowLockButton(true);
+        }
       } catch (error) {
         console.error('Failed to auto-save additional notes:', error);
         // Show error toast
@@ -276,7 +326,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
         setIsSavingNotes(false);
       }
     }, 1000); // Wait 1 second after user stops typing
-  }, [data.submission_id, updateAdditionalData]);
+  }, [data.submission_id, updateAdditionalData, isNotesSubmitted]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -286,6 +336,43 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
       }
     };
   }, []);
+
+  // Permanently lock notes (set is_submitted to true)
+  const handleLockNotes = async () => {
+    if (!data.submission_id || !additionalNotes || additionalNotes.trim().length === 0) {
+      return;
+    }
+
+    setIsLockingNotes(true);
+    try {
+      await updateAdditionalData({
+        submissionId: data.submission_id,
+        payload: {
+          additional_data: {
+            additional_notes: additionalNotes,
+            is_submitted: true,
+          },
+        },
+      }).unwrap();
+      
+      // Close dialog and hide lock button
+      setLockNotesDialogOpen(false);
+      setShowLockButton(false);
+      
+      // Show success toast
+      setToastMessage('Additional notes have been permanently saved and locked');
+      setToastOpen(true);
+      
+      // Refetch quote data to update the UI
+      refetch();
+    } catch (error) {
+      console.error('Failed to lock additional notes:', error);
+      setToastMessage('Failed to lock additional notes. Please try again.');
+      setToastOpen(true);
+    } finally {
+      setIsLockingNotes(false);
+    }
+  };
 
   const handlePackageSelect = (serviceSelectionId, packageQuote) => {
     const newSelected = {
@@ -515,7 +602,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
         <Box mb={4}>
           <Box display="flex" justifyContent="center">
             <img
-              src="https://storage.googleapis.com/msgsndr/b8qvo7VooP3JD3dIZU42/media/683efc8fd5817643ff8194f0.jpeg"
+              src={import.meta.env.VITE_COMPANY_LOGO_URL || 'https://storage.googleapis.com/msgsndr/b8qvo7VooP3JD3dIZU42/media/683efc8fd5817643ff8194f0.jpeg'}
               alt="Company Logo"
               style={{
                 maxHeight: "80px",
@@ -574,7 +661,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
             >
               Powered by{" "}
               <a
-                href="https://theservicepilot.com/"
+                href={import.meta.env.VITE_SERVICE_PILOT_WEBSITE_URL || 'https://theservicepilot.com/'}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -987,42 +1074,144 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
         <Card sx={{ mb: 3 }}>
           <CardContent sx={{ p: 3 }}>
             <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
-              <Typography variant="h6" fontWeight={600} sx={{ color: '#023c8f' }}>
-                Additional Notes
-              </Typography>
-              {isSavingNotes && (
-                <Box display="flex" alignItems="center" gap={1}>
-                  <CircularProgress size={16} sx={{ color: '#023c8f' }} />
-                  <Typography variant="caption" sx={{ color: '#023c8f', fontSize: '0.75rem' }}>
-                    Saving...
-                  </Typography>
-                </Box>
-              )}
+              <Box display="flex" alignItems="center" gap={1}>
+                <Typography variant="h6" fontWeight={600} sx={{ color: '#023c8f' }}>
+                  Additional Notes
+                </Typography>
+                {isNotesSubmitted && (
+                  <Lock sx={{ color: '#666', fontSize: 18 }} />
+                )}
+              </Box>
+              <Box display="flex" alignItems="center" gap={1}>
+                {isSavingNotes && (
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <CircularProgress size={16} sx={{ color: '#023c8f' }} />
+                    <Typography variant="caption" sx={{ color: '#023c8f', fontSize: '0.75rem' }}>
+                      Saving...
+                    </Typography>
+                  </Box>
+                )}
+                {showLockButton && !isNotesSubmitted && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<Lock />}
+                    onClick={() => setLockNotesDialogOpen(true)}
+                    sx={{
+                      color: '#023c8f',
+                      borderColor: '#023c8f',
+                      '&:hover': {
+                        backgroundColor: '#f5f5f5',
+                        borderColor: '#023c8f',
+                      },
+                      fontSize: '0.75rem',
+                      textTransform: 'none',
+                      ml: 1,
+                    }}
+                  >
+                    Lock Notes
+                  </Button>
+                )}
+              </Box>
             </Box>
             <TextField
-              placeholder="Any special requests or notes..."
+              inputRef={notesTextareaRef}
+              placeholder="Share any special requests, instructions, or notes that will help us serve you better..."
               multiline
-              rows={3}
               fullWidth
+              disabled={isNotesSubmitted}
               value={additionalNotes || ''}
               onChange={(e) => {
+                if (isNotesSubmitted) return;
                 const newValue = e.target.value;
                 setAdditionalNotes(newValue);
                 onUpdate({ additionalNotes: newValue, termsAccepted });
                 // Auto-save with debouncing
                 autoSaveAdditionalNotes(newValue);
+                // Adjust height after state update
+                setTimeout(adjustTextareaHeight, 0);
+              }}
+              onInput={(e) => {
+                if (isNotesSubmitted) return;
+                // Adjust height on input for immediate feedback
+                adjustTextareaHeight();
+              }}
+              helperText={
+                <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.5}>
+                  <Typography variant="caption" sx={{ color: '#666', fontSize: '0.75rem' }}>
+                    {isNotesSubmitted 
+                      ? 'These notes are locked and cannot be edited' 
+                      : 'Your notes are automatically saved'}
+                  </Typography>
+                  <Typography 
+                    variant="caption" 
+                    sx={{ 
+                      color: (additionalNotes?.length || 0) > 1000 ? '#d32f2f' : '#666',
+                      fontSize: '0.75rem',
+                      fontWeight: (additionalNotes?.length || 0) > 1000 ? 600 : 400
+                    }}
+                  >
+                    {(additionalNotes?.length || 0)} / 2000 characters
+                  </Typography>
+                </Box>
+              }
+              inputProps={{
+                maxLength: 2000,
+                readOnly: isNotesSubmitted,
               }}
               sx={{
                 '& .MuiOutlinedInput-root': {
+                  transition: 'all 0.2s ease-in-out',
                   '&:hover fieldset': {
-                    borderColor: '#023c8f',
+                    borderColor: isNotesSubmitted ? '#e0e0e0' : '#023c8f',
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#023c8f',
+                    borderColor: isNotesSubmitted ? '#e0e0e0' : '#023c8f',
                   },
+                  '&.Mui-disabled': {
+                    backgroundColor: '#f5f5f5',
+                    '& fieldset': {
+                      borderColor: '#e0e0e0',
+                    },
+                  },
+                  '& textarea': {
+                    resize: 'none',
+                    overflow: 'hidden',
+                    minHeight: '80px !important',
+                    lineHeight: '1.5',
+                    padding: '14px',
+                    cursor: isNotesSubmitted ? 'not-allowed' : 'text',
+                  },
+                },
+                '& .MuiFormHelperText-root': {
+                  marginLeft: 0,
+                  marginRight: 0,
                 },
               }}
             />
+            {/* Warning message when notes are editable */}
+            {!isNotesSubmitted && (
+              <Alert 
+                severity="warning" 
+                sx={{ 
+                  mt: 2,
+                  '& .MuiAlert-icon': {
+                    color: '#ed6c02',
+                  },
+                  '& .MuiAlert-message': {
+                    color: '#856404',
+                    fontSize: '0.875rem',
+                  }
+                }}
+              >
+                <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
+                  ⚠️ Important Notice
+                </Typography>
+                <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                  These notes are managed by the internal team. Please stay away from editing this section unless absolutely necessary.
+                </Typography>
+              </Alert>
+            )}
           </CardContent>
         </Card>
 
@@ -1549,6 +1738,92 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
             }}
           >
             {isRejecting ? 'Rejecting...' : 'Reject Quote'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Lock Notes Confirmation Dialog */}
+      <Dialog 
+        open={lockNotesDialogOpen} 
+        onClose={() => {
+          if (!isLockingNotes) {
+            setLockNotesDialogOpen(false);
+          }
+        }} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+          }
+        }}
+      >
+        <DialogTitle 
+          sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 1, 
+            color: '#023c8f',
+            pb: 1,
+            borderBottom: '1px solid #e0e0e0'
+          }}
+        >
+          <Lock sx={{ color: '#023c8f', fontSize: 24 }} />
+          <Typography variant="h6" component="span" fontWeight={600}>
+            Permanently Lock Additional Notes
+          </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3, pb: 1 }}>
+          <Typography variant="body1" gutterBottom sx={{ mb: 2, color: '#333' }}>
+            Are you sure you want to permanently lock these additional notes?
+          </Typography>
+          <Box 
+            sx={{ 
+              bgcolor: '#fff3cd', 
+              border: '1px solid #ffc107',
+              borderRadius: 1,
+              p: 2,
+              mb: 2
+            }}
+          >
+            <Typography variant="body2" sx={{ color: '#856404', fontSize: '0.875rem' }}>
+              <strong>Important:</strong> Once locked, you will not be able to edit these notes. This action cannot be undone.
+            </Typography>
+          </Box>
+          <Typography variant="body2" sx={{ color: '#666', fontSize: '0.875rem' }}>
+            Your notes will be saved permanently and marked as submitted.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 3, pt: 2, borderTop: '1px solid #e0e0e0', gap: 1 }}>
+          <Button
+            onClick={() => {
+              if (!isLockingNotes) {
+                setLockNotesDialogOpen(false);
+              }
+            }}
+            disabled={isLockingNotes}
+            sx={{
+              color: '#666',
+              '&:hover': {
+                backgroundColor: '#f5f5f5',
+              }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleLockNotes}
+            disabled={isLockingNotes}
+            variant="contained"
+            startIcon={isLockingNotes ? <CircularProgress size={16} /> : <Lock />}
+            sx={{
+              bgcolor: '#023c8f',
+              '&:hover': { bgcolor: '#022d6f' },
+              '&:disabled': { bgcolor: '#b0bec5' }
+            }}
+          >
+            {isLockingNotes ? 'Locking...' : 'Lock Notes Permanently'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -280,7 +280,7 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
               {job.customer_name && job.ghl_contact_id ? (
                 <Typography 
                   component="a"
-                  href={`https://app.theservicepilot.com/v2/location/b8qvo7VooP3JD3dIZU42/contacts/detail/${job.ghl_contact_id}/`}
+                  href={`${import.meta.env.VITE_SERVICE_PILOT_APP_URL || 'https://app.theservicepilot.com'}/v2/location/${import.meta.env.VITE_LOCATION_ID || 'b8qvo7VooP3JD3dIZU42'}/contacts/detail/${job.ghl_contact_id}/`}
                   target="_blank"
                   rel="noopener noreferrer"
                   variant="body1" 
@@ -403,7 +403,7 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                   {job.ghl_contact_id ? (
                     <Typography 
                       component="a"
-                      href={`https://app.gohighlevel.com/v2/location/b8qvo7VooP3JD3dIZU42/contacts/detail/${job.ghl_contact_id}/`}
+                      href={`${import.meta.env.VITE_GOHIGHLEVEL_APP_URL || 'https://app.gohighlevel.com'}/v2/location/${import.meta.env.VITE_LOCATION_ID || 'b8qvo7VooP3JD3dIZU42'}/contacts/detail/${job.ghl_contact_id}/`}
                       target="_blank"
                       rel="noopener noreferrer"
                       variant="body2" 
@@ -443,7 +443,7 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                     }}
                     onClick={() =>
                       window.open(
-                        `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.customer_address)}`,
+                        `${import.meta.env.VITE_GOOGLE_MAPS_SEARCH_URL || 'https://www.google.com/maps/search/?api=1&query='}${encodeURIComponent(job.customer_address)}`,
                         "_blank",
                       )
                     }

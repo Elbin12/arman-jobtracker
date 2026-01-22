@@ -85,20 +85,18 @@ export const handleDownloadPDF = async (
     // ------------------------
     // Logo + Header
     // ------------------------
-    const logoBase64 = await getBase64FromUrl(
-      "https://storage.googleapis.com/msgsndr/b8qvo7VooP3JD3dIZU42/media/683efc8fd5817643ff8194f0.jpeg"
-    )
+    const logoBase64 = await getBase64FromUrl(import.meta.env.VITE_COMPANY_LOGO_URL || 'https://storage.googleapis.com/msgsndr/b8qvo7VooP3JD3dIZU42/media/683efc8fd5817643ff8194f0.jpeg')
     const logoSize = 30
     doc.addImage(logoBase64, "JPEG", margin, yPosition, logoSize, logoSize)
     const textOffsetY = yPosition + logoSize / 2 - 5
 
     doc.setFontSize(18)
     doc.setFont(undefined, "bold")
-    doc.text("TruShine Window Cleaning", margin + logoSize + 10, textOffsetY)
+    doc.text(import.meta.env.VITE_COMPANY_NAME || 'TruShine Window Cleaning', margin + logoSize + 10, textOffsetY)
 
     doc.setFontSize(10)
     doc.setFont(undefined, "normal")
-    doc.text("Professional Cleaning Services", margin + logoSize + 10, textOffsetY + 8)
+    doc.text(import.meta.env.VITE_COMPANY_TAGLINE || 'Professional Cleaning Services', margin + logoSize + 10, textOffsetY + 8)
 
     yPosition += logoSize + 15
 
@@ -269,7 +267,7 @@ export const handleDownloadPDF = async (
     const subtotal = totalServicePrice
     const adjustment = subtotal < (globalPriceData?.base_price || 0) ? (globalPriceData?.base_price || 0) - subtotal : 0
     const final = subtotal + adjustment
-    const taxRate = 0.0825 // 8.25% tax
+    const taxRate = parseFloat(import.meta.env.VITE_TAX_RATE) || 0.0825
     const taxAmount = final * taxRate
     const finalWithTax = final + taxAmount
 
@@ -302,7 +300,8 @@ export const handleDownloadPDF = async (
 
     // Tax
     checkPageBreak(1)
-    doc.text("Tax (8.25%)", margin, yPosition)
+    const taxRatePercent = ((parseFloat(import.meta.env.VITE_TAX_RATE) || 0.0825) * 100).toFixed(2)
+    doc.text(`Tax (${taxRatePercent}%)`, margin, yPosition)
     doc.text(formatPrice(taxAmount), pageWidth - margin - 40, yPosition)
     yPosition += 6
 
@@ -392,7 +391,8 @@ export const handleDownloadPDF = async (
     // doc.text("Weather conditions may affect scheduling. Additional charges may apply for unlisted services.", margin, yPosition)
 
     const timestamp = new Date().toISOString().split("T")[0]
-    doc.save(`TruShine-Quote-${quote.id}-${timestamp}.pdf`)
+    const companyName = import.meta.env.VITE_COMPANY_NAME || 'TruShine Window Cleaning'
+    doc.save(`${companyName.replace(/\s+/g, '-')}-Quote-${quote.id}-${timestamp}.pdf`)
   } catch (error) {
     alert("Failed to generate PDF. Please try again.")
   } finally {

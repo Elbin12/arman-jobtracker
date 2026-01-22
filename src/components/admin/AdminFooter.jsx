@@ -23,7 +23,7 @@ const AdminFooter = () => {
             >
                 Powered by{" "}
                 <a
-                href="https://theservicepilot.com/"
+                href={import.meta.env.VITE_SERVICE_PILOT_WEBSITE_URL || 'https://theservicepilot.com/'}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
