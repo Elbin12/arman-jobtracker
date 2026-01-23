@@ -1215,6 +1215,29 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
           </CardContent>
         </Card>
 
+        {/* Quoted By */}
+        {quoteData.quoted_by_details && (
+          <Card sx={{ mb: 3 }}>
+            <CardContent sx={{ px: 3, py: 2 }}>
+              <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f' }}>
+                Quoted By
+              </Typography>
+              <Box
+                sx={{
+                  // border: '1px solid #e0e0e0',
+                  // borderRadius: 1,
+                  p: 2,
+                  bgcolor: '#f8f9fa',
+                }}
+              >
+                <Typography variant="body1" sx={{ fontWeight: 500, color: '#023c8f' }}>
+                  {quoteData.quoted_by_details.full_name || `${quoteData.quoted_by_details.first_name || ""} ${quoteData.quoted_by_details.last_name || ""}`.trim()}
+                </Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Order Summary */}
         <Card sx={{ mb: 3 }}>
           <CardContent sx={{ p: 3 }}>

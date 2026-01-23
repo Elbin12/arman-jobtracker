@@ -811,7 +811,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
   const [selectedCategories, setSelectedCategories] = useState({
     jobs: true,
     appointments: false,
-    estimates: false,
+    estimates: true,
   });
   const [selectedAssignees, setSelectedAssignees] = useState({});
   const [filterParams, setFilterParams] = useState({});

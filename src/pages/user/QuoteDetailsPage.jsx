@@ -1184,8 +1184,8 @@ const QuoteDetailsPage = () => {
                           </Typography>
                           <Box
                             sx={{
-                              border: "1px solid #e2e8f0",
-                              borderRadius: 1,
+                              // border: "1px solid #e2e8f0",
+                              // borderRadius: 1,
                               p: 2,
                               bgcolor: "#f8fafc",
                             }}
@@ -1193,11 +1193,11 @@ const QuoteDetailsPage = () => {
                             <Typography variant="body1" sx={{ fontWeight: 500, color: "#023c8f" }}>
                               {quoted_by_details.full_name || `${quoted_by_details.first_name || ""} ${quoted_by_details.last_name || ""}`.trim()}
                             </Typography>
-                            {quoted_by_details.email && (
+                            {/* {quoted_by_details.email && (
                               <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5 }}>
                                 {quoted_by_details.email}
                               </Typography>
-                            )}
+                            )} */}
                           </Box>
                         </Box>
                       )}
