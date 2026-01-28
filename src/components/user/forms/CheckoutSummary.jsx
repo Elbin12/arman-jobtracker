@@ -1208,7 +1208,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                   ⚠️ Important Notice
                 </Typography>
                 <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
-                  These notes are managed by the internal team. Please stay away from editing this section unless absolutely necessary.
+                The Note area is reserved for internal notes for employees and staff.
                 </Typography>
               </Alert>
             )}

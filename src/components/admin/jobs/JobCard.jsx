@@ -14,13 +14,14 @@ import {
   Collapse,
   Divider,
 } from "@mui/material"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Button } from "@/components/ui/button"
 import {
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select as MuiSelect,
-} from "@mui/material"
-import { Menu } from "@mui/material"
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Edit,
   Trash2,
@@ -50,8 +51,6 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
   const [displayStatus, setDisplayStatus] = useState(job?.status)
   const [updateJob] = useUpdateJobMutation()
   const { toast } = useToast()
-
-  const [menuAnchor, setMenuAnchor] = useState(null)
 
   // Update displayStatus when job status changes externally
   useEffect(() => {
@@ -247,19 +246,19 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
     <>
       <Card
         sx={{
-          // height: '100%',
+          height: '100%',
           display: 'flex',
           flexDirection: 'column',
         }}
       >
-        <CardContent sx={{ p: 3, flex: "0 0 auto", display: 'flex', flexDirection: 'column' }}>
+        <CardContent sx={{ p: 3, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
           {/* Header - Responsive height */}
           <Box sx={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'flex-start', 
             mb: 2,
-            // minHeight: { xs: 'auto', sm: '64px' }, // Responsive minimum height
+            minHeight: { xs: 'auto', sm: '64px' }, // Responsive minimum height
           }}>
             <Box sx={{ flex: 1, pr: 1 }}>
               <Typography 
@@ -273,7 +272,7 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                   WebkitBoxOrient: 'vertical',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  // minHeight: { xs: 'auto', sm: '32px' }, // Responsive minimum height
+                  minHeight: { xs: 'auto', sm: '32px' }, // Responsive minimum height
                 }}
               >
                 {job.title || "Untitled Job"}
@@ -289,7 +288,7 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                     color: 'primary.main', 
                     fontWeight: 500,
                     lineHeight: 1.3,
-                    // minHeight: { xs: 'auto', sm: '24px' }, // Responsive minimum height
+                    minHeight: { xs: 'auto', sm: '24px' }, // Responsive minimum height
                     textDecoration: 'none',
                     cursor: 'pointer',
                     '&:hover': {
@@ -306,7 +305,7 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                     color: 'text.secondary', 
                     fontWeight: 500,
                     lineHeight: 1.3,
-                    // minHeight: { xs: 'auto', sm: '24px' }, // Responsive minimum height
+                    minHeight: { xs: 'auto', sm: '24px' }, // Responsive minimum height
                   }}
                 >
                   {job.customer_name ? toTitleCase(job.customer_name) : '\u00A0'}
@@ -322,27 +321,34 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                 sx={{ 
                   color: 'text.secondary',
                   minWidth: { xs: '44px', sm: 'auto' },
-                  // minHeight: { xs: '44px', sm: 'auto' },
+                  minHeight: { xs: '44px', sm: 'auto' },
                 }}
               >
                 <Edit size={18} />
               </IconButton>
-              <IconButton onClick={(e) => setMenuAnchor(e.currentTarget)}>
-                <MoreVertical size={18} />
-              </IconButton>
-
-              <Menu
-                anchorEl={menuAnchor}
-                open={Boolean(menuAnchor)}
-                onClose={() => setMenuAnchor(null)}
-                disablePortal // 🔥 IMPORTANT
-              >
-                <MenuItem onClick={() => setDeleteDialogOpen(true)}>
-                  <Trash2 size={16} style={{ marginRight: 8 }} />
-                  Delete
-                </MenuItem>
-              </Menu>
-
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <IconButton 
+                    size="small" 
+                    title="More options"
+                    aria-label="More options"
+                    sx={{ 
+                      color: 'text.secondary',
+                      minWidth: { xs: '44px', sm: 'auto' },
+                      minHeight: { xs: '44px', sm: 'auto' },
+                    }}
+                  >
+                    <MoreVertical size={18} />
+                  </IconButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="z-[1300]">
+                  <DropdownMenuItem onClick={() => setDeleteDialogOpen(true)}>
+                    <Trash2 size={16} className="mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                  {/* Add Duplicate and Archive options here if needed */}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </Box>
           </Box>
 
@@ -352,7 +358,7 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
             gap: 1, 
             mb: 3, 
             flexWrap: "wrap",
-            // minHeight: { xs: 'auto', sm: '32px' }, // Responsive minimum height
+            minHeight: { xs: 'auto', sm: '32px' }, // Responsive minimum height
             alignItems: 'flex-start',
           }}>
             {statusBadges.length > 0 ? (
@@ -397,7 +403,7 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                   {job.ghl_contact_id ? (
                     <Typography 
                       component="a"
-                      href={`${import.meta.env.VITE_GOHIGHLEVEL_APP_URL || 'https://app.gohighlevel.com'}/v2/location/${import.meta.env.VITE_LOCATION_ID || 'b8qvo7VooP3JD3dIZU42'}/contacts/detail/${job.ghl_contact_id}/`}
+                      href={`${import.meta.env.VITE_SERVICE_PILOT_APP_URL || 'https://app.theservicepilot.com'}/v2/location/${import.meta.env.VITE_LOCATION_ID || 'b8qvo7VooP3JD3dIZU42'}/contacts/detail/${job.ghl_contact_id}/`}
                       target="_blank"
                       rel="noopener noreferrer"
                       variant="body2" 
@@ -528,7 +534,7 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
               </Typography>
             {job.items && job.items.length > 0 ? (
               <>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minHeight: '60px' }}>
                 {job.items.map((item, index) => {
                   const serviceName = item.service_name || item.custom_name || "Unknown Service"
                   const itemPrice = parseFloat(item.price) || 0
@@ -554,7 +560,7 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
               </Box>
               </>
             ) : (
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ minHeight: '60px', display: 'flex', alignItems: 'center' }}>
                 <Typography variant="body2" sx={{ fontSize: '0.875rem', color: 'text.secondary', fontStyle: 'italic' }}>
                   No services
                 </Typography>
@@ -563,7 +569,7 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
           </Box>
 
           {/* Invoice URL - Only show for completed jobs - Fixed height */}
-          <Box sx={{ mb: 3, }}>
+          <Box sx={{ mb: 3, minHeight: job.status === "completed" && job.invoice_url ? '100px' : '0px' }}>
             {job.status === "completed" && job.invoice_url && (
               <>
                 <Divider sx={{ mb: 2 }} />
@@ -653,7 +659,7 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
           }
 
           {/* Notes (Collapsible) - Fixed height */}
-          <Box sx={{ mb: 3, overflowAnchor: 'none' }}>
+          <Box sx={{ mb: 3, minHeight: job.notes ? '50px' : '0px' }}>
           {job.notes && (
               <>
               <Box
@@ -797,32 +803,31 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
             <JobCompletionDetails job={job} onUpdate={onUpdate} />
 
           {/* Status Selector */}
-          <FormControl fullWidth size="small">
-            <InputLabel>Status</InputLabel>
-            <MuiSelect
+          <Box>
+            <Select
               value={displayStatus || job?.status}
-              label="Status"
-              onChange={(e) => handleStatusChange(e.target.value)}
+              onValueChange={handleStatusChange}
               disabled={updating}
-              MenuProps={{
-                disablePortal: true, // 🔥 CRITICAL
-              }}
             >
-              <MenuItem value="pending">Pending</MenuItem>
-              <MenuItem
-                value="confirmed"
-                disabled={job?.status === "pending" && job?.slot_reserved_info?.slot_reserved}
-              >
-                Confirmed
-              </MenuItem>
-              <MenuItem value="service_due">Service Due</MenuItem>
-              <MenuItem value="on_the_way">On The Way</MenuItem>
-              <MenuItem value="in_progress">In Progress</MenuItem>
-              <MenuItem value="completed">Completed</MenuItem>
-              <MenuItem value="cancelled">Cancelled</MenuItem>
-            </MuiSelect>
-          </FormControl>
-
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent className="z-[1300]">
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem 
+                  value="confirmed"
+                  disabled={job?.status === "pending" && job?.slot_reserved_info?.slot_reserved === true}
+                >
+                  Confirmed
+                </SelectItem>
+                <SelectItem value="service_due">Service Due</SelectItem>
+                <SelectItem value="on_the_way">On The Way</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+          </Box>
         </CardContent>
       </Card>
 

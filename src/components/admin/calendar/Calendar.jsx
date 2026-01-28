@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarDays, ChevronLeft, ChevronRight, Loader2, RotateCcw, CheckCircle2, Filter, X, Trash2, Plus } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Loader2, RotateCcw, CheckCircle2, Filter, X, Trash2, Plus, User, Phone, Mail, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Calendar as DatePicker } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
@@ -614,6 +614,7 @@ function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, conti
   const isRecurring = resource && (
     resource.job_type === "recurring"
   );
+  const isEstimate = event?.type === "estimate";
   
   // Get the background color from the event style (set by eventStyleGetter)
   // We need to extract it from the parent wrapper's computed style or pass it differently
@@ -765,6 +766,18 @@ function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, conti
             pointerEvents: "none",
           }}>
             (R)
+          </span>
+        )}
+        {isEstimate && (
+          <span className="estimate-indicator" style={{ 
+            flexShrink: 0,
+            fontWeight: "600",
+            fontSize: isMobile ? "8px" : "11px",
+            opacity: 0.9,
+            marginLeft: isMobile ? "2px" : "4px",
+            pointerEvents: "none",
+          }}>
+            (E)
           </span>
         )}
       </div>
@@ -2720,14 +2733,78 @@ appointmentsParams.search = filterParams.appointment_search;
           <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 sm:px-0 sm:pb-0 min-h-0">
             {selectedAppointment && (
               <div className="space-y-4">
+              {/* Customer Information Section - At the Top */}
+              <div className="space-y-3 pb-4 border-b">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Customer Information
+                </Label>
+                <div className="space-y-2.5">
+                  {selectedAppointment.contact_name && (
+                    <div className="flex items-center gap-2">
+                      <User size={16} className="text-muted-foreground flex-shrink-0" />
+                      {selectedAppointment.ghl_contact_id ? (
+                        <a
+                          href={`${import.meta.env.VITE_SERVICE_PILOT_APP_URL || 'https://app.theservicepilot.com'}/v2/location/${import.meta.env.VITE_LOCATION_ID || 'b8qvo7VooP3JD3dIZU42'}/contacts/detail/${selectedAppointment.ghl_contact_id}/`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-primary hover:text-primary/80 hover:underline transition-all duration-200"
+                        >
+                          {selectedAppointment.contact_name}
+                        </a>
+                      ) : (
+                        <span className="text-sm">{selectedAppointment.contact_name}</span>
+                      )}
+                    </div>
+                  )}
+
+                  {selectedAppointment.address && (
+                    <div className="flex items-start gap-2">
+                      <MapPin size={16} className="text-muted-foreground flex-shrink-0 mt-0.5" />
+                      <div 
+                        className="text-sm text-primary hover:text-primary/80 cursor-pointer hover:underline transition-all duration-200"
+                        onClick={() =>
+                          window.open(
+                            `${import.meta.env.VITE_GOOGLE_MAPS_SEARCH_URL || 'https://www.google.com/maps/search/?api=1&query='}${encodeURIComponent(selectedAppointment.address)}`,
+                            "_blank",
+                          )
+                        }
+                      >
+                        {selectedAppointment.address}
+                      </div>
+                    </div>
+                  )}
+
+                  {(selectedAppointment.contact_phone || selectedAppointment.customer_phone || selectedAppointment.phone) && (
+                    <div className="flex items-center gap-2">
+                      <Phone size={16} className="text-muted-foreground flex-shrink-0" />
+                      <a
+                        href={`tel:${selectedAppointment.contact_phone || selectedAppointment.customer_phone || selectedAppointment.phone}`}
+                        className="text-sm text-primary hover:text-primary/80 hover:underline transition-all duration-200"
+                      >
+                        {selectedAppointment.contact_phone || selectedAppointment.customer_phone || selectedAppointment.phone}
+                      </a>
+                    </div>
+                  )}
+
+                  {(selectedAppointment.contact_email || selectedAppointment.customer_email || selectedAppointment.email) && (
+                    <div className="flex items-center gap-2">
+                      <Mail size={16} className="text-muted-foreground flex-shrink-0" />
+                      <a
+                        href={`mailto:${selectedAppointment.contact_email || selectedAppointment.customer_email || selectedAppointment.email}`}
+                        className="text-sm text-primary hover:text-primary/80 hover:underline transition-all duration-200"
+                      >
+                        {selectedAppointment.contact_email || selectedAppointment.customer_email || selectedAppointment.email}
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Appointment Details Section */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-semibold">Title</Label>
                   <span className="text-sm">{selectedAppointment.title || "N/A"}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-semibold">Contact</Label>
-                  <span className="text-sm">{selectedAppointment.contact_name || "N/A"}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-semibold">Assigned To</Label>
@@ -2811,12 +2888,6 @@ appointmentsParams.search = filterParams.appointment_search;
                       : "N/A"}
                   </div>
                 </div>
-                {selectedAppointment.address && (
-                  <div className="space-y-1">
-                    <Label className="text-sm font-semibold">Address</Label>
-                    <div className="text-sm">{selectedAppointment.address}</div>
-                  </div>
-                )}
                 {selectedAppointment.notes && (
                   <div className="space-y-1">
                     <Label className="text-sm font-semibold">Notes</Label>
@@ -2934,14 +3005,78 @@ appointmentsParams.search = filterParams.appointment_search;
           <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 sm:px-0 sm:pb-0 min-h-0">
             {selectedEstimate && (
               <div className="space-y-4">
+              {/* Customer Information Section - At the Top */}
+              <div className="space-y-3 pb-4 border-b">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Customer Information
+                </Label>
+                <div className="space-y-2.5">
+                  {selectedEstimate.contact_name && (
+                    <div className="flex items-center gap-2">
+                      <User size={16} className="text-muted-foreground flex-shrink-0" />
+                      {selectedEstimate.ghl_contact_id ? (
+                        <a
+                          href={`${import.meta.env.VITE_SERVICE_PILOT_APP_URL || 'https://app.theservicepilot.com'}/v2/location/${import.meta.env.VITE_LOCATION_ID || 'b8qvo7VooP3JD3dIZU42'}/contacts/detail/${selectedEstimate.ghl_contact_id}/`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-primary hover:text-primary/80 hover:underline transition-all duration-200"
+                        >
+                          {selectedEstimate.contact_name}
+                        </a>
+                      ) : (
+                        <span className="text-sm">{selectedEstimate.contact_name}</span>
+                      )}
+                    </div>
+                  )}
+
+                  {selectedEstimate.address && (
+                    <div className="flex items-start gap-2">
+                      <MapPin size={16} className="text-muted-foreground flex-shrink-0 mt-0.5" />
+                      <div 
+                        className="text-sm text-primary hover:text-primary/80 cursor-pointer hover:underline transition-all duration-200"
+                        onClick={() =>
+                          window.open(
+                            `${import.meta.env.VITE_GOOGLE_MAPS_SEARCH_URL || 'https://www.google.com/maps/search/?api=1&query='}${encodeURIComponent(selectedEstimate.address)}`,
+                            "_blank",
+                          )
+                        }
+                      >
+                        {selectedEstimate.address}
+                      </div>
+                    </div>
+                  )}
+
+                  {(selectedEstimate.contact_phone || selectedEstimate.customer_phone || selectedEstimate.phone) && (
+                    <div className="flex items-center gap-2">
+                      <Phone size={16} className="text-muted-foreground flex-shrink-0" />
+                      <a
+                        href={`tel:${selectedEstimate.contact_phone || selectedEstimate.customer_phone || selectedEstimate.phone}`}
+                        className="text-sm text-primary hover:text-primary/80 hover:underline transition-all duration-200"
+                      >
+                        {selectedEstimate.contact_phone || selectedEstimate.customer_phone || selectedEstimate.phone}
+                      </a>
+                    </div>
+                  )}
+
+                  {(selectedEstimate.contact_email || selectedEstimate.customer_email || selectedEstimate.email) && (
+                    <div className="flex items-center gap-2">
+                      <Mail size={16} className="text-muted-foreground flex-shrink-0" />
+                      <a
+                        href={`mailto:${selectedEstimate.contact_email || selectedEstimate.customer_email || selectedEstimate.email}`}
+                        className="text-sm text-primary hover:text-primary/80 hover:underline transition-all duration-200"
+                      >
+                        {selectedEstimate.contact_email || selectedEstimate.customer_email || selectedEstimate.email}
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Estimate Details Section */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-semibold">Title</Label>
                   <span className="text-sm">{selectedEstimate.title || "N/A"}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-semibold">Contact</Label>
-                  <span className="text-sm">{selectedEstimate.contact_name || "N/A"}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-semibold">Assigned To</Label>
@@ -3027,12 +3162,6 @@ appointmentsParams.search = filterParams.appointment_search;
                       : "N/A"}
                   </div>
                 </div>
-                {selectedEstimate.address && (
-                  <div className="space-y-1">
-                    <Label className="text-sm font-semibold">Address</Label>
-                    <div className="text-sm">{selectedEstimate.address}</div>
-                  </div>
-                )}
                 {selectedEstimate.notes && (
                   <div className="space-y-1">
                     <Label className="text-sm font-semibold">Notes</Label>

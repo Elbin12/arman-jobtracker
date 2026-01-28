@@ -48,6 +48,7 @@ import {
   useUpdatePayoutMutation,
   useDeletePayoutMutation,
   useGetEmployeesQuery,
+  useUpdateTimeEntryMutation,
 } from '../../../store/api/payrollApi';
 import { TableSkeleton } from '../../../components/ui/skeletons';
 import { useSelector } from 'react-redux';
@@ -57,12 +58,35 @@ const PayrollReports = () => {
   const userRole = user?.role || 'worker';
   const canEditDelete = ['admin', 'supervisor', "manager"].includes(userRole);
 
+  // Helper function to get default date range (1 year ago to today)
+  const getDefaultDateRange = () => {
+    const today = new Date();
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(today.getFullYear() - 1);
+    
+    // Format as YYYY-MM-DD for date input
+    const formatDate = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    
+    return {
+      start_date: formatDate(oneYearAgo),
+      end_date: formatDate(today),
+    };
+  };
+
+  // Memoize default date range to recalculate when needed
+  const defaultDateRange = useMemo(() => getDefaultDateRange(), []);
+
   const [filters, setFilters] = useState({
     employee: '',
     type: '',
     project_title: '',
-    start_date: '',
-    end_date: '',
+    start_date: defaultDateRange.start_date,
+    end_date: defaultDateRange.end_date,
   });
 
   const [page, setPage] = useState(1);
@@ -75,6 +99,9 @@ const PayrollReports = () => {
     rate_percentage: '',
     project_value: '',
     notes: '',
+    check_in_time: '',
+    check_out_time: '',
+    total_hours: '',
   });
   const [formErrors, setFormErrors] = useState({});
   const [notification, setNotification] = useState({ open: false, type: '', message: '' });
@@ -95,6 +122,7 @@ const PayrollReports = () => {
   const { data: payoutsData, isLoading, isFetching, refetch } = useGetPayoutsQuery(queryParams);
   const { data: employeesData, isLoading: loadingEmployees } = useGetEmployeesQuery({ is_active: true });
   const [updatePayout, { isLoading: updating }] = useUpdatePayoutMutation();
+  const [updateTimeEntry] = useUpdateTimeEntryMutation();
   const [deletePayout, { isLoading: deleting }] = useDeletePayoutMutation();
 
   const payouts = payoutsData?.results || [];
@@ -138,14 +166,62 @@ const PayrollReports = () => {
   };
   
   const handleClearFilters = () => {
+    const defaultDateRange = getDefaultDateRange();
     setFilters({
       employee: '',
       type: '',
       project_title: '',
-      start_date: '',
-      end_date: '',
+      start_date: "",
+      end_date: "",
     });
+    setPage(1);
   };
+
+  // Helper function to convert ISO datetime to local datetime string for datetime-local input
+  const isoToLocalDateTime = (isoString) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    // Format as YYYY-MM-DDTHH:mm for datetime-local input
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  // Helper function to convert local datetime string to ISO string
+  const localDateTimeToIso = (localDateTime) => {
+    if (!localDateTime) return null;
+    const date = new Date(localDateTime);
+    return date.toISOString();
+  };
+
+  // Calculate total hours from clock in and clock out times
+  const calculateTotalHours = (checkIn, checkOut) => {
+    if (!checkIn || !checkOut) return '';
+    const inTime = new Date(checkIn);
+    const outTime = new Date(checkOut);
+    if (outTime <= inTime) return '';
+    const diffMs = outTime - inTime;
+    const diffHours = diffMs / (1000 * 60 * 60);
+    return diffHours.toFixed(2);
+  };
+
+  // Auto-calculate total hours when clock in/out times change
+  useEffect(() => {
+    if (selectedPayout?.payout_type === 'hourly' && editFormData.check_in_time && editFormData.check_out_time) {
+      const calculated = calculateTotalHours(
+        localDateTimeToIso(editFormData.check_in_time),
+        localDateTimeToIso(editFormData.check_out_time)
+      );
+      if (calculated && calculated !== editFormData.total_hours) {
+        setEditFormData(prev => ({ ...prev, total_hours: calculated }));
+      }
+      console.log(editFormData.total_hours, calculated);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editFormData.check_in_time, editFormData.check_out_time, selectedPayout?.payout_type]);
 
   const validateEditForm = () => {
     const errors = {};
@@ -162,6 +238,20 @@ const PayrollReports = () => {
     if (editFormData.project_value && parseFloat(editFormData.project_value) < 0) {
       errors.project_value = 'Project value cannot be negative';
     }
+
+    // Validate time fields for hourly payouts
+    if (selectedPayout?.payout_type === 'hourly') {
+      if (editFormData.check_in_time && editFormData.check_out_time) {
+        const checkIn = new Date(localDateTimeToIso(editFormData.check_in_time));
+        const checkOut = new Date(localDateTimeToIso(editFormData.check_out_time));
+        if (checkOut <= checkIn) {
+          errors.check_out_time = 'Clock out time must be after clock in time';
+        }
+      }
+      if (editFormData.total_hours && parseFloat(editFormData.total_hours) < 0) {
+        errors.total_hours = 'Total hours cannot be negative';
+      }
+    }
     
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -169,11 +259,15 @@ const PayrollReports = () => {
 
   const handleEdit = (payout) => {
     setSelectedPayout(payout);
+    const timeEntryDetails = payout.time_entry_details || {};
     setEditFormData({
       amount: payout.amount || '',
       rate_percentage: payout.rate_percentage || '',
       project_value: payout.project_value || '',
       notes: payout.notes || '',
+      check_in_time: timeEntryDetails.check_in_time ? isoToLocalDateTime(timeEntryDetails.check_in_time) : '',
+      check_out_time: timeEntryDetails.check_out_time ? isoToLocalDateTime(timeEntryDetails.check_out_time) : '',
+      total_hours: timeEntryDetails.total_hours ? parseFloat(timeEntryDetails.total_hours).toFixed(2) : '',
     });
     setFormErrors({});
     setEditDialogOpen(true);
@@ -185,18 +279,37 @@ const PayrollReports = () => {
     }
 
     try {
+      // Time entry details (clock in, clock out, total hours) go to the time-entries API
+      if (selectedPayout?.payout_type === 'hourly' && selectedPayout?.time_entry) {
+        const timeEntryPayload = {};
+        if (editFormData.check_in_time) {
+          timeEntryPayload.check_in_time = localDateTimeToIso(editFormData.check_in_time);
+        }
+        if (editFormData.check_out_time) {
+          timeEntryPayload.check_out_time = localDateTimeToIso(editFormData.check_out_time);
+        }
+        if (editFormData.total_hours) {
+          timeEntryPayload.total_hours = parseFloat(editFormData.total_hours);
+        }
+        console.log(timeEntryPayload, editFormData.total_hours);
+        if (Object.keys(timeEntryPayload).length > 0) {
+          await updateTimeEntry({
+            id: selectedPayout.time_entry,
+            ...timeEntryPayload,
+          }).unwrap();
+        }
+      }
+
+      // Payout-only fields go to the payouts API
       const updateData = {
         amount: parseFloat(editFormData.amount),
       };
-      
       if (editFormData.rate_percentage) {
         updateData.rate_percentage = parseFloat(editFormData.rate_percentage);
       }
-      
       if (editFormData.project_value) {
         updateData.project_value = parseFloat(editFormData.project_value);
       }
-      
       if (editFormData.notes) {
         updateData.notes = editFormData.notes;
       }
@@ -205,7 +318,7 @@ const PayrollReports = () => {
         id: selectedPayout.id,
         ...updateData,
       }).unwrap();
-      
+
       setEditDialogOpen(false);
       showNotification('success', 'Payout updated successfully');
       refetch();
@@ -593,7 +706,13 @@ const PayrollReports = () => {
               size="small"
               startIcon={<ClearIcon />}
               onClick={handleClearFilters}
-              disabled={!Object.values(filters).some(v => v)}
+              disabled={
+                !filters.employee &&
+                !filters.type &&
+                !filters.project_title &&
+                !filters.start_date &&
+                !filters.end_date
+              }
             >
               Clear All
             </Button>
@@ -922,28 +1041,55 @@ const PayrollReports = () => {
               <Typography variant="subtitle2" fontWeight={600} gutterBottom>
                 Time Entry Details
               </Typography>
-              <Grid container spacing={1}>
-                <Grid item xs={4}>
-                  <Typography variant="caption" color="text.secondary">Clock In:</Typography>
-                  <Typography variant="body2" fontWeight={500}>
-                    {formatTime(selectedPayout.time_entry_details.check_in_time)}
-                  </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    fullWidth
+                    label="Clock In"
+                    type="datetime-local"
+                    value={editFormData.check_in_time}
+                    onChange={(e) => {
+                      setEditFormData({ ...editFormData, check_in_time: e.target.value });
+                    }}
+                    error={!!formErrors.check_in_time}
+                    helperText={formErrors.check_in_time}
+                    InputLabelProps={{ shrink: true }}
+                    size="small"
+                  />
                 </Grid>
-                <Grid item xs={4}>
-                  <Typography variant="caption" color="text.secondary">Clock Out:</Typography>
-                  <Typography variant="body2" fontWeight={500}>
-                    {selectedPayout.time_entry_details.check_out_time
-                      ? formatTime(selectedPayout.time_entry_details.check_out_time)
-                      : 'N/A'}
-                  </Typography>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    fullWidth
+                    label="Clock Out"
+                    type="datetime-local"
+                    value={editFormData.check_out_time}
+                    onChange={(e) => {
+                      setEditFormData({ ...editFormData, check_out_time: e.target.value });
+                    }}
+                    error={!!formErrors.check_out_time}
+                    helperText={formErrors.check_out_time}
+                    InputLabelProps={{ shrink: true }}
+                    size="small"
+                  />
                 </Grid>
-                <Grid item xs={4}>
-                  <Typography variant="caption" color="text.secondary">Total Hours:</Typography>
-                  <Typography variant="body2" fontWeight={500}>
-                    {selectedPayout.time_entry_details.total_hours
-                      ? `${parseFloat(selectedPayout.time_entry_details.total_hours).toFixed(2)}h`
-                      : 'N/A'}
-                  </Typography>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    fullWidth
+                    label="Total Hours"
+                    type="number"
+                    value={editFormData.total_hours}
+                    onChange={(e) => {
+                      setEditFormData({ ...editFormData, total_hours: e.target.value });
+                    }}
+                    error={!!formErrors.total_hours}
+                    helperText={formErrors.total_hours || 'Automatically calculated from clock in/out times'}
+                    InputProps={{
+                      readOnly: true,
+                      endAdornment: <Typography>h</Typography>,
+                    }}
+                    inputProps={{ min: 0, step: 0.01 }}
+                    size="small"
+                  />
                 </Grid>
               </Grid>
             </Alert>

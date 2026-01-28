@@ -660,8 +660,8 @@ const TimeClock = () => {
               )}
               <Box 
                 sx={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: { xs: '1fr', sm: displayActiveSessions.length > 1 ? 'repeat(auto-fill, minmax(300px, 1fr))' : '1fr' },
+                  display: 'flex', 
+                  flexDirection: 'column',
                   gap: 2
                 }}
               >
