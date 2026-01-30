@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarDays, ChevronLeft, ChevronRight, Loader2, RotateCcw, CheckCircle2, Filter, X, Trash2, Plus, User, Phone, Mail, MapPin } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Loader2, RotateCcw, CheckCircle2, Filter, X, Trash2, Plus, User, Phone, Mail, MapPin, PanelRightClose, PanelLeftClose } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Calendar as DatePicker } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
@@ -2407,7 +2407,10 @@ appointmentsParams.search = filterParams.appointment_search;
           )}
 
           {/* Main Calendar */}
-          <div className="flex-1 min-w-0 overflow-hidden w-full">
+          <div className={cn(
+            "flex-1 min-w-0 overflow-hidden w-full",
+            "transition-all duration-300 ease-in-out"
+          )}>
             <Card className="w-full">
           <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
@@ -2611,7 +2614,8 @@ appointmentsParams.search = filterParams.appointment_search;
               "bg-background md:bg-transparent",
               "overflow-y-auto md:overflow-visible",
               "w-[85vw] max-w-[320px] md:w-[300px] lg:w-[340px]",
-              "shadow-lg md:shadow-none"
+              "shadow-lg md:shadow-none",
+              "transition-all duration-300 ease-in-out"
             )}>
               {/* Mobile Close Button */}
               <div className="md:hidden flex justify-between items-center p-4 border-b sticky top-0 bg-background z-10">
@@ -2648,8 +2652,25 @@ appointmentsParams.search = filterParams.appointment_search;
                     }));
                   }}
                   jobs={jobs}
+                  onToggleSidebar={() => setShowSidebar(false)}
+                  showSidebar={showSidebar}
                 />
               </div>
+            </div>
+          )}
+
+          {/* Floating Expand Button - Shows when sidebar is collapsed on desktop */}
+          {!showSidebar && (
+            <div className="hidden md:block fixed right-4 top-1/2 -translate-y-1/2 z-40">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setShowSidebar(true)}
+                className="rounded-full shadow-lg bg-background hover:bg-accent h-10 w-10"
+                title="Show filters"
+              >
+                <PanelLeftClose className="h-5 w-5" />
+              </Button>
             </div>
           )}
         </div>

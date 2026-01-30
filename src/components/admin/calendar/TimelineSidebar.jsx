@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import moment from "moment-timezone";
 import { Calendar as DatePicker } from "@/components/ui/calendar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, Search, Briefcase, Calendar as CalendarIcon, Info, Users, Move, UserPlus, Monitor } from "lucide-react";
+import { ChevronDown, ChevronRight, Search, Briefcase, Calendar as CalendarIcon, Info, Users, Move, UserPlus, Monitor, PanelRightClose } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useDrag } from "react-dnd";
@@ -90,6 +90,8 @@ export function TimelineSidebar({
   filterParams = {},
   onFilterChange,
   jobs = [], // Add jobs prop to calculate assignments
+  onToggleSidebar, // Function to toggle sidebar visibility
+  showSidebar = true, // Current sidebar visibility state
 }) {
   const [calendarsOpen, setCalendarsOpen] = useState(true);
   const [staffOpen, setStaffOpen] = useState(true);
@@ -245,8 +247,24 @@ export function TimelineSidebar({
     <div className="w-full border-l border-gray-200 bg-white flex flex-col h-full overflow-y-auto shadow-sm">
       {/* Header Section */}
       <div className="p-5 border-b border-gray-200 bg-gray-50/50">
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">Calendar</h2>
-        <p className="text-xs text-gray-500">Scheduled jobs grouped by day.</p>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Calendar</h2>
+            <p className="text-xs text-gray-500">Scheduled jobs grouped by day.</p>
+          </div>
+          {/* Desktop Toggle Button - Only show on desktop */}
+          {onToggleSidebar && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onToggleSidebar}
+              className="hidden md:flex h-8 w-8 flex-shrink-0 hover:bg-gray-200"
+              title="Hide sidebar"
+            >
+              <PanelRightClose className="h-4 w-4 text-gray-600" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Mini Calendar */}
