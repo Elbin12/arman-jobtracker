@@ -82,6 +82,13 @@ export const handleDownloadPDF = async (
       })
     }
 
+    const toTitleCase = (str) => {
+      if (!str) return ""
+      return str.toLowerCase().split(' ').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(' ')
+    }
+
     // ------------------------
     // Logo + Header
     // ------------------------
@@ -124,7 +131,7 @@ export const handleDownloadPDF = async (
 
     doc.setFontSize(10)
     doc.setFont(undefined, "normal")
-    doc.text(`Name: ${contact?.first_name || ""} ${contact?.last_name || ""}`, margin, yPosition)
+    doc.text(`Name: ${toTitleCase(contact?.first_name) || ""} ${toTitleCase(contact?.last_name) || ""}`, margin, yPosition)
     yPosition += 6
     doc.text(`Email: ${contact?.email || "N/A"}`, margin, yPosition)
     yPosition += 6
@@ -357,38 +364,389 @@ export const handleDownloadPDF = async (
     // ------------------------
     // Signature
     // ------------------------
-    if (additional_data?.signature) {
-      checkPageBreak(6)
-      doc.setFontSize(12)
-      doc.setFont(undefined, "bold")
-      doc.text("CUSTOMER SIGNATURE", margin, yPosition)
-      yPosition += 5
+    // if (additional_data?.signature) {
+    //   checkPageBreak(10)
+    //   doc.setFontSize(12)
+    //   doc.setFont(undefined, "bold")
+    //   doc.setTextColor("#000000")
+    //   doc.text("CUSTOMER SIGNATURE", margin, yPosition)
+    //   yPosition += 8
 
-      try {
-        doc.addImage(`data:image/png;base64,${additional_data.signature}`, "PNG", margin, yPosition, 60, 20)
-        yPosition += 15
-      } catch (e) {
+    //   try {
+    //     // Professional signature size
+    //     doc.addImage(`data:image/png;base64,${additional_data.signature}`, "PNG", margin, yPosition, 100, 40)
+    //     yPosition += 45
+    //   } catch (e) {
+    //     doc.setFontSize(10)
+    //     doc.setFont(undefined, "normal")
+    //     doc.setTextColor("#666666")
+    //     doc.text("Digital signature on file", margin, yPosition)
+    //     yPosition += 10
+    //   }
+      
+    //   // Use actual signature timestamp from submitted_at, otherwise use current date
+    //   const signatureDate = additional_data?.submitted_at 
+    //     ? new Date(additional_data.submitted_at)
+    //     : new Date();
+      
+    //   yPosition += 3
+    //   doc.setFontSize(10)
+    //   doc.setFont(undefined, "normal")
+    //   doc.setTextColor("#000000")
+    //   doc.text(`Date: ${signatureDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, margin, yPosition)
+    //   yPosition += 5
+    //   doc.text(`Time: ${signatureDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`, margin, yPosition)
+    //   yPosition += 15
+    // }
+
+    // ------------------------
+    // Terms & Conditions Agreement
+    // ------------------------
+    // if (quote?.status === "accepted") {
+    //   checkPageBreak(4)
+    //   doc.setFontSize(10)
+    //   doc.setFont(undefined, "normal")
+    //   doc.setTextColor("#374151")
+    //   yPosition += 5
+    //   doc.text("✓ I have read and agree to the Terms & Conditions and Privacy Policy", margin, yPosition)
+    //   yPosition += 10
+    // }
+
+    // ------------------------
+    // Terms and Conditions Document
+    // ------------------------
+    if (quote?.status === "accepted") {
+      // Get signature timestamp for agreement date from submitted_at
+      const agreementDate = additional_data?.submitted_at 
+        ? new Date(additional_data.submitted_at)
+        : new Date();
+      
+      // Start new page for Terms & Conditions
+      doc.addPage()
+      yPosition = 20
+      
+      // Header
+      doc.setFontSize(16)
+      doc.setFont(undefined, "bold")
+      doc.setTextColor("#000000")
+      doc.text("TERMS AND CONDITIONS", margin, yPosition)
+      yPosition += 5
+      
+      // Company Name
+      doc.setFontSize(10)
+      doc.setFont(undefined, "normal")
+      doc.text(import.meta.env.VITE_COMPANY_NAME || 'TruShine Window Cleaning', margin, yPosition)
+      yPosition += 8
+      
+      // Agreement Statement with Timestamp
+      doc.setFontSize(10)
+      doc.setFont(undefined, "bold")
+      doc.setTextColor("#1f2937")
+      const agreementText = `CLIENT AGREEMENT ACKNOWLEDGMENT`
+      doc.text(agreementText, margin, yPosition)
+      yPosition += 6
+      
+      doc.setFont(undefined, "normal")
+      doc.setTextColor("#374151")
+      const acknowledgmentText = `The client has read and agreed to the Terms & Conditions and Privacy Policy`
+      const acknowledgmentLines = doc.splitTextToSize(acknowledgmentText, maxLineWidth)
+      doc.text(acknowledgmentLines, margin, yPosition)
+      yPosition += 6
+      
+      doc.setFont(undefined, "bold")
+      doc.setTextColor("#1f2937")
+      doc.text(`Agreement Date & Time: ${agreementDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} at ${agreementDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}`, margin, yPosition)
+      yPosition += 10
+      
+      // Divider line
+      doc.setDrawColor(200, 200, 200)
+      doc.line(margin, yPosition, pageWidth - margin, yPosition)
+      yPosition += 10
+      
+      // Terms Content
+      doc.setFontSize(11)
+      doc.setFont(undefined, "bold")
+      doc.setTextColor("#000000")
+      doc.text("GENERAL TERMS", margin, yPosition)
+      yPosition += 7
+      
+      doc.setFontSize(9)
+      doc.setFont(undefined, "normal")
+      doc.setTextColor("#374151")
+      const generalTerms = [
+        "• Any special accommodations must be reviewed and approved by TWC management before accepting the proposal.",
+        "• Quotations are valid for 30 days and must be accepted in writing (signature or electronic acceptance).",
+        "• All work will be completed in a professional, workmanlike manner, in compliance with local codes/regulations.",
+        "• TWC is properly insured against injury to employees and losses from employee actions.",
+        "• TWC reserves the right to update these Terms and Conditions at any time."
+      ]
+      generalTerms.forEach(term => {
+        checkPageBreak(4)
+        const lines = doc.splitTextToSize(term, maxLineWidth - 5)
+        doc.text(lines, margin + 5, yPosition)
+        yPosition += lines.length * lineHeight + 2
+      })
+      
+      yPosition += 5
+      checkPageBreak(6)
+      doc.setFontSize(11)
+      doc.setFont(undefined, "bold")
+      doc.setTextColor("#000000")
+      doc.text("WINDOW CLEANING", margin, yPosition)
+      yPosition += 7
+      
+      doc.setFontSize(9)
+      doc.setFont(undefined, "normal")
+      doc.setTextColor("#374151")
+      const windowCleaningTerms = [
+        "• All windows must be securely closed on the day of service.",
+        "• Client responsible for ensuring items are structurally sound. TWC may document/refuse questionable items.",
+        "• Full access required; obstacles will not be moved. $75 trip fee if no access available.",
+        "• Unsafe/inaccessible windows will not be cleaned.",
+        "• External glass cleaned with water-fed pole using pure water, left to dry naturally.",
+        "• \"Window\" includes frame, sill, sash, and glass (wood, aluminum, steel, UPVC). Brick/tile/stone sills excluded.",
+        "• 36-hour Streak-Free Guarantee on all window cleaning packages."
+      ]
+      windowCleaningTerms.forEach(term => {
+        checkPageBreak(4)
+        const lines = doc.splitTextToSize(term, maxLineWidth - 5)
+        doc.text(lines, margin + 5, yPosition)
+        yPosition += lines.length * lineHeight + 2
+      })
+      
+      yPosition += 5
+      checkPageBreak(6)
+      doc.setFontSize(11)
+      doc.setFont(undefined, "bold")
+      doc.setTextColor("#000000")
+      doc.text("PRESSURE WASHING", margin, yPosition)
+      yPosition += 7
+      
+      doc.setFontSize(9)
+      doc.setFont(undefined, "normal")
+      doc.setTextColor("#374151")
+      const pressureWashingTerms = [
+        "• Pressure washing removes most stains; some marks may remain.",
+        "• External water access is required.",
+        "• Client must cover/remove outdoor furniture. $150 fee if TWC must do it. Not liable for chemical damage.",
+        "• 3-day satisfaction guarantee on premium pressure washing packages only."
+      ]
+      pressureWashingTerms.forEach(term => {
+        checkPageBreak(4)
+        const lines = doc.splitTextToSize(term, maxLineWidth - 5)
+        doc.text(lines, margin + 5, yPosition)
+        yPosition += lines.length * lineHeight + 2
+      })
+      
+      yPosition += 5
+      checkPageBreak(6)
+      doc.setFontSize(11)
+      doc.setFont(undefined, "bold")
+      doc.setTextColor("#000000")
+      doc.text("GUTTER CLEANING", margin, yPosition)
+      yPosition += 7
+      
+      doc.setFontSize(9)
+      doc.setFont(undefined, "normal")
+      doc.setTextColor("#374151")
+      const gutterCleaningTerms = [
+        "• Basic cleaning includes clearing internal gutters only. Hauling debris/repairs not included unless agreed.",
+        "• Cleaning done via leaf blower; downspouts flushed with hose.",
+        "• Exterior gutter surface cleaning not included (available at additional cost).",
+        "• 15-day guarantee on all gutter cleaning packages."
+      ]
+      gutterCleaningTerms.forEach(term => {
+        checkPageBreak(4)
+        const lines = doc.splitTextToSize(term, maxLineWidth - 5)
+        doc.text(lines, margin + 5, yPosition)
+        yPosition += lines.length * lineHeight + 2
+      })
+      
+      yPosition += 5
+      checkPageBreak(6)
+      doc.setFontSize(11)
+      doc.setFont(undefined, "bold")
+      doc.setTextColor("#000000")
+      doc.text("AWNING CLEANING", margin, yPosition)
+      yPosition += 7
+      
+      doc.setFontSize(9)
+      doc.setFont(undefined, "normal")
+      doc.setTextColor("#374151")
+      const awningCleaningTerms = [
+        "• TWC not liable for unexpected damage during awning cleaning.",
+        "• Service may be declined if material is over 5 years old or fails inspection.",
+        "• 24-hour guarantee on all awning cleaning services."
+      ]
+      awningCleaningTerms.forEach(term => {
+        checkPageBreak(4)
+        const lines = doc.splitTextToSize(term, maxLineWidth - 5)
+        doc.text(lines, margin + 5, yPosition)
+        yPosition += lines.length * lineHeight + 2
+      })
+      
+      yPosition += 5
+      checkPageBreak(6)
+      doc.setFontSize(11)
+      doc.setFont(undefined, "bold")
+      doc.setTextColor("#000000")
+      doc.text("RESCHEDULING, CANCELLATION & CLIENT RESPONSIBILITIES", margin, yPosition)
+      yPosition += 7
+      
+      doc.setFontSize(9)
+      doc.setFont(undefined, "normal")
+      doc.setTextColor("#374151")
+      const reschedulingTerms = [
+        "• Each client may reschedule up to 2 times, within 7 days of original date.",
+        "• Rescheduling/cancellation within 8 hours: $35 fee.",
+        "• More than 8 hours in advance: free (first 2 times).",
+        "• Beyond 2 reschedules may incur full service amount fee.",
+        "• TruShine not liable for delays due to weather/supply/uncontrollable issues."
+      ]
+      reschedulingTerms.forEach(term => {
+        checkPageBreak(4)
+        const lines = doc.splitTextToSize(term, maxLineWidth - 5)
+        doc.text(lines, margin + 5, yPosition)
+        yPosition += lines.length * lineHeight + 2
+      })
+      
+      yPosition += 5
+      checkPageBreak(6)
+      doc.setFontSize(11)
+      doc.setFont(undefined, "bold")
+      doc.setTextColor("#000000")
+      doc.text("PAYMENTS", margin, yPosition)
+      yPosition += 7
+      
+      doc.setFontSize(9)
+      doc.setFont(undefined, "normal")
+      doc.setTextColor("#374151")
+      const paymentTerms = [
+        "• Payment due upon completion unless otherwise agreed.",
+        "• TWC may require credit card info or $100 deposit. Jobs needing materials: 50% deposit.",
+        "• Accepted: cash, check, credit card (in person, phone, or online).",
+        "• Commercial account payments can be mailed to: 3525 Murdock ST, Houston, TX 77047.",
+        "• Clients with unpaid balances may be denied further service.",
+        "• Disputed payments are client's responsibility. Late/recovery fees may apply."
+      ]
+      paymentTerms.forEach(term => {
+        checkPageBreak(4)
+        const lines = doc.splitTextToSize(term, maxLineWidth - 5)
+        doc.text(lines, margin + 5, yPosition)
+        yPosition += lines.length * lineHeight + 2
+      })
+      
+      yPosition += 5
+      checkPageBreak(6)
+      doc.setFontSize(11)
+      doc.setFont(undefined, "bold")
+      doc.setTextColor("#000000")
+      doc.text("LATE FEES", margin, yPosition)
+      yPosition += 7
+      
+      doc.setFontSize(9)
+      doc.setFont(undefined, "normal")
+      doc.setTextColor("#374151")
+      const lateFeeTerms = [
+        "• Residential: 10% late fee after 1 day.",
+        "• Commercial: 10% late fee after 30 days.",
+        "• Balances unpaid after 60 days sent to collections (including legal fees)."
+      ]
+      lateFeeTerms.forEach(term => {
+        checkPageBreak(4)
+        const lines = doc.splitTextToSize(term, maxLineWidth - 5)
+        doc.text(lines, margin + 5, yPosition)
+        yPosition += lines.length * lineHeight + 2
+      })
+      
+      yPosition += 5
+      checkPageBreak(6)
+      doc.setFontSize(11)
+      doc.setFont(undefined, "bold")
+      doc.setTextColor("#000000")
+      doc.text("OTHER POLICIES", margin, yPosition)
+      yPosition += 7
+      
+      doc.setFontSize(9)
+      doc.setFont(undefined, "normal")
+      doc.setTextColor("#374151")
+      const otherPolicyTerms = [
+        "• All sales final. Refunds only for unused material during service.",
+        "• 14-day written notice required for cancellation. Less notice = full charge.",
+        "• All services subject to applicable Texas state TAX.",
+        "• If a complaint revisit finds work satisfactory, $75 trip fee applies."
+      ]
+      otherPolicyTerms.forEach(term => {
+        checkPageBreak(4)
+        const lines = doc.splitTextToSize(term, maxLineWidth - 5)
+        doc.text(lines, margin + 5, yPosition)
+        yPosition += lines.length * lineHeight + 2
+      })
+      
+      // Final Agreement Statement
+      yPosition += 10
+      checkPageBreak(6)
+      doc.setDrawColor(200, 200, 200)
+      doc.line(margin, yPosition, pageWidth - margin, yPosition)
+      yPosition += 10
+      
+      doc.setFontSize(10)
+      doc.setFont(undefined, "normal")
+      doc.setTextColor("#374151")
+      const finalAgreement = "By signing this document, the client acknowledges that they have read, understood, and agreed to all Terms & Conditions contained in this proposal."
+      const finalAgreementLines = doc.splitTextToSize(finalAgreement, maxLineWidth)
+      doc.text(finalAgreementLines, margin, yPosition)
+      yPosition += finalAgreementLines.length * lineHeight
+      
+      // Customer Signature Section (Professional Style)
+      if (additional_data?.signature) {
+        checkPageBreak(12)
+        
+        // // Signature Heading
+        // doc.setFontSize(12)
+        // doc.setFont(undefined, "bold")
+        // doc.setTextColor("#000000")
+        // doc.text("CUSTOMER SIGNATURE", margin, yPosition)
+        // yPosition += 8
+        
+        // Signature Image
+        try {
+          doc.addImage(`data:image/png;base64,${additional_data.signature}`, "PNG", margin, yPosition, 100, 40)
+          yPosition += 45
+        } catch (e) {
+          doc.setFontSize(10)
+          doc.setFont(undefined, "normal")
+          doc.setTextColor("#666666")
+          doc.text("Digital signature on file", margin, yPosition)
+          yPosition += 10
+        }
+        
+        // Signed by and Timestamp
+        yPosition += 3
         doc.setFontSize(10)
         doc.setFont(undefined, "normal")
-        doc.text("Digital signature on file", margin, yPosition)
+        doc.setTextColor("#000000")
+        
+        // Signed by
+        if (contact && (contact?.first_name || contact?.last_name || contact?.email)) {
+          const signedByName = toTitleCase([contact?.first_name, contact?.last_name].filter(Boolean).join(' ')) || contact?.email || 'Customer'
+          doc.text(`Signed by: ${signedByName}`, margin, yPosition)
+          yPosition += 5
+        }
+        
+        // Date and Time
+        doc.text(`Date: ${agreementDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, margin, yPosition)
+        yPosition += 5
+        doc.text(`Time: ${agreementDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`, margin, yPosition)
         yPosition += 10
+        
+        // Agreement Statement
+        // doc.setFontSize(9)
+        // doc.setFont(undefined, "normal")
+        // doc.setTextColor("#4b5563")
+        // doc.text("✓ I have read and agree to the Terms & Conditions and Privacy Policy", margin, yPosition)
       }
-      yPosition += 10
-      doc.text(`Date: ${new Date().toLocaleDateString()}`, margin, yPosition)
-      yPosition += 15
     }
-
-    // // ------------------------
-    // // Terms
-    // // ------------------------
-    // checkPageBreak(6)
-    // doc.setFontSize(9)
-    // doc.setFont(undefined, "normal")
-    // doc.setTextColor(colors.gray)
-    // yPosition += 10
-    // doc.text("Terms: This quote is valid for 30 days. Payment due upon completion.", margin, yPosition)
-    // yPosition += 4
-    // doc.text("Weather conditions may affect scheduling. Additional charges may apply for unlisted services.", margin, yPosition)
 
     const timestamp = new Date().toISOString().split("T")[0]
     const companyName = import.meta.env.VITE_COMPANY_NAME || 'TruShine Window Cleaning'

@@ -79,7 +79,7 @@ const calculateTotalSelectedPrice = (selectedPackages, quoteData) => {
     }, 0);
   };
 
-export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepted, additionalNotes, setAdditionalNotes, handleSignatureEnd, setSignature, isStepComplete, handleNext, setActiveStep, setBookingData,initialBookingData }) => {
+export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepted, additionalNotes, setAdditionalNotes, handleSignatureEnd, setSignature, signatureTimestamp, isStepComplete, handleNext, setActiveStep, setBookingData,initialBookingData }) => {
   const [selectedPackages, setSelectedPackages] = useState({});
   const [expandedServices, setExpandedServices] = useState({});
   const [customProducts, setCustomProducts] = useState([]);
@@ -259,6 +259,13 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
       [serviceId]: !prev[serviceId],
     }));
   };
+
+  const toTitleCase = (str) => {
+    if (!str) return ""
+    return str.toLowerCase().split(' ').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ')
+  }
 
   // Auto-resize textarea based on content
   const adjustTextareaHeight = useCallback(() => {
@@ -683,7 +690,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                 <Typography variant="caption" color="text.secondary">
                   Name
                 </Typography>
-                <Typography variant="body1" sx={{fontSize:{ xs: ".8rem", sm: "1rem"}}}>{quoteData.contact?.first_name} {quoteData?.contact?.last_name}</Typography>
+                <Typography variant="body1" sx={{fontSize:{ xs: ".8rem", sm: "1rem"}}}>{toTitleCase(quoteData.contact?.first_name) } { toTitleCase(quoteData?.contact?.last_name)}</Typography>
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Typography variant="caption" color="text.secondary">
@@ -1345,7 +1352,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
             </Box>
 
             {/* Signature Section */}
-            <Box sx={{ mb: 3, maxWidth: { xs: '100%', sm: '400px' } }}>
+            <Box sx={{ mb: 3, maxWidth: { xs: '100%', sm: '500px' } }}>
               <Typography variant="subtitle2" gutterBottom sx={{ color: '#023c8f', fontWeight: 600 }}>
                 Signature
               </Typography>
@@ -1355,18 +1362,17 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                   borderRadius: '8px',
                   backgroundColor: 'white',
                   width: '100%',
-                  height: { xs: 160, sm: 120 },
+                  height: { xs: 220, sm: 180, md: 200 },
                   position: 'relative',
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  flexDirection: 'column',
                   cursor: 'crosshair',
                   '&:hover': {
                     borderColor: '#023c8f',
                   },
                 }}
               >
-                <Box sx={{ width: "100%", height: "100%" }}>
+                <Box sx={{ width: "100%", flex: 1, minHeight: 0 }}>
                   <SignatureCanvas
                     ref={sigCanvasRef}
                     penColor="black"
@@ -1375,6 +1381,35 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                     }}
                     onEnd={() => {handleSignatureEnd(sigCanvasRef)}}
                   />
+                </Box>
+                {/* Timestamp area at bottom of signature box */}
+                <Box
+                  sx={{
+                    borderTop: '1px solid #e0e0e0',
+                    px: 1.5,
+                    py: 0.75,
+                    backgroundColor: '#f9fafb',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: '0.75rem',
+                    color: '#6b7280',
+                  }}
+                >
+                  <Typography variant="caption" sx={{ fontSize: '0.7rem', color: '#6b7280' }}>
+                    Date: {new Date().toLocaleDateString('en-US', { 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}
+                  </Typography>
+                  <Typography variant="caption" sx={{ fontSize: '0.7rem', color: '#6b7280' }}>
+                    Time: {new Date().toLocaleTimeString('en-US', { 
+                      hour: '2-digit', 
+                      minute: '2-digit',
+                      hour12: true 
+                    })}
+                  </Typography>
                 </Box>
               </Box>
               <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>

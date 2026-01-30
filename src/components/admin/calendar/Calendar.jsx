@@ -644,6 +644,41 @@ function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, conti
       default:
         backgroundColor = "#9ca3ef";
     }
+  } else if (event?.type === 'estimate') {
+    // Handle estimates with distinct colors
+    const estimate = resource;
+    // Get estimate status - check both estimate_status and appointment_status
+    const estimateStatus = estimate?.estimate_status ?? estimate?.appointment_status ?? "confirmed";
+    
+    switch (estimateStatus) {
+      // Prior quoting - estimates not yet quoted
+      case "confirmed":
+      case "on_my_way":
+      case "in_progress":
+        backgroundColor = "#14b8a6"; // Teal - distinct from jobs
+        break;
+      // Quoted
+      case "quoted":
+        backgroundColor = "#f97316"; // Orange - distinct from jobs
+        break;
+      // Accepted
+      case "accepted":
+        backgroundColor = "#22c55e"; // Emerald green - distinct from completed jobs
+        break;
+      // Other statuses
+      case "canceled":
+      case "cancelled":
+        backgroundColor = "#ef4444"; // Red
+        break;
+      case "declined":
+        backgroundColor = "#6b7280"; // Gray
+        break;
+      case "expired":
+        backgroundColor = "#9ca3af"; // Light gray
+        break;
+      default:
+        backgroundColor = "#14b8a6"; // Default to teal for prior quoting
+    }
   } else if (resource) {
     const job = resource;
     switch (job?.status) {
@@ -1062,6 +1097,16 @@ appointmentsParams.search = filterParams.appointment_search;
     { skip: !selectedJobId }
   );
 
+  // Helper function to get display name (company_name if available, otherwise fallback)
+  const getDisplayName = (item, fallbackName, defaultName) => {
+    // Check for company_name in contact_details
+    if (item?.company_name) {
+      return item.company_name;
+    }
+    // Fallback to provided name or default
+    return fallbackName || defaultName;
+  };
+
   useEffect(() => {
     // Check if categories are enabled (default to true if not set)
     const showJobs = selectedCategories.jobs !== false;
@@ -1085,10 +1130,11 @@ appointmentsParams.search = filterParams.appointment_search;
             const endDate = new Date(m.year(), m.month(), m.date(), m.hour() + duration, m.minute(), m.second());
             // Format time with minutes if not zero: "6 PM" or "6:30 PM"
             const timeStr = m.minute() === 0 ? m.format("h A") : m.format("h:mm A");
+            const displayName = getDisplayName(job, job.customer_name, "Customer");
 
             return {
               id: job.job_id, // Use job_id from new API
-              title: `${timeStr} ${job.customer_name || "Customer"}`,
+              title: `${timeStr} ${displayName}`,
               start: startDate,
               end: endDate,
               resource: {
@@ -1115,10 +1161,11 @@ appointmentsParams.search = filterParams.appointment_search;
             const endDate = new Date(endM.year(), endM.month(), endM.date(), endM.hour(), endM.minute(), endM.second());
             // Format time with minutes if not zero: "6 PM" or "6:30 PM"
             const timeStr = startM.minute() === 0 ? startM.format("h A") : startM.format("h:mm A");
+            const displayName = getDisplayName(appointment, appointment.title || appointment.contact_name, "Appointment");
 
             return {
               id: appointment.appointment_id,
-              title: `${timeStr} ${appointment.title || appointment.contact_name || "Appointment"}`,
+              title: `${timeStr} ${displayName}`,
               start: startDate,
               end: endDate,
               resource: appointment,
@@ -1142,10 +1189,11 @@ appointmentsParams.search = filterParams.appointment_search;
             const endDate = new Date(endM.year(), endM.month(), endM.date(), endM.hour(), endM.minute(), endM.second());
             // Format time with minutes if not zero: "6 PM" or "6:30 PM"
             const timeStr = startM.minute() === 0 ? startM.format("h A") : startM.format("h:mm A");
+            const displayName = getDisplayName(estimate, estimate.title || estimate.contact_name, "Estimate");
 
             return {
               id: estimate.appointment_id,
-              title: `${timeStr} ${estimate.title || estimate.contact_name || "Estimate"}`,
+              title: `${timeStr} ${displayName}`,
               start: startDate,
               end: endDate,
               resource: estimate,
@@ -1578,6 +1626,61 @@ appointmentsParams.search = filterParams.appointment_search;
           fontWeight: "500",
           padding: "0",
           boxShadow: "none",
+          "--event-bg-color": backgroundColor, // Store color in CSS variable
+        },
+      };
+    }
+
+    // Handle estimates with distinct colors
+    if (event.type === 'estimate') {
+      const estimate = event.resource;
+      // Get estimate status - check both estimate_status and appointment_status
+      const estimateStatus = estimate?.estimate_status ?? estimate?.appointment_status ?? "confirmed";
+      let backgroundColor = "#14b8a6"; // Default teal for prior quoting
+
+      switch (estimateStatus) {
+        // Prior quoting - estimates not yet quoted
+        case "confirmed":
+        case "on_my_way":
+        case "in_progress":
+          backgroundColor = "#14b8a6"; // Teal - distinct from jobs
+          break;
+        // Quoted
+        case "quoted":
+          backgroundColor = "#f97316"; // Orange - distinct from jobs
+          break;
+        // Accepted
+        case "accepted":
+          backgroundColor = "#22c55e"; // Emerald green - distinct from completed jobs
+          break;
+        // Other statuses
+        case "canceled":
+        case "cancelled":
+          backgroundColor = "#ef4444"; // Red
+          break;
+        case "declined":
+          backgroundColor = "#6b7280"; // Gray
+          break;
+        case "expired":
+          backgroundColor = "#9ca3af"; // Light gray
+          break;
+        default:
+          backgroundColor = "#14b8a6"; // Default to teal for prior quoting
+      }
+
+      return {
+        style: {
+          backgroundColor: "transparent",
+          borderRadius: "8px",
+          opacity: 1,
+          color: "white",
+          border: "none",
+          outline: "none",
+          fontSize: "13px",
+          fontWeight: "500",
+          padding: "0",
+          boxShadow: "none",
+          "--event-bg-color": backgroundColor, // Store color in CSS variable
         },
       };
     }
@@ -1616,6 +1719,7 @@ appointmentsParams.search = filterParams.appointment_search;
         fontWeight: "500",
         padding: "0",
         boxShadow: "none",
+        "--event-bg-color": backgroundColor, // Store color in CSS variable
       },
     };
   };

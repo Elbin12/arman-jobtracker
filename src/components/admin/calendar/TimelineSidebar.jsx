@@ -102,6 +102,7 @@ export function TimelineSidebar({
   const [statusLegendOpen, setStatusLegendOpen] = useState(true);
   const [jobsLegendOpen, setJobsLegendOpen] = useState(true);
   const [appointmentsLegendOpen, setAppointmentsLegendOpen] = useState(true);
+  const [estimatesLegendOpen, setEstimatesLegendOpen] = useState(true);
   const [aboutOpen, setAboutOpen] = useState(false);
 
   // Parse filter params for local state
@@ -203,7 +204,7 @@ export function TimelineSidebar({
   const categories = [
     { id: "jobs", label: "Jobs", color: "#9ca3ef" },
     { id: "appointments", label: "Appointments", color: "#06b6d4" },
-    { id: "estimates", label: "Estimates", color: "#8b5cf6" },
+    { id: "estimates", label: "Estimates", color: "#14b8a6" }, // Teal for "Prior quoting" state
   ];
 
   // Generate mini calendar days
@@ -848,6 +849,46 @@ export function TimelineSidebar({
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded flex-shrink-0 border border-white" style={{ backgroundColor: "#6b7280" }}></div>
                     <span className="text-xs text-gray-600">Invalid</span>
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Estimate Statuses - Collapsible */}
+            <Collapsible open={estimatesLegendOpen} onOpenChange={setEstimatesLegendOpen}>
+              <CollapsibleTrigger className="w-full flex items-center justify-between py-1">
+                <div className="text-xs font-semibold text-gray-700">Estimates</div>
+                {estimatesLegendOpen ? (
+                  <ChevronDown className="h-3 w-3 text-gray-500" />
+                ) : (
+                  <ChevronRight className="h-3 w-3 text-gray-500" />
+                )}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: "#14b8a6" }}></div>
+                    <span className="text-xs text-gray-600">Prior Quoting (Confirmed/On My Way/In Progress)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: "#f97316" }}></div>
+                    <span className="text-xs text-gray-600">Quoted</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: "#22c55e" }}></div>
+                    <span className="text-xs text-gray-600">Accepted</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: "#ef4444" }}></div>
+                    <span className="text-xs text-gray-600">Canceled</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: "#6b7280" }}></div>
+                    <span className="text-xs text-gray-600">Declined</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: "#9ca3af" }}></div>
+                    <span className="text-xs text-gray-600">Expired</span>
                   </div>
                 </div>
               </CollapsibleContent>

@@ -152,6 +152,13 @@ const QuoteDetailsPage = () => {
     }))
   }
 
+  const toTitleCase = (str) => {
+    if (!str) return ""
+    return str.toLowerCase().split(' ').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ')
+  }
+
   const handleSchedule = async () => {
     if (!selectedDate) return
     const payload = {
@@ -808,7 +815,7 @@ const QuoteDetailsPage = () => {
                         Name
                       </Typography>
                       <Typography variant="body1">
-                        {contact?.first_name} {contact?.last_name}
+                        {toTitleCase(contact?.first_name) } { toTitleCase(contact?.last_name) }
                       </Typography>
                     </Grid>
                     <Grid item xs={12} sm={6}>
@@ -1206,21 +1213,60 @@ const QuoteDetailsPage = () => {
                         <Typography variant="subtitle2" sx={{ color: "#64748b", mb: 2 }}>
                           Terms & Conditions
                         </Typography>
-                        <Button
-                          variant="outlined"
-                          onClick={() => setShowTermsDialog(true)}
-                          startIcon={<Gavel />}
-                          sx={{
-                            borderColor: "#023c8f",
-                            color: "#023c8f",
-                            "&:hover": {
-                              bgcolor: "rgba(2, 60, 143, 0.04)",
+                        {quote?.status === "accepted" ? (
+                          <Box
+                            sx={{
+                              border: "1px solid #e0e0e0",
+                              borderRadius: "8px",
+                              backgroundColor: "#f9fafb",
+                              p: 2,
+                              display: "flex",
+                              alignItems: "flex-start",
+                              gap: 1.5,
+                            }}
+                          >
+                            <CheckCircle sx={{ color: "#42bd3f", mt: 0.25, flexShrink: 0 }} />
+                            <Box sx={{ flex: 1 }}>
+                              <Typography variant="body2" sx={{ color: "#374151", fontWeight: 500 }}>
+                                I have read and agree to the Terms & Conditions and Privacy Policy
+                              </Typography>
+                              <Button
+                                variant="text"
+                                size="small"
+                                onClick={() => setShowTermsDialog(true)}
+                                startIcon={<Gavel />}
+                                sx={{
+                                  mt: 1,
+                                  color: "#023c8f",
+                                  textTransform: "none",
+                                  fontSize: "0.75rem",
+                                  "&:hover": {
+                                    backgroundColor: "transparent",
+                                    textDecoration: "underline",
+                                  },
+                                }}
+                              >
+                                View Terms & Conditions
+                              </Button>
+                            </Box>
+                          </Box>
+                        ) : (
+                          <Button
+                            variant="outlined"
+                            onClick={() => setShowTermsDialog(true)}
+                            startIcon={<Gavel />}
+                            sx={{
                               borderColor: "#023c8f",
-                            },
-                          }}
-                        >
-                          View Terms & Conditions
-                        </Button>
+                              color: "#023c8f",
+                              "&:hover": {
+                                bgcolor: "rgba(2, 60, 143, 0.04)",
+                                borderColor: "#023c8f",
+                              },
+                            }}
+                          >
+                            View Terms & Conditions
+                          </Button>
+                        )}
                       </Box>
 
                       {additional_data?.signature && (
@@ -1228,11 +1274,64 @@ const QuoteDetailsPage = () => {
                           <Typography variant="subtitle2" sx={{ color: "#64748b", mb: 1 }}>
                             Signature
                           </Typography>
-                          <img
-                            src={`data:image/png;base64,${additional_data.signature}`}
-                            alt="Signature"
-                            style={{ border: "1px solid #ccc", maxWidth: "200px" }}
-                          />
+                          <Box
+                            sx={{
+                              border: "1px solid #ccc",
+                              borderRadius: "8px",
+                              backgroundColor: "white",
+                              p: 2,
+                              maxWidth: "400px",
+                            }}
+                          >
+                            <img
+                              src={`data:image/png;base64,${additional_data.signature}`}
+                              alt="Signature"
+                              style={{ 
+                                width: "100%", 
+                                maxWidth: "100%",
+                                height: "auto",
+                                display: "block",
+                                marginBottom: "8px"
+                              }}
+                            />
+                            {/* Timestamp display */}
+                            {additional_data?.submitted_at && (
+                              <Box
+                                sx={{
+                                  borderTop: "1px solid #e0e0e0",
+                                  pt: 1.5,
+                                  mt: 1.5,
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: 0.75,
+                                  fontSize: "0.75rem",
+                                  color: "#6b7280",
+                                }}
+                              >
+                                {contact && (contact?.first_name || contact?.last_name) && (
+                                  <Typography variant="caption" sx={{ fontSize: "0.7rem", color: "#6b7280" }}>
+                                    Signed by: {toTitleCase([contact?.first_name, contact?.last_name].filter(Boolean).join(' ')) || contact?.email || 'Customer'}
+                                  </Typography>
+                                )}
+                                <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                                  <Typography variant="caption" sx={{ fontSize: "0.7rem", color: "#6b7280" }}>
+                                    Date: {new Date(additional_data.submitted_at).toLocaleDateString('en-US', { 
+                                      year: 'numeric', 
+                                      month: 'long', 
+                                      day: 'numeric' 
+                                    })}
+                                  </Typography>
+                                  <Typography variant="caption" sx={{ fontSize: "0.7rem", color: "#6b7280" }}>
+                                    Time: {new Date(additional_data.submitted_at).toLocaleTimeString('en-US', { 
+                                      hour: '2-digit', 
+                                      minute: '2-digit',
+                                      hour12: true 
+                                    })}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            )}
+                          </Box>
                         </Box>
                       )}
 

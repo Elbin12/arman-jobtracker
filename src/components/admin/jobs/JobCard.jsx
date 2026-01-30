@@ -277,39 +277,122 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
               >
                 {job.title || "Untitled Job"}
               </Typography>
-              {job.customer_name && job.ghl_contact_id ? (
-                <Typography 
-                  component="a"
-                  href={`${import.meta.env.VITE_SERVICE_PILOT_APP_URL || 'https://app.theservicepilot.com'}/v2/location/${import.meta.env.VITE_LOCATION_ID || 'b8qvo7VooP3JD3dIZU42'}/contacts/detail/${job.ghl_contact_id}/`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  variant="body1" 
-                  sx={{ 
-                    color: 'primary.main', 
-                    fontWeight: 500,
-                    lineHeight: 1.3,
-                    minHeight: { xs: 'auto', sm: '24px' }, // Responsive minimum height
-                    textDecoration: 'none',
-                    cursor: 'pointer',
-                    '&:hover': {
-                      textDecoration: 'underline',
-                    },
-                  }}
-                >
-                  {toTitleCase(job.customer_name)}
-                </Typography>
+              {/* Company Name - Highlighted if exists */}
+              {job.contact_details?.company_name ? (
+                <>
+                  <Box sx={{ mb: 0.5 }}>
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        color: 'text.secondary', 
+                        fontWeight: 500,
+                        fontSize: '0.7rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        display: 'block',
+                        mb: 0.25,
+                      }}
+                    >
+                      Business Name
+                    </Typography>
+                    {job.ghl_contact_id ? (
+                      <Typography 
+                        component="a"
+                        href={`${import.meta.env.VITE_SERVICE_PILOT_APP_URL || 'https://app.theservicepilot.com'}/v2/location/${import.meta.env.VITE_LOCATION_ID || 'b8qvo7VooP3JD3dIZU42'}/contacts/detail/${job.ghl_contact_id}/`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        variant="body1" 
+                        sx={{ 
+                          color: 'primary.main', 
+                          fontWeight: 600,
+                          lineHeight: 1.3,
+                          minHeight: { xs: 'auto', sm: '24px' },
+                          textDecoration: 'none',
+                          cursor: 'pointer',
+                          display: 'block',
+                          '&:hover': {
+                            textDecoration: 'underline',
+                          },
+                        }}
+                      >
+                        {toTitleCase(job.contact_details.company_name)}
+                      </Typography>
+                    ) : (
+                      <Typography 
+                        variant="body1" 
+                        sx={{ 
+                          color: 'text.primary', 
+                          fontWeight: 600,
+                          lineHeight: 1.3,
+                          minHeight: { xs: 'auto', sm: '24px' },
+                        }}
+                      >
+                        {toTitleCase(job.contact_details.company_name)}
+                      </Typography>
+                    )}
+                  </Box>
+                  {/* Contact Name - Secondary */}
+                  {job.customer_name && (
+                    <Typography 
+                      component="a"
+                      href={`${import.meta.env.VITE_SERVICE_PILOT_APP_URL || 'https://app.theservicepilot.com'}/v2/location/${import.meta.env.VITE_LOCATION_ID || 'b8qvo7VooP3JD3dIZU42'}/contacts/detail/${job.ghl_contact_id}/`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      variant="body2" 
+                      sx={{ 
+                        color: 'text.secondary', 
+                        fontWeight: 400,
+                        lineHeight: 1.3,
+                        fontSize: '0.875rem',
+                        textDecoration: 'none',
+                        cursor: 'pointer',
+                        display: 'block',
+                        '&:hover': {
+                          textDecoration: 'underline',
+                          color: 'text.primary',
+                        },
+                      }}
+                    >
+                      {toTitleCase(job.customer_name)}
+                    </Typography>
+                  )}
+                </>
               ) : (
-                <Typography 
-                  variant="body1" 
-                  sx={{ 
-                    color: 'text.secondary', 
-                    fontWeight: 500,
-                    lineHeight: 1.3,
-                    minHeight: { xs: 'auto', sm: '24px' }, // Responsive minimum height
-                  }}
-                >
-                  {job.customer_name ? toTitleCase(job.customer_name) : '\u00A0'}
-                </Typography>
+                /* Fallback to customer_name if no company_name */
+                job.customer_name && job.ghl_contact_id ? (
+                  <Typography 
+                    component="a"
+                    href={`${import.meta.env.VITE_SERVICE_PILOT_APP_URL || 'https://app.theservicepilot.com'}/v2/location/${import.meta.env.VITE_LOCATION_ID || 'b8qvo7VooP3JD3dIZU42'}/contacts/detail/${job.ghl_contact_id}/`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    variant="body1" 
+                    sx={{ 
+                      color: 'primary.main', 
+                      fontWeight: 500,
+                      lineHeight: 1.3,
+                      minHeight: { xs: 'auto', sm: '24px' },
+                      textDecoration: 'none',
+                      cursor: 'pointer',
+                      '&:hover': {
+                        textDecoration: 'underline',
+                      },
+                    }}
+                  >
+                    {toTitleCase(job.customer_name)}
+                  </Typography>
+                ) : (
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      color: 'text.secondary', 
+                      fontWeight: 500,
+                      lineHeight: 1.3,
+                      minHeight: { xs: 'auto', sm: '24px' },
+                    }}
+                  >
+                    {job.customer_name ? toTitleCase(job.customer_name) : '\u00A0'}
+                  </Typography>
+                )
               )}
             </Box>
             <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
@@ -397,34 +480,114 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                 Contact
               </Typography>
               
-              {job.customer_name && (
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <User size={16} style={{ color: 'rgba(0, 0, 0, 0.54)', flexShrink: 0 }} />
-                  {job.ghl_contact_id ? (
-                    <Typography 
-                      component="a"
-                      href={`${import.meta.env.VITE_SERVICE_PILOT_APP_URL || 'https://app.theservicepilot.com'}/v2/location/${import.meta.env.VITE_LOCATION_ID || 'b8qvo7VooP3JD3dIZU42'}/contacts/detail/${job.ghl_contact_id}/`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      variant="body2" 
-                      sx={{ 
-                        fontSize: '0.875rem',
-                        color: 'primary.main',
-                        textDecoration: 'none',
-                        cursor: 'pointer',
-                        '&:hover': {
-                          textDecoration: 'underline',
-                        },
-                      }}
-                    >
-                      {toTitleCase(job.customer_name)}
-                    </Typography>
-                  ) : (
-                    <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
-                      {toTitleCase(job.customer_name)}
-                    </Typography>
+              {/* Company Name - Highlighted if exists */}
+              {job.contact_details?.company_name ? (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <User size={16} style={{ color: 'rgba(0, 0, 0, 0.54)', flexShrink: 0 }} />
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
+                      <Typography 
+                        variant="caption" 
+                        sx={{ 
+                          color: 'text.secondary', 
+                          fontWeight: 500,
+                          fontSize: '0.7rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                          lineHeight: 1,
+                        }}
+                      >
+                        Business Name
+                      </Typography>
+                      {job.ghl_contact_id ? (
+                        <Typography 
+                          component="a"
+                          href={`${import.meta.env.VITE_SERVICE_PILOT_APP_URL || 'https://app.theservicepilot.com'}/v2/location/${import.meta.env.VITE_LOCATION_ID || 'b8qvo7VooP3JD3dIZU42'}/contacts/detail/${job.ghl_contact_id}/`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          variant="body2" 
+                          sx={{ 
+                            fontSize: '0.875rem',
+                            color: 'primary.main',
+                            fontWeight: 600,
+                            textDecoration: 'none',
+                            cursor: 'pointer',
+                            '&:hover': {
+                              textDecoration: 'underline',
+                            },
+                          }}
+                        >
+                          {toTitleCase(job.contact_details.company_name)}
+                        </Typography>
+                      ) : (
+                        <Typography variant="body2" sx={{ fontSize: '0.875rem', fontWeight: 600 }}>
+                          {toTitleCase(job.contact_details.company_name)}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                  {/* Contact Name - Secondary */}
+                  {job.customer_name && (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, pl: '24px' }}>
+                      {job.ghl_contact_id ? (
+                        <Typography 
+                          component="a"
+                          href={`${import.meta.env.VITE_SERVICE_PILOT_APP_URL || 'https://app.theservicepilot.com'}/v2/location/${import.meta.env.VITE_LOCATION_ID || 'b8qvo7VooP3JD3dIZU42'}/contacts/detail/${job.ghl_contact_id}/`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          variant="body2" 
+                          sx={{ 
+                            fontSize: '0.8125rem',
+                            color: 'text.secondary',
+                            textDecoration: 'none',
+                            cursor: 'pointer',
+                            '&:hover': {
+                              textDecoration: 'underline',
+                              color: 'text.primary',
+                            },
+                          }}
+                        >
+                          {toTitleCase(job.customer_name)}
+                        </Typography>
+                      ) : (
+                        <Typography variant="body2" sx={{ fontSize: '0.8125rem', color: 'text.secondary' }}>
+                          {toTitleCase(job.customer_name)}
+                        </Typography>
+                      )}
+                    </Box>
                   )}
                 </Box>
+              ) : (
+                /* Fallback to customer_name if no company_name */
+                job.customer_name && (
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <User size={16} style={{ color: 'rgba(0, 0, 0, 0.54)', flexShrink: 0 }} />
+                    {job.ghl_contact_id ? (
+                      <Typography 
+                        component="a"
+                        href={`${import.meta.env.VITE_SERVICE_PILOT_APP_URL || 'https://app.theservicepilot.com'}/v2/location/${import.meta.env.VITE_LOCATION_ID || 'b8qvo7VooP3JD3dIZU42'}/contacts/detail/${job.ghl_contact_id}/`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        variant="body2" 
+                        sx={{ 
+                          fontSize: '0.875rem',
+                          color: 'primary.main',
+                          textDecoration: 'none',
+                          cursor: 'pointer',
+                          '&:hover': {
+                            textDecoration: 'underline',
+                          },
+                        }}
+                      >
+                        {toTitleCase(job.customer_name)}
+                      </Typography>
+                    ) : (
+                      <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                        {toTitleCase(job.customer_name)}
+                      </Typography>
+                    )}
+                  </Box>
+                )
               )}
 
               {job.customer_address && (

@@ -507,6 +507,9 @@ export function TimelineView({
                                     const jobMoment = moment.utc(job.scheduled_at);
                                     const timeStr = jobMoment.format("h:mm A");
                                     
+                                    // Get display name: company_name if available, otherwise customer_name or title
+                                    const displayName = job?.company_name || job.customer_name || job.title;
+                                    
                                     return (
                                       <Draggable
                                         key={job.id}
@@ -527,10 +530,10 @@ export function TimelineView({
                                               backgroundColor: getStatusColor(job.status),
                                               ...provided.draggableProps.style,
                                             }}
-                                            title={`${timeStr} - ${job.customer_name || job.title}`}
+                                            title={`${timeStr} - ${displayName}`}
                                           >
                                             <div className="font-medium truncate">
-                                              {job.customer_name || job.title}
+                                              {displayName}
                                             </div>
                                             <div className="text-[10px] opacity-90">
                                               {timeStr}

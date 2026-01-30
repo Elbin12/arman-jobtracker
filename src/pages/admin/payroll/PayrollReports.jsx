@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Box,
   Card,
@@ -105,6 +105,7 @@ const PayrollReports = () => {
   });
   const [formErrors, setFormErrors] = useState({});
   const [notification, setNotification] = useState({ open: false, type: '', message: '' });
+  const lastChangedFieldRef = useRef(null);
 
   // Build query params from filters
   const queryParams = useMemo(() => {
@@ -216,12 +217,106 @@ const PayrollReports = () => {
         localDateTimeToIso(editFormData.check_out_time)
       );
       if (calculated && calculated !== editFormData.total_hours) {
+        lastChangedFieldRef.current = 'total_hours';
         setEditFormData(prev => ({ ...prev, total_hours: calculated }));
       }
       console.log(editFormData.total_hours, calculated);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editFormData.check_in_time, editFormData.check_out_time, selectedPayout?.payout_type]);
+
+  // Calculate amount based on payout type and relevant fields
+  const calculateAmount = () => {
+    if (!selectedPayout) return null;
+
+    const rate = parseFloat(editFormData.rate_percentage);
+    if (!editFormData.rate_percentage || isNaN(rate) || rate <= 0) return null;
+
+    if (selectedPayout.payout_type === 'hourly') {
+      // For hourly payouts: amount = total_hours * rate_percentage (hourly rate)
+      const hours = parseFloat(editFormData.total_hours);
+      if (!editFormData.total_hours || isNaN(hours) || hours <= 0) return null;
+      return (hours * rate).toFixed(2);
+    } else {
+      // For project payouts: amount = project_value * (rate_percentage / 100)
+      const projectValue = parseFloat(editFormData.project_value);
+      if (!editFormData.project_value || isNaN(projectValue) || projectValue <= 0) return null;
+      return (projectValue * (rate / 100)).toFixed(2);
+    }
+  };
+
+  // Calculate rate_percentage based on amount and payout type
+  const calculateRatePercentage = () => {
+    if (!selectedPayout) return null;
+
+    const amount = parseFloat(editFormData.amount);
+    if (!editFormData.amount || isNaN(amount) || amount <= 0) return null;
+
+    if (selectedPayout.payout_type === 'hourly') {
+      // For hourly payouts: rate_percentage = amount / total_hours
+      const hours = parseFloat(editFormData.total_hours);
+      if (!editFormData.total_hours || isNaN(hours) || hours <= 0) return null;
+      return (amount / hours).toFixed(2);
+    } else {
+      // For project payouts: rate_percentage = (amount / project_value) * 100
+      const projectValue = parseFloat(editFormData.project_value);
+      if (!editFormData.project_value || isNaN(projectValue) || projectValue <= 0) return null;
+      return ((amount / projectValue) * 100).toFixed(2);
+    }
+  };
+
+  // Auto-calculate amount when rate_percentage, project_value, or total_hours change
+  useEffect(() => {
+    if (!editDialogOpen || !selectedPayout) return;
+    // Skip if amount was just changed manually
+    if (lastChangedFieldRef.current === 'amount') {
+      lastChangedFieldRef.current = null;
+      return;
+    }
+
+    const calculatedAmount = calculateAmount();
+    if (calculatedAmount && calculatedAmount !== editFormData.amount) {
+      lastChangedFieldRef.current = 'rate';
+      setEditFormData(prev => ({ ...prev, amount: calculatedAmount }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    editFormData.rate_percentage,
+    editFormData.project_value,
+    editFormData.total_hours,
+    selectedPayout?.payout_type,
+    editDialogOpen,
+  ]);
+
+  // Auto-calculate rate_percentage when amount changes (reverse calculation)
+  useEffect(() => {
+    if (!editDialogOpen || !selectedPayout) return;
+    // Skip if rate was just changed manually or calculated from rate
+    if (lastChangedFieldRef.current === 'rate' || lastChangedFieldRef.current === 'project_value' || lastChangedFieldRef.current === 'total_hours') {
+      lastChangedFieldRef.current = null;
+      return;
+    }
+
+    // Check if amount matches what would be calculated from current rate
+    // If it matches, don't recalculate (to avoid loops)
+    const calculatedAmount = calculateAmount();
+    if (calculatedAmount && Math.abs(parseFloat(calculatedAmount) - parseFloat(editFormData.amount || 0)) < 0.01) {
+      return;
+    }
+
+    const calculatedRate = calculateRatePercentage();
+    if (calculatedRate && calculatedRate !== editFormData.rate_percentage) {
+      lastChangedFieldRef.current = 'amount';
+      setEditFormData(prev => ({ ...prev, rate_percentage: calculatedRate }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    editFormData.amount,
+    editFormData.project_value,
+    editFormData.total_hours,
+    selectedPayout?.payout_type,
+    editDialogOpen,
+  ]);
 
   const validateEditForm = () => {
     const errors = {};
@@ -270,6 +365,7 @@ const PayrollReports = () => {
       total_hours: timeEntryDetails.total_hours ? parseFloat(timeEntryDetails.total_hours).toFixed(2) : '',
     });
     setFormErrors({});
+    lastChangedFieldRef.current = null;
     setEditDialogOpen(true);
   };
 
@@ -1101,7 +1197,10 @@ const PayrollReports = () => {
                 label="Amount"
                 type="number"
                 value={editFormData.amount}
-                onChange={(e) => setEditFormData({ ...editFormData, amount: e.target.value })}
+                onChange={(e) => {
+                  lastChangedFieldRef.current = 'amount';
+                  setEditFormData({ ...editFormData, amount: e.target.value });
+                }}
                 error={!!formErrors.amount}
                 helperText={formErrors.amount}
                 InputProps={{
@@ -1117,7 +1216,10 @@ const PayrollReports = () => {
                 label="Rate Percentage"
                 type="number"
                 value={editFormData.rate_percentage}
-                onChange={(e) => setEditFormData({ ...editFormData, rate_percentage: e.target.value })}
+                onChange={(e) => {
+                  lastChangedFieldRef.current = 'rate';
+                  setEditFormData({ ...editFormData, rate_percentage: e.target.value });
+                }}
                 error={!!formErrors.rate_percentage}
                 helperText={formErrors.rate_percentage || 'Optional: 0-100'}
                 InputProps={{
@@ -1132,7 +1234,10 @@ const PayrollReports = () => {
                 label="Project Value"
                 type="number"
                 value={editFormData.project_value}
-                onChange={(e) => setEditFormData({ ...editFormData, project_value: e.target.value })}
+                onChange={(e) => {
+                  lastChangedFieldRef.current = 'project_value';
+                  setEditFormData({ ...editFormData, project_value: e.target.value });
+                }}
                 error={!!formErrors.project_value}
                 helperText={formErrors.project_value || 'Optional'}
                 InputProps={{

@@ -57,6 +57,7 @@ export const BookingWizard = () => {
   const paramEmail = searchParams.get("email")
 
   const [signature, setSignature] = useState('');
+  const [signatureTimestamp, setSignatureTimestamp] = useState(null);
   const [addiditional_notes, setAdditionalNotes] = useState();
   const [termsAccepted, setTermsAccepted] = useState(false)
 
@@ -500,7 +501,8 @@ export const BookingWizard = () => {
         preferred_start_date: new Date().toISOString().split('T')[0],
         terms_accepted: termsAccepted,
         marketing_consent: false,
-        signature:signature
+        signature: signature,
+        signature_timestamp: signatureTimestamp || new Date().toISOString()
       };
       
       await submitQuote({ submissionId: submission_id, payload }).unwrap();
@@ -603,7 +605,7 @@ export const BookingWizard = () => {
         return <QuestionsForm data={bookingData} onUpdate={updateBookingData} />;
       case 3:
         return <CheckoutSummary data={bookingData} onUpdate={updateBookingData} termsAccepted={termsAccepted} setTermsAccepted={setTermsAccepted}
-        additionalNotes={addiditional_notes} setAdditionalNotes={setAdditionalNotes} setActiveStep={setActiveStep} handleSignatureEnd={handleSignatureEnd} setSignature={setSignature}
+        additionalNotes={addiditional_notes} setAdditionalNotes={setAdditionalNotes} setActiveStep={setActiveStep} handleSignatureEnd={handleSignatureEnd} setSignature={setSignature} signatureTimestamp={signatureTimestamp}
         isStepComplete={isStepComplete} handleNext={handleNext} signature={signature} setBookingData={setBookingData} initialBookingData={initialBookingData}
         />;
       default:
@@ -623,12 +625,16 @@ export const BookingWizard = () => {
         // Convert to Base64 (remove data:image/png;base64, prefix for backend)
         const base64Data = dataUrl.split(",")[1]
         setSignature(base64Data)
+        // Store timestamp when signature is captured
+        setSignatureTimestamp(new Date().toISOString())
       } catch (error) {
         // Fallback: try to get data URL directly
         try {
           const dataUrl = sigCanvasRef.current.toDataURL("image/png")
           const base64Data = dataUrl.split(",")[1]
           setSignature(base64Data)
+          // Store timestamp when signature is captured
+          setSignatureTimestamp(new Date().toISOString())
         } catch (fallbackError) {
           // Fallback signature capture failed
         }
