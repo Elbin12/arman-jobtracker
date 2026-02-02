@@ -1,5 +1,5 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
-import { axiosBaseQuery, BASE_URL } from '../../axios/axios';
+import { axiosBaseQuery, BASE_URL, axiosInstance } from '../../axios/axios';
 
 export const quoteApi = createApi({
   reducerPath: 'quoteApi',
@@ -136,11 +136,117 @@ export const quoteApi = createApi({
       }),
       invalidatesTags: ['quote', 'Details'],
     }),
+    // Submission Images
+    uploadSubmissionImage: builder.mutation({
+      queryFn: async (formData) => {
+        try {
+          const result = await axiosInstance({
+            url: '/quote/submission-images/',
+            method: 'POST',
+            data: formData,
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+          return { data: result.data };
+        } catch (error) {
+          return {
+            error: {
+              status: error.response?.status,
+              data: error.response?.data || error.message,
+            },
+          };
+        }
+      },
+      invalidatesTags: ['quote', 'Details'],
+    }),
+    getSubmissionImages: builder.query({
+      queryFn: async (submissionId) => {
+        try {
+          const result = await axiosInstance({
+            url: `/quote/submission-images/?submission_id=${submissionId}`,
+            method: 'GET',
+          });
+          return { data: result.data };
+        } catch (error) {
+          return {
+            error: {
+              status: error.response?.status,
+              data: error.response?.data || error.message,
+            },
+          };
+        }
+      },
+      providesTags: ['quote', 'Details'],
+    }),
+    updateSubmissionImage: builder.mutation({
+      queryFn: async ({ imageId, caption }) => {
+        try {
+          const result = await axiosInstance({
+            url: `/quote/submission-images/${imageId}/`,
+            method: 'PATCH',
+            data: { caption },
+          });
+          return { data: result.data };
+        } catch (error) {
+          return {
+            error: {
+              status: error.response?.status,
+              data: error.response?.data || error.message,
+            },
+          };
+        }
+      },
+      invalidatesTags: ['quote', 'Details'],
+    }),
+    replaceSubmissionImage: builder.mutation({
+      queryFn: async ({ imageId, formData }) => {
+        try {
+          const result = await axiosInstance({
+            url: `/quote/submission-images/${imageId}/`,
+            method: 'PUT',
+            data: formData,
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+          return { data: result.data };
+        } catch (error) {
+          return {
+            error: {
+              status: error.response?.status,
+              data: error.response?.data || error.message,
+            },
+          };
+        }
+      },
+      invalidatesTags: ['quote', 'Details'],
+    }),
+    deleteSubmissionImage: builder.mutation({
+      queryFn: async (imageId) => {
+        try {
+          const result = await axiosInstance({
+            url: `/quote/submission-images/${imageId}/`,
+            method: 'DELETE',
+          });
+          return { data: result.data };
+        } catch (error) {
+          return {
+            error: {
+              status: error.response?.status,
+              data: error.response?.data || error.message,
+            },
+          };
+        }
+      },
+      invalidatesTags: ['quote', 'Details'],
+    }),
   }),
 });
 
 export const { useGetInitialDataQuery, useGetServiceQuestionsQuery, useCreateSubmissionMutation, useUpdateSubmissionMutation, useCreateQuestionResponsesMutation,
   useCreateServiceToSubmissionMutation,   useGetQuoteDetailsQuery,useSubmitQuoteMutation, useGetAddressesByContactQuery, useSearchContactsQuery, useCreateCustomProductMutation,
   useUpdateCustomProductMutation, useDeleteCustomProductMutation, useGetServicesQuery, useCreateScheduleMutation, useDeleteServiceMutation, useGetGlobalPriceQuery,
-  useSubmitOnlyCustomProductsMutation, useRejectQuoteMutation, useUpdateAdditionalDataMutation
+  useSubmitOnlyCustomProductsMutation, useRejectQuoteMutation, useUpdateAdditionalDataMutation, useUploadSubmissionImageMutation, useGetSubmissionImagesQuery,
+  useUpdateSubmissionImageMutation, useDeleteSubmissionImageMutation, useReplaceSubmissionImageMutation
  } = quoteApi;

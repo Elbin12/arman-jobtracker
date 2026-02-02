@@ -41,6 +41,7 @@ import {
 import DeleteJobDialog from "./DeleteJobDialog"
 import StatusChangeConfirmationDialog from "./StatusChangeConfirmationDialog"
 import { JobCompletionDetails } from "./JobCompletionDetails"
+import { ImageViewer } from "@/components/ui/ImageViewer"
 
 export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTimezone = "America/Chicago" }) {
   const [updating, setUpdating] = useState(false)
@@ -49,6 +50,7 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
   const [statusChangeDialogOpen, setStatusChangeDialogOpen] = useState(false)
   const [pendingStatus, setPendingStatus] = useState(null)
   const [displayStatus, setDisplayStatus] = useState(job?.status)
+  const [selectedImage, setSelectedImage] = useState(null)
   const [updateJob] = useUpdateJobMutation()
   const { toast } = useToast()
 
@@ -963,7 +965,11 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
           )}
 
           {/* Completion Details - Show for all jobs */}
-            <JobCompletionDetails job={job} onUpdate={onUpdate} />
+            <JobCompletionDetails 
+              job={job} 
+              onUpdate={onUpdate} 
+              onImageClick={(image) => setSelectedImage(image)}
+            />
 
           {/* Status Selector */}
           <Box>
@@ -1016,6 +1022,14 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
           isUpdating={updating}
         />
       )}
+
+      {/* Image Viewer */}
+      <ImageViewer
+        open={!!selectedImage}
+        onClose={() => setSelectedImage(null)}
+        image={selectedImage}
+        showCaption={true}
+      />
     </>
   )
 }

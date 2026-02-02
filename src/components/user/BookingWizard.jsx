@@ -11,6 +11,7 @@ import PackageSelectionForm from "./forms/PackageSelectionForm"
 import QuestionsForm from "./forms/QuestionsForm"
 import CheckoutSummary from "./forms/CheckoutSummary"
 import MultiServiceSelectionForm from "./forms/MultiServiceSelectionForm"
+import ImageUploadForm from "./forms/ImageUploadForm"
 import { useCreateQuestionResponsesMutation, useCreateServiceToSubmissionMutation, useCreateSubmissionMutation, useGetQuoteDetailsQuery, useSubmitOnlyCustomProductsMutation, useSubmitQuoteMutation, useUpdateSubmissionMutation } from "../../store/api/user/quoteApi"
 import { useDispatch } from "react-redux"
 import { resetBookingData } from "../../store/slices/bookingSlice"
@@ -24,6 +25,7 @@ const steps = [
   "Your Information",
   "Select Services",
   "Answer Questions",
+  "Upload Images",
   "Review & Submit"
 ];
 
@@ -66,6 +68,7 @@ export const BookingWizard = () => {
     data: submissionData,
     isSuccess,
     isFetching,
+    refetch: refetchQuoteDetails,
   } = useGetQuoteDetailsQuery(submissionIdFromUrl, {
     skip: !submissionIdFromUrl,
     refetchOnMountOrArgChange: true,
@@ -195,10 +198,10 @@ export const BookingWizard = () => {
 
   useLayoutEffect(() => {
     if (isSuccess && submissionData) {
-      if (submissionData?.status==="submitted" || submissionData?.status==="rejected"){
+      if (submissionData?.status==="submitted" || submissionData?.status==="accepted" || submissionData?.status==="rejected"){
         navigate(`/quote/details/${submissionData?.id}`)
       }
-      setActiveStep(3);
+      setActiveStep(4); // Updated to step 4 (Review & Submit) since we added image upload step
     }
   }, [isSuccess, submissionData]);
 
@@ -458,6 +461,10 @@ export const BookingWizard = () => {
       } catch (err) {
         alert(`Could not submit question responses: ${err.message || 'Please try again.'}`);
       }
+    } else if (activeStep === 3) {
+      // Image upload step - images are optional, so we can proceed without validation
+      // The ImageUploadForm handles its own uploads
+      setActiveStep((prev) => prev + 1);
     } else if (activeStep === steps.length - 1) {
       await handleSubmit()
     } else {
@@ -572,23 +579,25 @@ export const BookingWizard = () => {
         // return true;
       case 2:
         return true; // Questions are optional, so always allow proceeding
-        case 3:
-          // Validate packages and services
-          const hasCustom = bookingData.selectedCustomProducts?.length > 0;
-          const servicesCount = bookingData.selectedServices?.length ?? 0;
-          const packagesCount = bookingData.selectedPackages?.length ?? 0;
+      case 3:
+        return true; // Image upload is optional, so always allow proceeding
+      case 4:
+        // Validate packages and services
+        const hasCustom = bookingData.selectedCustomProducts?.length > 0;
+        const servicesCount = bookingData.selectedServices?.length ?? 0;
+        const packagesCount = bookingData.selectedPackages?.length ?? 0;
 
-          const validSelection =
-            // Case 1: custom only
-            (hasCustom && servicesCount === 0) ||
+        const validSelection =
+          // Case 1: custom only
+          (hasCustom && servicesCount === 0) ||
 
-            // Case 2: services with matching packages
-            (servicesCount > 0 && servicesCount === packagesCount) ||
+          // Case 2: services with matching packages
+          (servicesCount > 0 && servicesCount === packagesCount) ||
 
-            // Case 3: custom + services (services must still match packages)
-            (hasCustom && servicesCount > 0 && servicesCount === packagesCount);
+          // Case 3: custom + services (services must still match packages)
+          (hasCustom && servicesCount > 0 && servicesCount === packagesCount);
 
-          return validSelection && termsAccepted && Boolean(signature);
+        return validSelection && termsAccepted && Boolean(signature);
 
       default:
         return false
@@ -604,6 +613,15 @@ export const BookingWizard = () => {
       case 2:
         return <QuestionsForm data={bookingData} onUpdate={updateBookingData} />;
       case 3:
+        return (
+          <ImageUploadForm 
+            submissionId={bookingData.submission_id} 
+            quotedBy={bookingData.userInfo?.quoted_by}
+            quoteDetails={bookingData.quoteDetails}
+            onQuoteDetailsUpdate={refetchQuoteDetails}
+          />
+        );
+      case 4:
         return <CheckoutSummary data={bookingData} onUpdate={updateBookingData} termsAccepted={termsAccepted} setTermsAccepted={setTermsAccepted}
         additionalNotes={addiditional_notes} setAdditionalNotes={setAdditionalNotes} setActiveStep={setActiveStep} handleSignatureEnd={handleSignatureEnd} setSignature={setSignature} signatureTimestamp={signatureTimestamp}
         isStepComplete={isStepComplete} handleNext={handleNext} signature={signature} setBookingData={setBookingData} initialBookingData={initialBookingData}
@@ -779,6 +797,7 @@ export const BookingWizard = () => {
                         {activeStep === 0 ? "Saving..." : 
                         activeStep === 1 ? "Adding Services..." :
                         activeStep === 2 ? "Submitting Responses..." :
+                        activeStep === 3 ? "Processing..." :
                         "Submitting Quote..."}
                       </>
                     ) :(

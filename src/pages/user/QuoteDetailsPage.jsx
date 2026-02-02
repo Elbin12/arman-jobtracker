@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState, useEffect } from "react"
+import { useRef, useState, useEffect, useCallback } from "react"
 import { useParams, useNavigate, useLocation } from "react-router-dom"
 import {
   Box,
@@ -37,6 +37,7 @@ import {
   CheckCircle,
   PictureAsPdf,
   Gavel,
+  Image as ImageIcon,
 } from "@mui/icons-material"
 import {
   useCreateScheduleMutation,
@@ -46,6 +47,7 @@ import {
 import { Info, Plus } from "lucide-react"
 import { handleDownloadPDF } from "../../utils/handleDownloadPDF"
 import { QuoteDetailsSkeleton } from "../../components/ui/skeletons"
+import { ImageViewer } from "../../components/ui/ImageViewer"
 
 const statusStyles = {
   pending: { bgcolor: "warning.light", color: "warning.dark" },
@@ -70,6 +72,7 @@ const QuoteDetailsPage = () => {
   const [activeTab, setActiveTab] = useState("recurring")
   const [showTermsDialog, setShowTermsDialog] = useState(false)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
+  const [selectedImage, setSelectedImage] = useState(null)
 
   const {
     data: quote,
@@ -219,6 +222,7 @@ const QuoteDetailsPage = () => {
     custom_service_total,
     quote_schedule,
     quoted_by_details,
+    images,
   } = quote
 
   const formatPrice = (price) => {
@@ -309,6 +313,7 @@ const QuoteDetailsPage = () => {
       {/* Tab Content */}
       {activeTab === "recurring" && (
         <Box sx={{ maxHeight: "400px", overflow: "auto", pr: 1 }}>
+          {/* OLD RECURRING TERMS - HIDDEN
           <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
             Recurring Service Agreement (Window Cleaning & Gutter Cleaning)
           </Typography>
@@ -316,115 +321,110 @@ const QuoteDetailsPage = () => {
             <Typography variant="body2">
               This Recurring Service Agreement outlines the terms and conditions for ongoing window cleaning and/or gutter cleaning services provided by TruShine Window Cleaning.
             </Typography>
+          */}
+          
+          {/* NEW RECURRING SERVICE ADDENDUM */}
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+            Recurring Service Addendum
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 2, color: "text.secondary" }}>
+            (Window Cleaning & Gutter Cleaning)
+          </Typography>
+          <Box sx={{ color: "text.secondary", fontSize: "0.875rem", "& > *": { mb: 1.5 } }}>
 
-            {/* 1. Scope of Services */}
+            {/* R1) Scope of Recurring Services */}
             <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary" }}>
-              1. Scope of Services
+              R1) Scope of Recurring Services
             </Typography>
-            <Typography variant="body2">TruShine agrees to perform recurring services, which may include:</Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>TruShine will perform recurring window cleaning and/or gutter cleaning as selected:</Typography>
             <Box component="ul" sx={{ pl: 3, m: 0 }}>
               <Typography component="li" variant="body2">
-                <strong>Window Cleaning:</strong>
-                <ul style={{ marginLeft: "20px" }}>
-                  <li>Exterior window cleaning for all accessible glass</li>
-                  <li>Optional interior window cleaning if included</li>
-                  <li>Add-on services such as screen cleaning, track detailing, and hard water removal are available for an additional fee</li>
-                </ul>
+                <strong>Window Cleaning:</strong> exterior window cleaning for all accessible glass; interior if included; add-ons available for additional fee.
               </Typography>
               <Typography component="li" variant="body2">
-                <strong>Gutter Cleaning:</strong>
-                <ul style={{ marginLeft: "20px" }}>
-                  <li>Removal of leaves and debris from gutters</li>
-                  <li>Flushing of downspouts to ensure proper water flow</li>
-                  <li>Light roof debris removal near gutter lines when safely accessible</li>
-                </ul>
+                <strong>Gutter Cleaning:</strong> removal of debris; flushing downspouts; light roof debris removal near gutter lines when safely accessible.
               </Typography>
               <Typography component="li" variant="body2">
-                Services will be performed on a recurring basis according to the selected frequency (monthly, bi-monthly, quarterly, semi-annual, or annual) and will continue until canceled per the terms below.
+                Services occur on the chosen frequency: monthly, bi-monthly, quarterly, semi-annual, or annual, and continue until canceled per this Addendum.
               </Typography>
             </Box>
 
-            {/* 2. Pricing & Payment Terms */}
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary" }}>
-              2. Pricing & Payment Terms
+            {/* R2) Pricing & Payment Terms */}
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary", mt: 2 }}>
+              R2) Pricing & Payment Terms (Recurring)
             </Typography>
             <Box component="ul" sx={{ pl: 3, m: 0 }}>
-              <Typography component="li" variant="body2">Clients on recurring service receive <strong>discounted pricing</strong> compared to one-time service rates</Typography>
-              <Typography component="li" variant="body2">Pricing is based on property size, service scope, and access conditions</Typography>
-              <Typography component="li" variant="body2">Payment is due upon completion of each service unless prepaid or otherwise agreed</Typography>
-              <Typography component="li" variant="body2">A valid credit card must be kept on file for automated billing; receipts are sent via email after each charge</Typography>
+              <Typography component="li" variant="body2">Recurring clients receive discounted pricing compared to one-time rates.</Typography>
+              <Typography component="li" variant="body2">Pricing is based on property size, service scope, and access conditions.</Typography>
+              <Typography component="li" variant="body2"><strong>Billing timing:</strong> For Recurring Plan Visits, Client authorizes TruShine to charge the card on file after completion of each Visit (same day), unless otherwise agreed in writing.</Typography>
+              <Typography component="li" variant="body2">A valid credit card must be kept on file for automated billing; receipts are sent via email after each charge.</Typography>
             </Box>
 
-            {/* 3. Term, Renewal & Cancellation */}
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary" }}>
-              3. Term, Renewal & Cancellation
+            {/* R3) Minimum Commitment */}
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary", mt: 2 }}>
+              R3) Minimum Commitment (By Frequency)
             </Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>Minimum commitment applies based on plan frequency:</Typography>
             <Box component="ul" sx={{ pl: 3, m: 0 }}>
-              <Typography component="li" variant="body2">
-                <strong>Agreement Terms by Frequency:</strong>
-                <ul style={{ marginLeft: "20px" }}>
-                  <li><strong>Monthly, Bi-Monthly, Quarterly, and Semi-Annual Services:</strong> Require a <strong>minimum commitment of one full year</strong></li>
-                  <li><strong>Quarterly Services:</strong> Minimum of <strong>4 scheduled services</strong></li>
-                  <li><strong>Semi-Annual Services:</strong> Minimum of <strong>2 scheduled services</strong></li>
-                  <li><strong>Annual Services:</strong> Require a <strong>minimum 2-year commitment with at least 2 scheduled services per year</strong></li>
-                </ul>
-              </Typography>
-              <Typography component="li" variant="body2">
-                <strong>Termination Rights:</strong>
-                <ul style={{ marginLeft: "20px" }}>
-                  <li>Either party may terminate this agreement <strong>after the minimum service commitment is met</strong> by providing at least <strong>14 days' written notice</strong></li>
-                  <li>TruShine reserves the right to cancel or reschedule service due to weather, safety concerns, or access limitations</li>
-                </ul>
-              </Typography>
-              <Typography component="li" variant="body2">
-                <strong>Early Cancellation Policy:</strong>
-                <ul style={{ marginLeft: "20px" }}>
-                  <li>If the client cancels <strong>before fulfilling their minimum service term</strong>, a cancellation fee will apply</li>
-                  <li>This fee equals the <strong>difference between the discounted recurring rate and the standard one-time service rate</strong> (plus tax) for all completed services</li>
-                  <li>The cancellation fee will be <strong>charged to the card on file</strong> on the day of cancellation</li>
-                </ul>
-              </Typography>
-              <Typography component="li" variant="body2">
-                <strong>Post-Term Continuation:</strong>
-                <ul style={{ marginLeft: "20px" }}>
-                  <li>Once the initial contract term is met, services will continue at the same recurring rate unless the client provides written notice to cancel</li>
-                  <li>No price increases will apply without client approval or advance written notice</li>
-                </ul>
-              </Typography>
+              <Typography component="li" variant="body2"><strong>Monthly, Bi-Monthly, Quarterly, Semi-Annual:</strong> minimum one (1) year commitment.</Typography>
+              <Typography component="li" variant="body2"><strong>Quarterly:</strong> minimum 4 scheduled services</Typography>
+              <Typography component="li" variant="body2"><strong>Semi-Annual:</strong> minimum 2 scheduled services</Typography>
+              <Typography component="li" variant="body2"><strong>Annual:</strong> minimum two (2) year commitment with at least 2 scheduled services per year.</Typography>
             </Box>
 
-            {/* 4. Client Responsibilities */}
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary" }}>
-              4. Client Responsibilities
+            {/* R4) Renewal & Post-Term Continuation */}
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary", mt: 2 }}>
+              R4) Renewal & Post-Term Continuation
             </Typography>
-            <Box component="ul" sx={{ pl: 3, m: 0 }}>
-              <Typography component="li" variant="body2">Ensure all service areas are accessible on scheduled service dates (e.g., gates unlocked, pets secured)</Typography>
-              <Typography component="li" variant="body2">Notify TruShine of any pre-existing issues, fragile items, or safety concerns prior to service</Typography>
-              <Typography component="li" variant="body2">Communicate promptly about scheduling changes or property access restrictions</Typography>
-            </Box>
-
-            {/* 5. Service Adjustments */}
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary" }}>
-              5. Service Adjustments
-            </Typography>
-            <Box component="ul" sx={{ pl: 3, m: 0 }}>
-              <Typography component="li" variant="body2">Service pricing may be updated if property conditions change or if the service scope is modified</Typography>
-              <Typography component="li" variant="body2">Clients may request upgrades, frequency changes, or add-on services with written notice</Typography>
-              <Typography component="li" variant="body2">TruShine will always provide advance notice of any pricing updates</Typography>
-            </Box>
-
-            {/* 6. Insurance & Liability */}
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary" }}>
-              6. Insurance & Liability
-            </Typography>
-            <Box component="ul" sx={{ pl: 3, m: 0 }}>
-              <Typography component="li" variant="body2">TruShine is fully insured and exercises care during all services</Typography>
-              <Typography component="li" variant="body2">TruShine is not responsible for pre-existing damage such as aged gutters, broken seals, or cracked panes</Typography>
-              <Typography component="li" variant="body2">Any service concerns must be reported within <strong>48 hours</strong> of completion for review and resolution</Typography>
-            </Box>
-
             <Typography variant="body2">
-              By continuing recurring services with TruShine Window Cleaning, the client acknowledges and agrees to all terms outlined in this agreement.
+              After the minimum commitment is met, the plan continues automatically at the same recurring rate unless Client cancels with written notice (as defined at the top). No price increases apply without Client approval or advance written notice.
+            </Typography>
+
+            {/* R5) Cancellation After Minimum Term */}
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary", mt: 2 }}>
+              R5) Cancellation After Minimum Term
+            </Typography>
+            <Typography variant="body2">
+              After the minimum commitment is met, either party may terminate with at least 14 days' written notice.
+            </Typography>
+
+            {/* R6) Early Cancellation Policy */}
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary", mt: 2 }}>
+              R6) Early Cancellation Policy (Before Minimum Term)
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>If Client cancels before fulfilling the minimum service term, a cancellation fee applies equal to:</Typography>
+            <Box component="ul" sx={{ pl: 3, m: 0 }}>
+              <Typography component="li" variant="body2">the difference between the discounted recurring rate and the standard one-time rate (plus tax) for all completed Visits to date.</Typography>
+            </Box>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              This fee will be charged to the card on file on the day of cancellation.
+            </Typography>
+
+            {/* R7) Client Responsibilities */}
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary", mt: 2 }}>
+              R7) Client Responsibilities (Recurring)
+            </Typography>
+            <Box component="ul" sx={{ pl: 3, m: 0 }}>
+              <Typography component="li" variant="body2">Ensure access on scheduled dates (gates unlocked, pets secured, clear paths).</Typography>
+              <Typography component="li" variant="body2">Notify TruShine of pre-existing issues, fragile items, or safety concerns.</Typography>
+              <Typography component="li" variant="body2">Communicate promptly about scheduling changes or access restrictions.</Typography>
+              <Typography component="li" variant="body2">If TruShine arrives and cannot perform due to lack of access, the $75 trip fee applies, and rescheduling fees may also apply.</Typography>
+            </Box>
+
+            {/* R8) Service Adjustments */}
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary", mt: 2 }}>
+              R8) Service Adjustments & Changes
+            </Typography>
+            <Typography variant="body2">
+              Pricing may be updated if property conditions change or the service scope is modified. Client may request upgrades, add-ons, or frequency changes with written notice. TruShine will provide advance notice of pricing updates.
+            </Typography>
+
+            {/* R9) Weather / Safety / Access Limitations */}
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary", mt: 2 }}>
+              R9) Weather / Safety / Access Limitations
+            </Typography>
+            <Typography variant="body2">
+              TruShine may cancel or reschedule due to weather, safety concerns, or access limitations.
             </Typography>
           </Box>
         </Box>
@@ -432,6 +432,7 @@ const QuoteDetailsPage = () => {
 
       {activeTab === "terms" && (
         <Box sx={{ maxHeight: "400px", overflow: "auto", pr: 1 }}>
+          {/* OLD TERMS - HIDDEN
           <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
             Terms and Conditions
           </Typography>
@@ -442,189 +443,271 @@ const QuoteDetailsPage = () => {
               "& > *": { mb: 1.5 },
             }}
           >
-            {/* GENERAL TERMS */}
             <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary" }}>
               GENERAL TERMS
             </Typography>
-            <Box component="ul" sx={{ pl: 3, m: 0 }}>
-              <Typography component="li" variant="body2">
-                Any special accommodations must be reviewed and approved by TWC management before accepting the proposal.
-              </Typography>
-              <Typography component="li" variant="body2">
-                Quotations are valid for 30 days and must be accepted in writing (signature or electronic acceptance).
-              </Typography>
-              <Typography component="li" variant="body2">
-                All work will be completed in a professional, workmanlike manner, in compliance with local codes/regulations.
-              </Typography>
-              <Typography component="li" variant="body2">
-                TWC is properly insured against injury to employees and losses from employee actions.
-              </Typography>
-              <Typography component="li" variant="body2">
-                TWC reserves the right to update these Terms and Conditions at any time.
-              </Typography>
-            </Box>
-
-            {/* WINDOW CLEANING */}
+          */}
+          
+          {/* NEW MASTER TERMS & CONDITIONS */}
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+            TruShine Window Cleaning
+          </Typography>
+          <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
+            Master Terms & Conditions + Recurring Service Addendum
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 2, color: "text.secondary" }}>
+            (Window Cleaning • Gutter Cleaning • Pressure Washing • Awning Cleaning)
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 3, fontSize: "0.8rem", fontStyle: "italic" }}>
+            Written notice for anything in this agreement means email or SMS/text message to TruShine's official contact information on your invoice/estimate/website (or the number/email used to confirm your appointment).
+          </Typography>
+          <Box
+            sx={{
+              color: "text.secondary",
+              fontSize: "0.75rem",
+              "& > *": { mb: 1.5 },
+            }}
+          >
+            {/* 1) Definitions */}
             <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary" }}>
-              WINDOW CLEANING
+              1) Definitions
             </Typography>
             <Box component="ul" sx={{ pl: 3, m: 0 }}>
               <Typography component="li" variant="body2">
-                All windows must be securely closed on the day of service.
+                <strong>"TruShine / TWC"</strong> = TruShine Window Cleaning.
               </Typography>
               <Typography component="li" variant="body2">
-                Client responsible for ensuring items are structurally sound. TWC may document/refuse questionable items.
+                <strong>"Client"</strong> = the person or entity booking services.
               </Typography>
               <Typography component="li" variant="body2">
-                Full access required; obstacles will not be moved. $75 trip fee if no access available.
+                <strong>"Services"</strong> = work listed in the estimate/proposal/work order/invoice.
               </Typography>
               <Typography component="li" variant="body2">
-                Unsafe/inaccessible windows will not be cleaned.
+                <strong>"Visit"</strong> = a scheduled service appointment date.
               </Typography>
               <Typography component="li" variant="body2">
-                External glass cleaned with water-fed pole using pure water, left to dry naturally.
+                <strong>"Site"</strong> = the property where Services are performed.
               </Typography>
               <Typography component="li" variant="body2">
-                “Window” includes frame, sill, sash, and glass (wood, aluminum, steel, UPVC). Brick/tile/stone sills excluded.
-              </Typography>
-              <Typography component="li" variant="body2">
-                36-hour Streak-Free Guarantee on all window cleaning packages.
+                <strong>"Recurring Plan"</strong> = ongoing services scheduled monthly, bi-monthly, quarterly, semi-annual, or annual.
               </Typography>
             </Box>
 
-            {/* PRESSURE WASHING */}
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary" }}>
-              PRESSURE WASHING
+            {/* 2) Acceptance & Agreement */}
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary", mt: 2 }}>
+              2) Acceptance & Agreement
+            </Typography>
+            <Typography variant="body2">
+              Quotes are valid for 30 days and must be accepted in writing (signature, electronic acceptance, or checkbox). By booking, approving, paying, or accepting electronically, Client agrees to these Master Terms & Conditions. If Client enrolls in a Recurring Plan, the Recurring Service Addendum also applies.
+            </Typography>
+
+            {/* 3) Professional Standards */}
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary", mt: 2 }}>
+              3) Professional Standards, Codes, and Insurance
+            </Typography>
+            <Typography variant="body2">
+              All work is performed in a professional, workmanlike manner and in compliance with applicable local codes and regulations. TruShine is properly insured against injury to employees and losses resulting from employee actions.
+            </Typography>
+
+            {/* 4) Scope of Work */}
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary", mt: 2 }}>
+              4) Scope of Work & Exclusions
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              The scope is limited to what is specifically included in the estimate/proposal/work order. Anything not listed is excluded unless agreed in writing.
             </Typography>
             <Box component="ul" sx={{ pl: 3, m: 0 }}>
               <Typography component="li" variant="body2">
-                Pressure washing removes most stains; some marks may remain.
+                <strong>A) Window Cleaning:</strong> All windows must be securely closed on the day of service. Unsafe/inaccessible windows will not be cleaned. Exterior glass may be cleaned using a water-fed pole with pure water and left to dry naturally. "Window" includes frame, sill, sash, and glass (wood, aluminum, steel, UPVC). Brick/tile/stone sills are excluded. Add-ons (extra fee unless included): screen cleaning, track detailing, hard water removal, etc.
               </Typography>
               <Typography component="li" variant="body2">
-                External water access is required.
+                <strong>B) Gutter Cleaning:</strong> Basic gutter cleaning includes clearing internal gutters only. Debris hauling and repairs are not included unless agreed in writing. Cleaning may be performed via leaf blower; downspouts may be flushed with hose. Exterior gutter surface cleaning is not included (available for additional cost).
               </Typography>
               <Typography component="li" variant="body2">
-                Client must cover/remove outdoor furniture. $150 fee if TWC must do it. Not liable for chemical damage.
+                <strong>C) Pressure Washing:</strong> Removes most stains; some marks may remain. External water access is required. Client must cover/remove outdoor furniture. If TruShine must do it, a $150 fee may apply. TruShine is not liable for chemical damage to items not properly protected/removed.
               </Typography>
               <Typography component="li" variant="body2">
-                3-day satisfaction guarantee on premium pressure washing packages only.
+                <strong>D) Awning Cleaning:</strong> TruShine is not liable for unexpected damage during awning cleaning. Service may be declined if material is over 5 years old or fails inspection.
               </Typography>
             </Box>
 
-            {/* GUTTER CLEANING */}
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary" }}>
-              GUTTER CLEANING
+            {/* 5) Access, Safety, and Property Condition */}
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary", mt: 2 }}>
+              5) Access, Safety, and Property Condition
             </Typography>
             <Box component="ul" sx={{ pl: 3, m: 0 }}>
               <Typography component="li" variant="body2">
-                Basic cleaning includes clearing internal gutters only. Hauling debris/repairs not included unless agreed.
+                Client must provide full access to work areas (gates unlocked, pets secured, clear access).
               </Typography>
               <Typography component="li" variant="body2">
-                Cleaning done via leaf blower; downspouts flushed with hose.
+                TruShine will not move obstacles/furniture for access (unless agreed).
               </Typography>
               <Typography component="li" variant="body2">
-                Exterior gutter surface cleaning not included (available at additional cost).
+                If TruShine arrives and cannot perform due to lack of access or unsafe conditions, a $75 trip fee applies.
               </Typography>
               <Typography component="li" variant="body2">
-                15-day guarantee on all gutter cleaning packages.
+                Client is responsible for ensuring items/structures are sound. TruShine may document or refuse questionable items.
+              </Typography>
+              <Typography component="li" variant="body2">
+                Any special accommodations must be reviewed and approved by TruShine management before accepting the proposal.
               </Typography>
             </Box>
 
-            {/* AWNING CLEANING */}
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary" }}>
-              AWNING CLEANING
+            {/* 6) Scheduling, Rescheduling, and Delays */}
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary", mt: 2 }}>
+              6) Scheduling, Rescheduling, and Delays
             </Typography>
             <Box component="ul" sx={{ pl: 3, m: 0 }}>
               <Typography component="li" variant="body2">
-                TWC not liable for unexpected damage during awning cleaning.
+                TruShine is not liable for delays due to weather, supply issues, or other uncontrollable factors.
               </Typography>
               <Typography component="li" variant="body2">
-                Service may be declined if material is over 5 years old or fails inspection.
+                Each Client may reschedule up to two (2) times within 7 days of the original date.
               </Typography>
               <Typography component="li" variant="body2">
-                24-hour guarantee on all awning cleaning services.
+                Rescheduling/cancellation requested within 8 hours of a scheduled Visit: <strong>$35 fee</strong>.
+              </Typography>
+              <Typography component="li" variant="body2">
+                Rescheduling more than 8 hours in advance: no fee for the first 2 reschedules.
+              </Typography>
+              <Typography component="li" variant="body2">
+                Beyond 2 reschedules, TruShine may charge up to the full service amount to protect crew scheduling and reserved time.
+              </Typography>
+              <Typography component="li" variant="body2">
+                <strong>Important:</strong> These rescheduling rules apply to all Visits, including Recurring Plan Visits.
               </Typography>
             </Box>
 
-            {/* RESCHEDULING, CANCELLATION & CLIENT RESPONSIBILITIES */}
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary" }}>
-              RESCHEDULING, CANCELLATION & CLIENT RESPONSIBILITIES
+            {/* 7) Pricing, Deposits, and Payments */}
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary", mt: 2 }}>
+              7) Pricing, Deposits, and Payments
             </Typography>
             <Box component="ul" sx={{ pl: 3, m: 0 }}>
               <Typography component="li" variant="body2">
-                Each client may reschedule up to 2 times, within 7 days of original date.
+                Payment is due upon completion unless otherwise agreed in writing.
               </Typography>
               <Typography component="li" variant="body2">
-                Rescheduling/cancellation within 8 hours: $35 fee.
+                TruShine may require credit card info on file and/or a $100 deposit.
               </Typography>
               <Typography component="li" variant="body2">
-                More than 8 hours in advance: free (first 2 times).
+                Jobs needing materials may require a 50% deposit.
               </Typography>
               <Typography component="li" variant="body2">
-                Beyond 2 reschedules may incur full service amount fee.
+                Accepted: cash, check, credit card (in person, by phone, or online).
               </Typography>
               <Typography component="li" variant="body2">
-                TruShine not liable for delays due to weather/supply/uncontrollable issues.
-              </Typography>
-            </Box>
-
-            {/* PAYMENTS */}
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary" }}>
-              PAYMENTS
-            </Typography>
-            <Box component="ul" sx={{ pl: 3, m: 0 }}>
-              <Typography component="li" variant="body2">
-                Payment due upon completion unless otherwise agreed.
-              </Typography>
-              <Typography component="li" variant="body2">
-                TWC may require credit card info or $100 deposit. Jobs needing materials: 50% deposit.
-              </Typography>
-              <Typography component="li" variant="body2">
-                Accepted: cash, check, credit card (in person, phone, or online).
-              </Typography>
-              <Typography component="li" variant="body2">
-                Commercial account payments can be mailed to: 3525 Murdock ST, Houston, TX 77047.
+                Commercial payments may be mailed to: <strong>3525 Murdock St, Houston, TX 77047</strong>.
               </Typography>
               <Typography component="li" variant="body2">
                 Clients with unpaid balances may be denied further service.
               </Typography>
               <Typography component="li" variant="body2">
-                Disputed payments are client’s responsibility. Late/recovery fees may apply.
+                Disputed payments are Client's responsibility; late/recovery fees may apply.
+              </Typography>
+              <Typography component="li" variant="body2">
+                All services are subject to applicable Texas state tax.
               </Typography>
             </Box>
 
-            {/* LATE FEES */}
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary" }}>
-              LATE FEES
+            {/* 8) Late Fees & Collections */}
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary", mt: 2 }}>
+              8) Late Fees & Collections
             </Typography>
             <Box component="ul" sx={{ pl: 3, m: 0 }}>
               <Typography component="li" variant="body2">
-                Residential: 10% late fee after 1 day.
+                Residential: <strong>10% late fee after 1 day</strong>.
               </Typography>
               <Typography component="li" variant="body2">
-                Commercial: 10% late fee after 30 days.
+                Commercial: <strong>10% late fee after 30 days</strong>.
               </Typography>
               <Typography component="li" variant="body2">
-                Balances unpaid after 60 days sent to collections (including legal fees).
+                Balances unpaid after 60 days may be sent to collections, including legal fees and collection costs as permitted by law.
               </Typography>
             </Box>
 
-            {/* OTHER POLICIES */}
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary" }}>
-              OTHER POLICIES
+            {/* 9) Guarantees */}
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary", mt: 2 }}>
+              9) Guarantees (Service-Specific)
             </Typography>
             <Box component="ul" sx={{ pl: 3, m: 0 }}>
               <Typography component="li" variant="body2">
-                All sales final. Refunds only for unused material during service.
+                <strong>Window Cleaning:</strong> 36-hour streak-free guarantee on all window cleaning packages.
               </Typography>
               <Typography component="li" variant="body2">
-                14-day written notice required for cancellation. Less notice = full charge.
+                <strong>Gutter Cleaning:</strong> 15-day guarantee on all gutter cleaning packages.
               </Typography>
               <Typography component="li" variant="body2">
-                All services subject to applicable Texas state TAX.
+                <strong>Awning Cleaning:</strong> 24-hour guarantee on all awning cleaning services.
               </Typography>
               <Typography component="li" variant="body2">
-                If a complaint revisit finds work satisfactory, $75 trip fee applies.
+                <strong>Pressure Washing:</strong> 3-day satisfaction guarantee on premium pressure washing packages only.
+              </Typography>
+            </Box>
+
+            {/* 10) Complaints, Re-Visits, and Trip Fees */}
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary", mt: 2 }}>
+              10) Complaints, Re-Visits, and Trip Fees
+            </Typography>
+            <Box component="ul" sx={{ pl: 3, m: 0 }}>
+              <Typography component="li" variant="body2">
+                Any service concerns must be reported within 48 hours of completion for review and resolution.
+              </Typography>
+              <Typography component="li" variant="body2">
+                TruShine must be given a reasonable opportunity to inspect and/or correct any confirmed workmanship issues.
+              </Typography>
+              <Typography component="li" variant="body2">
+                If a complaint revisit finds the work satisfactory, a <strong>$75 trip fee</strong> applies.
+              </Typography>
+            </Box>
+
+            {/* 11) Refund Policy */}
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary", mt: 2 }}>
+              11) Refund Policy
+            </Typography>
+            <Typography variant="body2">
+              All sales are final. Refunds are only for unused materials during service (if applicable).
+            </Typography>
+
+            {/* 12) Cancellation Policy */}
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary", mt: 2 }}>
+              12) Cancellation Policy (One-Time / Non-Recurring)
+            </Typography>
+            <Typography variant="body2">
+              Client cancellation requests should be provided with as much notice as possible. For larger or reserved jobs, TruShine may require 14 days' written notice; shorter notice may result in a charge up to the full service amount, depending on crew scheduling and reserved time.
+            </Typography>
+
+            {/* 13) Liability Limits */}
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary", mt: 2 }}>
+              13) Liability Limits & Pre-Existing Damage
+            </Typography>
+            <Typography variant="body2">
+              TruShine is not responsible for pre-existing damage or deterioration including (but not limited to): aged gutters, rotted wood, failing seals, cracked panes, loose screens, or previously weakened/fragile items. Client must notify TruShine of known issues or safety concerns prior to service.
+            </Typography>
+
+            {/* 14) Updates to Terms */}
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary", mt: 2 }}>
+              14) Updates to Terms
+            </Typography>
+            <Typography variant="body2">
+              TruShine reserves the right to update these Terms & Conditions at any time. Updated terms apply prospectively.
+            </Typography>
+
+            {/* 15) Order of Priority */}
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary", mt: 2 }}>
+              15) Order of Priority (If Anything Conflicts)
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              If there is a conflict between documents:
+            </Typography>
+            <Box component="ul" sx={{ pl: 3, m: 0 }}>
+              <Typography component="li" variant="body2">
+                The signed/accepted proposal/work order/invoice for the Visit, then
+              </Typography>
+              <Typography component="li" variant="body2">
+                the Recurring Service Addendum (if enrolled), then
+              </Typography>
+              <Typography component="li" variant="body2">
+                these Master Terms & Conditions.
               </Typography>
             </Box>
 
@@ -743,7 +826,8 @@ const QuoteDetailsPage = () => {
                   custom_products,
                   globalPriceData,
                   additional_data,
-                  house_sqft
+                  house_sqft,
+                  custom_service_total
                 )
               }
               disabled={isGeneratingPDF}
@@ -1168,6 +1252,82 @@ const QuoteDetailsPage = () => {
                 </Card>
               )}
 
+              {/* Images Section */}
+              {images && images.length > 0 && (
+                <Card>
+                  <Box sx={{ p: 3, py: 2 }}>
+                    <Stack direction="row" alignItems="center" spacing={2}>
+                      <Avatar sx={{ bgcolor: "#023c8f" }}>
+                        <ImageIcon />
+                      </Avatar>
+                      <Typography variant="h6" sx={{ fontWeight: 600, color: "#023c8f" }}>
+                        Images ({images.length})
+                      </Typography>
+                    </Stack>
+                  </Box>
+                  <Divider />
+                  <CardContent sx={{ p: 3 }}>
+                    <Grid container spacing={2}>
+                      {images.map((image) => (
+                        <Grid item xs={6} sm={4} md={3} key={image.id}>
+                          <Box
+                            sx={{
+                              position: "relative",
+                              aspectRatio: "1",
+                              borderRadius: 2,
+                              overflow: "hidden",
+                              border: "2px solid #e2e8f0",
+                              cursor: "pointer",
+                              transition: "all 0.2s ease",
+                              "&:hover": {
+                                borderColor: "#023c8f",
+                                transform: "scale(1.02)",
+                                boxShadow: "0 4px 12px rgba(2, 60, 143, 0.15)",
+                              },
+                            }}
+                            onClick={() => {
+                              setSelectedImage(image)
+                            }}
+                          >
+                            <img
+                              src={image.image_url || image.image}
+                              alt={image.caption || "Quote image"}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                              }}
+                              onError={(e) => {
+                                e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23ddd' width='100' height='100'/%3E%3Ctext fill='%23999' font-family='sans-serif' font-size='14' dy='10.5' font-weight='bold' x='50%25' y='50%25' text-anchor='middle'%3EImage%3C/text%3E%3C/svg%3E"
+                              }}
+                            />
+                            {image.caption && (
+                              <Box
+                                sx={{
+                                  position: "absolute",
+                                  bottom: 0,
+                                  left: 0,
+                                  right: 0,
+                                  bgcolor: "rgba(0, 0, 0, 0.7)",
+                                  color: "white",
+                                  p: 1,
+                                  fontSize: "0.75rem",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {image.caption}
+                              </Box>
+                            )}
+                          </Box>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Additional Information */}
               {(additional_data && (additional_data?.signature || additional_data?.additional_notes)) || quoted_by_details ? (
                 <Card>
@@ -1213,7 +1373,7 @@ const QuoteDetailsPage = () => {
                         <Typography variant="subtitle2" sx={{ color: "#64748b", mb: 2 }}>
                           Terms & Conditions
                         </Typography>
-                        {quote?.status === "accepted" ? (
+                        {quote?.status === "accepted" || "submitted" ? (
                           <Box
                             sx={{
                               border: "1px solid #e0e0e0",
@@ -1496,6 +1656,14 @@ const QuoteDetailsPage = () => {
           </Box>
         </Container>
       </Box>
+
+      {/* Image Viewer */}
+      <ImageViewer
+        open={!!selectedImage}
+        onClose={() => setSelectedImage(null)}
+        image={selectedImage}
+        showCaption={true}
+      />
 
       {/* Terms & Conditions Dialog */}
       <Dialog

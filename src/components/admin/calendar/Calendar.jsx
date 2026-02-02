@@ -833,7 +833,8 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
   const [selectedJob, setSelectedJob] = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [selectedEstimate, setSelectedEstimate] = useState(null);
-  const [view, setView] = useState("month");
+  // Default to week view on mobile, month view on desktop
+  const [view, setView] = useState(window.innerWidth < 640 ? "day" : "month");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [monthRowHeight, setMonthRowHeight] = useState(140);
   const [expandedDays, setExpandedDays] = useState(new Set()); // Track which days are expanded

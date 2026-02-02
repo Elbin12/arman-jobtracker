@@ -41,12 +41,13 @@ function TermsAndConditions() {
             <div className="sm:px-8 pb-8">
               <div className="mb-8 p-4">
                 <p className="text-gray-800 leading-relaxed font-medium">
-                  By accepting the proposal, electronically or in writing, you agree to all the terms outlined below.
+                  Written notice for anything in this agreement means email or SMS/text message to TruShine's official contact information on your invoice/estimate/website (or the number/email used to confirm your appointment).
                 </p>
               </div>
 
+              {/* OLD TERMS - HIDDEN
               <div className="space-y-8">
-                {/* GENERAL TERMS */}
+                GENERAL TERMS
                 <section>
                   <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
                     General Terms
@@ -88,7 +89,7 @@ function TermsAndConditions() {
                   </div>
                 </section>
 
-                {/* WINDOW CLEANING */}
+                WINDOW CLEANING
                 <section>
                   <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
                     Window Cleaning
@@ -142,7 +143,7 @@ function TermsAndConditions() {
                   </div>
                 </section>
 
-                {/* PRESSURE WASHING */}
+                PRESSURE WASHING
                 <section>
                   <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
                     Pressure Washing
@@ -175,7 +176,7 @@ function TermsAndConditions() {
                   </div>
                 </section>
 
-                {/* GUTTER CLEANING */}
+                GUTTER CLEANING
                 <section>
                   <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
                     Gutter Cleaning
@@ -210,7 +211,7 @@ function TermsAndConditions() {
                   </div>
                 </section>
 
-                {/* AWNING CLEANING */}
+                AWNING CLEANING
                 <section>
                   <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
                     Awning Cleaning
@@ -238,7 +239,7 @@ function TermsAndConditions() {
                   </div>
                 </section>
 
-                {/* RESCHEDULING, CANCELLATION & CLIENT RESPONSIBILITIES */}
+                RESCHEDULING, CANCELLATION & CLIENT RESPONSIBILITIES
                 <section>
                   <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
                     Rescheduling, Cancellation & Client Responsibilities
@@ -278,7 +279,7 @@ function TermsAndConditions() {
                   </div>
                 </section>
 
-                {/* PAYMENTS */}
+                PAYMENTS
                 <section>
                   <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">Payments</h2>
                   <div className="space-y-3">
@@ -322,7 +323,7 @@ function TermsAndConditions() {
                   </div>
                 </section>
 
-                {/* LATE FEES */}
+                LATE FEES
                 <section>
                   <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">Late Fees</h2>
                   <div className="space-y-3">
@@ -347,7 +348,7 @@ function TermsAndConditions() {
                   </div>
                 </section>
 
-                {/* OTHER POLICIES */}
+                OTHER POLICIES
                 <section>
                   <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
                     Other Policies
@@ -380,7 +381,7 @@ function TermsAndConditions() {
                   </div>
                 </section>
 
-                {/* Recurring Service Agreement */}
+                Recurring Service Agreement
                 <section>
                   <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
                     Recurring Service Agreement
@@ -672,6 +673,613 @@ function TermsAndConditions() {
                     </div>
                   </div>
                 </section>
+              </div>
+              */}
+
+              {/* NEW TERMS AND CONDITIONS */}
+              <div className="space-y-8">
+                {/* Title */}
+                <section>
+                  <h1 className="text-3xl text-gray-900 mb-2 font-bold">
+                    TruShine Window Cleaning
+                  </h1>
+                  <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
+                    Master Terms & Conditions + Recurring Service Addendum
+                  </h2>
+                  <p className="text-gray-700 leading-relaxed text-base mb-4">
+                    (Window Cleaning • Gutter Cleaning • Pressure Washing • Awning Cleaning)
+                  </p>
+                </section>
+
+                {/* Definitions */}
+                <section>
+                  <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
+                    1) Definitions
+                  </h2>
+                  <div className="space-y-3">
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        <strong>"TruShine / TWC"</strong> = TruShine Window Cleaning.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        <strong>"Client"</strong> = the person or entity booking services.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        <strong>"Services"</strong> = work listed in the estimate/proposal/work order/invoice.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        <strong>"Visit"</strong> = a scheduled service appointment date.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        <strong>"Site"</strong> = the property where Services are performed.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        <strong>"Recurring Plan"</strong> = ongoing services scheduled monthly, bi-monthly, quarterly, semi-annual, or annual.
+                      </p>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Acceptance & Agreement */}
+                <section>
+                  <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
+                    2) Acceptance & Agreement
+                  </h2>
+                  <div className="space-y-3">
+                    <p className="text-gray-700 leading-relaxed text-base">
+                      Quotes are valid for 30 days and must be accepted in writing (signature, electronic acceptance, or checkbox). By booking, approving, paying, or accepting electronically, Client agrees to these Master Terms & Conditions. If Client enrolls in a Recurring Plan, the Recurring Service Addendum also applies.
+                    </p>
+                  </div>
+                </section>
+
+                {/* Professional Standards */}
+                <section>
+                  <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
+                    3) Professional Standards, Codes, and Insurance
+                  </h2>
+                  <div className="space-y-3">
+                    <p className="text-gray-700 leading-relaxed text-base">
+                      All work is performed in a professional, workmanlike manner and in compliance with applicable local codes and regulations. TruShine is properly insured against injury to employees and losses resulting from employee actions.
+                    </p>
+                  </div>
+                </section>
+
+                {/* Scope of Work */}
+                <section>
+                  <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
+                    4) Scope of Work & Exclusions
+                  </h2>
+                  <div className="space-y-3">
+                    <p className="text-gray-700 leading-relaxed text-base mb-4">
+                      The scope is limited to what is specifically included in the estimate/proposal/work order. Anything not listed is excluded unless agreed in writing.
+                    </p>
+                    
+                    <div className="ml-4 space-y-4">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">A) Window Cleaning</h3>
+                        <div className="space-y-2 ml-4">
+                          <p className="text-gray-700 leading-relaxed text-base">All windows must be securely closed on the day of service.</p>
+                          <p className="text-gray-700 leading-relaxed text-base">Unsafe/inaccessible windows will not be cleaned.</p>
+                          <p className="text-gray-700 leading-relaxed text-base">Exterior glass may be cleaned using a water-fed pole with pure water and left to dry naturally.</p>
+                          <p className="text-gray-700 leading-relaxed text-base">"Window" includes frame, sill, sash, and glass (wood, aluminum, steel, UPVC). Brick/tile/stone sills are excluded.</p>
+                          <p className="text-gray-700 leading-relaxed text-base">Add-ons (extra fee unless included): screen cleaning, track detailing, hard water removal, etc.</p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">B) Gutter Cleaning</h3>
+                        <div className="space-y-2 ml-4">
+                          <p className="text-gray-700 leading-relaxed text-base">Basic gutter cleaning includes clearing internal gutters only.</p>
+                          <p className="text-gray-700 leading-relaxed text-base">Debris hauling and repairs are not included unless agreed in writing.</p>
+                          <p className="text-gray-700 leading-relaxed text-base">Cleaning may be performed via leaf blower; downspouts may be flushed with hose.</p>
+                          <p className="text-gray-700 leading-relaxed text-base">Exterior gutter surface cleaning is not included (available for additional cost).</p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">C) Pressure Washing</h3>
+                        <div className="space-y-2 ml-4">
+                          <p className="text-gray-700 leading-relaxed text-base">Removes most stains; some marks may remain.</p>
+                          <p className="text-gray-700 leading-relaxed text-base">External water access is required.</p>
+                          <p className="text-gray-700 leading-relaxed text-base">Client must cover/remove outdoor furniture. If TruShine must do it, a $150 fee may apply. TruShine is not liable for chemical damage to items not properly protected/removed.</p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">D) Awning Cleaning</h3>
+                        <div className="space-y-2 ml-4">
+                          <p className="text-gray-700 leading-relaxed text-base">TruShine is not liable for unexpected damage during awning cleaning.</p>
+                          <p className="text-gray-700 leading-relaxed text-base">Service may be declined if material is over 5 years old or fails inspection.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Access, Safety, and Property Condition */}
+                <section>
+                  <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
+                    5) Access, Safety, and Property Condition
+                  </h2>
+                  <div className="space-y-3">
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        Client must provide full access to work areas (gates unlocked, pets secured, clear access).
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        TruShine will not move obstacles/furniture for access (unless agreed).
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        If TruShine arrives and cannot perform due to lack of access or unsafe conditions, a $75 trip fee applies.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        Client is responsible for ensuring items/structures are sound. TruShine may document or refuse questionable items.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        Any special accommodations must be reviewed and approved by TruShine management before accepting the proposal.
+                      </p>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Scheduling, Rescheduling, and Delays */}
+                <section>
+                  <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
+                    6) Scheduling, Rescheduling, and Delays
+                  </h2>
+                  <div className="space-y-3">
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        TruShine is not liable for delays due to weather, supply issues, or other uncontrollable factors.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        Each Client may reschedule up to two (2) times within 7 days of the original date.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        Rescheduling/cancellation requested within 8 hours of a scheduled Visit: <strong>$35 fee</strong>.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        Rescheduling more than 8 hours in advance: no fee for the first 2 reschedules.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        Beyond 2 reschedules, TruShine may charge up to the full service amount to protect crew scheduling and reserved time.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        <strong>Important:</strong> These rescheduling rules apply to all Visits, including Recurring Plan Visits.
+                      </p>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Pricing, Deposits, and Payments */}
+                <section>
+                  <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
+                    7) Pricing, Deposits, and Payments
+                  </h2>
+                  <div className="space-y-3">
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        Payment is due upon completion unless otherwise agreed in writing.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        TruShine may require credit card info on file and/or a $100 deposit.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        Jobs needing materials may require a 50% deposit.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        Accepted: cash, check, credit card (in person, by phone, or online).
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        Commercial payments may be mailed to: <strong>3525 Murdock St, Houston, TX 77047</strong>.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        Clients with unpaid balances may be denied further service.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        Disputed payments are Client's responsibility; late/recovery fees may apply.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        All services are subject to applicable Texas state tax.
+                      </p>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Late Fees & Collections */}
+                <section>
+                  <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
+                    8) Late Fees & Collections
+                  </h2>
+                  <div className="space-y-3">
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        Residential: <strong>10% late fee after 1 day</strong>.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        Commercial: <strong>10% late fee after 30 days</strong>.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        Balances unpaid after 60 days may be sent to collections, including legal fees and collection costs as permitted by law.
+                      </p>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Guarantees */}
+                <section>
+                  <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
+                    9) Guarantees (Service-Specific)
+                  </h2>
+                  <div className="space-y-3">
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        <strong>Window Cleaning:</strong> 36-hour streak-free guarantee on all window cleaning packages.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        <strong>Gutter Cleaning:</strong> 15-day guarantee on all gutter cleaning packages.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        <strong>Awning Cleaning:</strong> 24-hour guarantee on all awning cleaning services.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        <strong>Pressure Washing:</strong> 3-day satisfaction guarantee on premium pressure washing packages only.
+                      </p>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Complaints, Re-Visits, and Trip Fees */}
+                <section>
+                  <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
+                    10) Complaints, Re-Visits, and Trip Fees
+                  </h2>
+                  <div className="space-y-3">
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        Any service concerns must be reported within 48 hours of completion for review and resolution.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        TruShine must be given a reasonable opportunity to inspect and/or correct any confirmed workmanship issues.
+                      </p>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-600 mr-3 mt-1">•</span>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        If a complaint revisit finds the work satisfactory, a <strong>$75 trip fee</strong> applies.
+                      </p>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Refund Policy */}
+                <section>
+                  <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
+                    11) Refund Policy
+                  </h2>
+                  <div className="space-y-3">
+                    <p className="text-gray-700 leading-relaxed text-base">
+                      All sales are final. Refunds are only for unused materials during service (if applicable).
+                    </p>
+                  </div>
+                </section>
+
+                {/* Cancellation Policy */}
+                <section>
+                  <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
+                    12) Cancellation Policy (One-Time / Non-Recurring)
+                  </h2>
+                  <div className="space-y-3">
+                    <p className="text-gray-700 leading-relaxed text-base">
+                      Client cancellation requests should be provided with as much notice as possible. For larger or reserved jobs, TruShine may require 14 days' written notice; shorter notice may result in a charge up to the full service amount, depending on crew scheduling and reserved time.
+                    </p>
+                  </div>
+                </section>
+
+                {/* Liability Limits */}
+                <section>
+                  <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
+                    13) Liability Limits & Pre-Existing Damage
+                  </h2>
+                  <div className="space-y-3">
+                    <p className="text-gray-700 leading-relaxed text-base">
+                      TruShine is not responsible for pre-existing damage or deterioration including (but not limited to): aged gutters, rotted wood, failing seals, cracked panes, loose screens, or previously weakened/fragile items. Client must notify TruShine of known issues or safety concerns prior to service.
+                    </p>
+                  </div>
+                </section>
+
+                {/* Updates to Terms */}
+                <section>
+                  <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
+                    14) Updates to Terms
+                  </h2>
+                  <div className="space-y-3">
+                    <p className="text-gray-700 leading-relaxed text-base">
+                      TruShine reserves the right to update these Terms & Conditions at any time. Updated terms apply prospectively.
+                    </p>
+                  </div>
+                </section>
+
+                {/* Order of Priority */}
+                <section>
+                  <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
+                    15) Order of Priority (If Anything Conflicts)
+                  </h2>
+                  <div className="space-y-3">
+                    <p className="text-gray-700 leading-relaxed text-base mb-2">
+                      If there is a conflict between documents:
+                    </p>
+                    <div className="ml-4 space-y-2">
+                      <p className="text-gray-700 leading-relaxed text-base">1. The signed/accepted proposal/work order/invoice for the Visit, then</p>
+                      <p className="text-gray-700 leading-relaxed text-base">2. the Recurring Service Addendum (if enrolled), then</p>
+                      <p className="text-gray-700 leading-relaxed text-base">3. these Master Terms & Conditions.</p>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Recurring Service Addendum */}
+                <section>
+                  <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
+                    Recurring Service Addendum
+                  </h2>
+                  <p className="text-gray-700 leading-relaxed text-base mb-4">
+                    (Window Cleaning & Gutter Cleaning)
+                  </p>
+
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">R1) Scope of Recurring Services</h3>
+                      <div className="space-y-3 ml-4">
+                        <p className="text-gray-700 leading-relaxed text-base">
+                          TruShine will perform recurring window cleaning and/or gutter cleaning as selected:
+                        </p>
+                        <div className="ml-4 space-y-2">
+                          <p className="text-gray-700 leading-relaxed text-base">
+                            <strong>Window Cleaning:</strong> exterior window cleaning for all accessible glass; interior if included; add-ons available for additional fee.
+                          </p>
+                          <p className="text-gray-700 leading-relaxed text-base">
+                            <strong>Gutter Cleaning:</strong> removal of debris; flushing downspouts; light roof debris removal near gutter lines when safely accessible.
+                          </p>
+                        </div>
+                        <p className="text-gray-700 leading-relaxed text-base">
+                          Services occur on the chosen frequency: monthly, bi-monthly, quarterly, semi-annual, or annual, and continue until canceled per this Addendum.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">R2) Pricing & Payment Terms (Recurring)</h3>
+                      <div className="space-y-3 ml-4">
+                        <div className="flex items-start">
+                          <span className="text-600 mr-3 mt-1">•</span>
+                          <p className="text-gray-700 leading-relaxed text-base">
+                            Recurring clients receive discounted pricing compared to one-time rates.
+                          </p>
+                        </div>
+                        <div className="flex items-start">
+                          <span className="text-600 mr-3 mt-1">•</span>
+                          <p className="text-gray-700 leading-relaxed text-base">
+                            Pricing is based on property size, service scope, and access conditions.
+                          </p>
+                        </div>
+                        <div className="flex items-start">
+                          <span className="text-600 mr-3 mt-1">•</span>
+                          <p className="text-gray-700 leading-relaxed text-base">
+                            <strong>Billing timing:</strong> For Recurring Plan Visits, Client authorizes TruShine to charge the card on file after completion of each Visit (same day), unless otherwise agreed in writing.
+                          </p>
+                        </div>
+                        <div className="flex items-start">
+                          <span className="text-600 mr-3 mt-1">•</span>
+                          <p className="text-gray-700 leading-relaxed text-base">
+                            A valid credit card must be kept on file for automated billing; receipts are sent via email after each charge.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">R3) Minimum Commitment (By Frequency)</h3>
+                      <div className="space-y-3 ml-4">
+                        <p className="text-gray-700 leading-relaxed text-base">
+                          Minimum commitment applies based on plan frequency:
+                        </p>
+                        <div className="ml-4 space-y-2">
+                          <p className="text-gray-700 leading-relaxed text-base">
+                            <strong>Monthly, Bi-Monthly, Quarterly, Semi-Annual:</strong> minimum one (1) year commitment.
+                          </p>
+                          <p className="text-gray-700 leading-relaxed text-base">
+                            <strong>Quarterly:</strong> minimum 4 scheduled services
+                          </p>
+                          <p className="text-gray-700 leading-relaxed text-base">
+                            <strong>Semi-Annual:</strong> minimum 2 scheduled services
+                          </p>
+                          <p className="text-gray-700 leading-relaxed text-base">
+                            <strong>Annual:</strong> minimum two (2) year commitment with at least 2 scheduled services per year.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">R4) Renewal & Post-Term Continuation</h3>
+                      <div className="space-y-3 ml-4">
+                        <p className="text-gray-700 leading-relaxed text-base">
+                          After the minimum commitment is met, the plan continues automatically at the same recurring rate unless Client cancels with written notice (as defined at the top). No price increases apply without Client approval or advance written notice.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">R5) Cancellation After Minimum Term</h3>
+                      <div className="space-y-3 ml-4">
+                        <p className="text-gray-700 leading-relaxed text-base">
+                          After the minimum commitment is met, either party may terminate with at least 14 days' written notice.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">R6) Early Cancellation Policy (Before Minimum Term)</h3>
+                      <div className="space-y-3 ml-4">
+                        <p className="text-gray-700 leading-relaxed text-base">
+                          If Client cancels before fulfilling the minimum service term, a cancellation fee applies equal to:
+                        </p>
+                        <div className="ml-4">
+                          <p className="text-gray-700 leading-relaxed text-base">
+                            the difference between the discounted recurring rate and the standard one-time rate (plus tax) for all completed Visits to date.
+                          </p>
+                        </div>
+                        <p className="text-gray-700 leading-relaxed text-base">
+                          This fee will be charged to the card on file on the day of cancellation.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">R7) Client Responsibilities (Recurring)</h3>
+                      <div className="space-y-3 ml-4">
+                        <div className="flex items-start">
+                          <span className="text-600 mr-3 mt-1">•</span>
+                          <p className="text-gray-700 leading-relaxed text-base">
+                            Ensure access on scheduled dates (gates unlocked, pets secured, clear paths).
+                          </p>
+                        </div>
+                        <div className="flex items-start">
+                          <span className="text-600 mr-3 mt-1">•</span>
+                          <p className="text-gray-700 leading-relaxed text-base">
+                            Notify TruShine of pre-existing issues, fragile items, or safety concerns.
+                          </p>
+                        </div>
+                        <div className="flex items-start">
+                          <span className="text-600 mr-3 mt-1">•</span>
+                          <p className="text-gray-700 leading-relaxed text-base">
+                            Communicate promptly about scheduling changes or access restrictions.
+                          </p>
+                        </div>
+                        <div className="flex items-start">
+                          <span className="text-600 mr-3 mt-1">•</span>
+                          <p className="text-gray-700 leading-relaxed text-base">
+                            If TruShine arrives and cannot perform due to lack of access, the $75 trip fee applies, and rescheduling fees may also apply.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">R8) Service Adjustments & Changes</h3>
+                      <div className="space-y-3 ml-4">
+                        <p className="text-gray-700 leading-relaxed text-base">
+                          Pricing may be updated if property conditions change or the service scope is modified. Client may request upgrades, add-ons, or frequency changes with written notice. TruShine will provide advance notice of pricing updates.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">R9) Weather / Safety / Access Limitations</h3>
+                      <div className="space-y-3 ml-4">
+                        <p className="text-gray-700 leading-relaxed text-base">
+                          TruShine may cancel or reschedule due to weather, safety concerns, or access limitations.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Checkbox Acceptance */}
+                {/* <section className="mt-8 p-6 bg-gray-50 rounded-lg border-2 border-gray-300">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Checkbox Acceptance Line (Use on GHL Forms)</h3>
+                  <p className="text-gray-700 leading-relaxed text-base">
+                    By checking this box, I agree to TruShine Window Cleaning's Master Terms & Conditions and, if enrolled, the Recurring Service Addendum. I authorize TruShine to keep a card on file and charge for recurring services after each completed Visit according to these terms.
+                  </p>
+                </section> */}
               </div>
 
               <div className="mt-12 pt-8 border-t border-gray-200">

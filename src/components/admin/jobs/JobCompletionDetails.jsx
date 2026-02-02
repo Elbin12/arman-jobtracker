@@ -21,7 +21,7 @@ const PAYMENT_METHOD_CHOICES = [
   { value: 'other', label: 'Other' },
 ]
 
-export function JobCompletionDetails({ job, onUpdate }) {
+export function JobCompletionDetails({ job, onUpdate, onImageClick }) {
   const [newImages, setNewImages] = useState([]) // New images to upload
   const [paymentMethod, setPaymentMethod] = useState(job?.payment_method || "")
   const [uploadingImages, setUploadingImages] = useState(false)
@@ -308,7 +308,12 @@ export function JobCompletionDetails({ job, onUpdate }) {
                 {existingImages.map((image) => (
                   <div
                     key={image.id}
-                    className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-50"
+                    className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-50 cursor-pointer"
+                    onClick={() => {
+                      if (onImageClick) {
+                        onImageClick(image)
+                      }
+                    }}
                   >
                     <img
                       src={image.image_url || image.image}
@@ -534,6 +539,7 @@ export function JobCompletionDetails({ job, onUpdate }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
     </Box>
   )
 }
