@@ -63,6 +63,7 @@ const STATUS_COLORS = {
   overdue: '#ef4444',
   draft: '#64748b',
   sent: '#3b82f6',
+  payment_processing: '#8b5cf6',
 };
 
 const ProgressBar = styled(LinearProgress)(({ trackcolor, barcolor, height }) => ({
@@ -98,11 +99,17 @@ export const AdminDashboard = () => {
     return ids.join(',');
   }, [assigneesData?.results]);
 
-  const [filters, setFilters] = useState({
-    granularity: 'monthly',
-    start_date: format(new Date(new Date().setMonth(new Date().getMonth() - 3)), 'yyyy-MM-dd'),
-    end_date: format(new Date(), 'yyyy-MM-dd'),
-    status: 'all',
+  // Top filter: 2 years — previous year Jan 1 to current year Dec 31
+  const [filters, setFilters] = useState(() => {
+    const now = new Date();
+    const prevYearFirst = new Date(now.getFullYear() - 1, 0, 1);
+    const currentYearLast = new Date(now.getFullYear(), 11, 31);
+    return {
+      granularity: 'monthly',
+      start_date: format(prevYearFirst, 'yyyy-MM-dd'),
+      end_date: format(currentYearLast, 'yyyy-MM-dd'),
+      status: 'all',
+    };
   });
 
   const [heatmapParams, setHeatmapParams] = useState({
@@ -112,13 +119,14 @@ export const AdminDashboard = () => {
     view: 'heatmap',
   });
 
-  // Separate date filter for Lead Funnel Report (default: current year to date)
+  // Lead Funnel Report: current year only — Jan 1 to Dec 31
   const [leadFunnelFilters, setLeadFunnelFilters] = useState(() => {
     const now = new Date();
     const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const endOfYear = new Date(now.getFullYear(), 11, 31);
     return {
       start_date: format(startOfYear, 'yyyy-MM-dd'),
-      end_date: format(now, 'yyyy-MM-dd'),
+      end_date: format(endOfYear, 'yyyy-MM-dd'),
     };
   });
 
@@ -467,6 +475,9 @@ export const AdminDashboard = () => {
               <div className="text-3xl font-bold">{analyticsData?.summary.total_invoices || 0}</div>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {analyticsData?.paid_unpaid_overview.paid.count || 0} paid • {analyticsData?.paid_unpaid_overview.unpaid.count || 0} unpaid
+                {(analyticsData?.status_distribution?.payment_processing?.count ?? 0) > 0 && (
+                  <> • {analyticsData.status_distribution.payment_processing.count} payment processing</>
+                )}
               </p>
             </CardContent>
           </div>
@@ -610,6 +621,38 @@ export const AdminDashboard = () => {
               </p>
             </CardContent>
           </div>
+
+          {/* <div className="shadow-sm bg-gradient-to-br from-violet-100/60 to-violet-100/10 rounded-lg">
+            <Box className="flex flex-row items-center justify-between px-4 pt-4">
+              <Typography variant="body2" color="text.secondary" fontWeight="500">Payment Processing</Typography>
+              <div className="h-8 w-8 rounded-full bg-violet-300/20 flex items-center justify-center">
+                <Refresh className="h-4 w-4 text-violet-500" />
+              </div>
+            </Box>
+            <CardContent >
+              <div className="text-3xl font-bold">{analyticsData?.status_distribution.payment_processing?.count || 0}</div>
+              <p className="text-sm font-medium text-violet-500 mt-0.5">
+                {formatCurrency(analyticsData?.status_distribution.payment_processing?.total || 0)}
+              </p>
+              <div className="mt-2">
+                <Box mt={2}>
+                  <ProgressBar 
+                    variant="determinate" 
+                    value={(analyticsData?.summary?.total_amount && analyticsData?.status_distribution?.payment_processing?.total)
+                      ? (analyticsData.status_distribution.payment_processing.total / analyticsData.summary.total_amount * 100)
+                      : 0} 
+                    trackcolor="#ede9fe"
+                    barcolor="#8b5cf6"
+                  />
+                </Box>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {analyticsData?.summary?.total_amount && analyticsData?.status_distribution?.payment_processing?.total
+                  ? ((analyticsData.status_distribution.payment_processing.total / analyticsData.summary.total_amount) * 100).toFixed(1)
+                  : '0.0'}% of total amount
+              </p>
+            </CardContent>
+          </div> */}
         </div>
 
         {/* Charts Section - Responsive */}
@@ -649,15 +692,15 @@ export const AdminDashboard = () => {
               <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
                 Breakdown by status
               </Typography>
-              <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
-                <PieChart>
+              <ResponsiveContainer width="100%" height={isMobile ? 280 : 340}>
+                <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
                   <Pie
                     data={formatStatusData()}
                     cx="50%"
-                    cy="50%"
+                    cy="45%"
                     labelLine={false}
-                    label={({ name, percent }) => isMobile ? '' : `${name}: ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={isMobile ? 70 : 90}
+                    label={false}
+                    outerRadius={isMobile ? 72 : 88}
                     fill="#8884d8"
                     dataKey="value"
                   >
@@ -667,16 +710,61 @@ export const AdminDashboard = () => {
                   </Pie>
                   <Tooltip
                     formatter={(value, name, props) => [
-                      value,
-                      `${props.payload.name} (${formatCurrency(props.payload.amount)})`,
+                      `${value} (${((value / formatStatusData().reduce((s, d) => s + d.value, 0)) * 100).toFixed(1)}%)`,
+                      props.payload.name,
                     ]}
+                    contentStyle={{ fontSize: 13, padding: '10px 14px' }}
+                    itemStyle={{ padding: '4px 0' }}
                   />
-                  <Legend 
-                    wrapperStyle={{ fontSize: isMobile ? 10 : 12 }}
-                    iconSize={isMobile ? 8 : 14}
+                  <Legend
+                    layout="vertical"
+                    align="center"
+                    verticalAlign="bottom"
+                    wrapperStyle={{ fontSize: 13, paddingTop: 12 }}
+                    iconSize={14}
+                    iconType="circle"
+                    formatter={(value, entry) => (
+                      <span style={{ marginLeft: 6 }}>{value}</span>
+                    )}
                   />
                 </PieChart>
               </ResponsiveContainer>
+              {/* Readable list: full names and values */}
+              <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+                <Typography variant="caption" color="text.secondary" fontWeight="600" display="block" sx={{ mb: 1 }}>
+                  By status
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
+                  {formatStatusData().map((entry, index) => {
+                    const total = formatStatusData().reduce((s, d) => s + d.value, 0);
+                    const pct = total ? ((entry.value / total) * 100).toFixed(1) : '0';
+                    return (
+                      <Box
+                        key={`legend-${index}`}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1,
+                          py: 0.5,
+                          px: 1.5,
+                          borderRadius: 1,
+                          bgcolor: 'action.hover',
+                          width: '100%',
+                          maxWidth: 280,
+                        }}
+                      >
+                        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: entry.color, flexShrink: 0 }} />
+                        <Typography variant="body2" sx={{ flex: 1, fontWeight: 500 }}>
+                          {entry.name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {entry.value} · {pct}% · {formatCurrency(entry.amount)}
+                        </Typography>
+                      </Box>
+                    );
+                  })}
+                </Box>
+              </Box>
             </CardContent>
           </Card>
         </div>
@@ -733,7 +821,7 @@ export const AdminDashboard = () => {
                   {/* Summary Metrics */}
                   <Box sx={{ 
                     display: 'grid', 
-                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(5, 1fr)' },
+                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
                     gap: 2,
                     mb: 3,
                     p: 2,
@@ -746,14 +834,6 @@ export const AdminDashboard = () => {
                       </Typography>
                       <Typography variant="h6" fontWeight="600" color="primary.main">
                         {formatCurrency(leadFunnelData.summary_metrics.pipeline_value)}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary" display="block">
-                        Total Items
-                      </Typography>
-                      <Typography variant="h6" fontWeight="600">
-                        {leadFunnelData.summary_metrics.total_pipeline_items}
                       </Typography>
                     </Box>
                     <Box>
@@ -824,7 +904,7 @@ export const AdminDashboard = () => {
                       </Box>
                     </Box>
 
-                    {/* Open Estimates */}
+                    {/* Open Quotes */}
                     <Box sx={{ 
                       p: 2, 
                       border: '1px solid', 
@@ -852,7 +932,7 @@ export const AdminDashboard = () => {
                           </Box>
                           <Box>
                             <Typography variant="body2" fontWeight="600">
-                              {leadFunnelData.lead_funnel.open_estimates.label}
+                              Open Quotes
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                               Pending decision
@@ -868,7 +948,7 @@ export const AdminDashboard = () => {
                       </Box>
                     </Box>
 
-                    {/* Rejected Estimates */}
+                    {/* Rejected Quotes */}
                     <Box sx={{ 
                       p: 2, 
                       border: '1px solid', 
@@ -896,7 +976,7 @@ export const AdminDashboard = () => {
                           </Box>
                           <Box>
                             <Typography variant="body2" fontWeight="600">
-                              {leadFunnelData.lead_funnel.rejected_estimates.label}
+                              Rejected Quotes
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                               Declined opportunities
@@ -916,7 +996,7 @@ export const AdminDashboard = () => {
                       </Box>
                     </Box>
 
-                    {/* Accepted Estimates */}
+                    {/* Accepted Quotes */}
                     <Box sx={{ 
                       p: 2, 
                       border: '1px solid', 
@@ -944,7 +1024,7 @@ export const AdminDashboard = () => {
                           </Box>
                           <Box>
                             <Typography variant="body2" fontWeight="600">
-                              {leadFunnelData.lead_funnel.accepted_estimates.label}
+                              Accepted Quotes
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                               Ready to schedule
@@ -1040,7 +1120,7 @@ export const AdminDashboard = () => {
                           </Box>
                           <Box>
                             <Typography variant="body2" fontWeight="600">
-                              {leadFunnelData.lead_funnel.estimate_to_convert.label}
+                              Quotes to Convert
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                               Awaiting conversion
