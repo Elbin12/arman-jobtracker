@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { useSelector } from 'react-redux';
 import {
   Box,
   Card,
@@ -52,6 +53,7 @@ import {
 } from 'recharts';
 import { format } from 'date-fns';
 import { useGetAnalyticsQuery, useGetHeatMapQuery, useGetLeadFunnelReportQuery, useGetSalesForecastingQuery } from '../../store/api/dashboardApi';
+import { useGetEmployeesQuery } from '../../store/api/payrollApi';
 import { AlertCircle, AlertTriangle, CheckCircle, Clock, File, FileText, PersonStandingIcon } from 'lucide-react';
 
 const STATUS_COLORS = {
@@ -77,6 +79,24 @@ export const AdminDashboard = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+  const user = useSelector((state) => state.auth.user);
+  const userRole = user?.role || 'worker';
+  const canViewStaff = ['admin', 'manager', 'supervisor'].includes(userRole);
+
+  const { data: assigneesData } = useGetEmployeesQuery(
+    { is_active: true },
+    { skip: !canViewStaff }
+  );
+
+  // All assignee IDs for sales forecasting (same as calendar: comma-separated)
+  const assigneeIdsString = useMemo(() => {
+    const results = assigneesData?.results || [];
+    const ids = results.map((u) => {
+      const numId = parseInt(u.user_id, 10);
+      return Number.isNaN(numId) ? (u.user_id || u.email || '') : numId;
+    }).filter(Boolean);
+    return ids.join(',');
+  }, [assigneesData?.results]);
 
   const [filters, setFilters] = useState({
     granularity: 'monthly',
@@ -92,11 +112,26 @@ export const AdminDashboard = () => {
     view: 'heatmap',
   });
 
+  // Separate date filter for Lead Funnel Report (default: current year to date)
+  const [leadFunnelFilters, setLeadFunnelFilters] = useState(() => {
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    return {
+      start_date: format(startOfYear, 'yyyy-MM-dd'),
+      end_date: format(now, 'yyyy-MM-dd'),
+    };
+  });
+
   const { data: analyticsData, isLoading: analyticsLoading, refetch: refetchAnalytics } = useGetAnalyticsQuery(filters);
   const { data: heatmapData, isLoading: heatmapLoading, refetch: refetchHeatmap } = useGetHeatMapQuery(heatmapParams);
 
-  const { data: salesForecastData, isLoading: forecastLoading } = useGetSalesForecastingQuery(filters);
-  const { data: leadFunnelData, isLoading: leadFunnelLoading } = useGetLeadFunnelReportQuery(filters);
+  // Sales forecasting: same date filters as dashboard + assignee_ids (all user IDs, like calendar)
+  const salesForecastParams = useMemo(
+    () => ({ ...filters, assignee_ids: assigneeIdsString }),
+    [filters, assigneeIdsString]
+  );
+  const { data: salesForecastData, isLoading: forecastLoading } = useGetSalesForecastingQuery(salesForecastParams);
+  const { data: leadFunnelData, isLoading: leadFunnelLoading } = useGetLeadFunnelReportQuery(leadFunnelFilters);
 
   const formatForecastChartData = () => {
     if (!salesForecastData?.months) return [];
@@ -118,6 +153,10 @@ export const AdminDashboard = () => {
 
   const handleFilterChange = (field, value) => {
     setFilters((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleLeadFunnelFilterChange = (field, value) => {
+    setLeadFunnelFilters((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleApplyFilters = () => {
@@ -645,12 +684,27 @@ export const AdminDashboard = () => {
         {/* Lead Funnel Report - Replace Top Customers position */}
           <Card sx={{ mb: 3, boxShadow: 1 }}>
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-              <Typography variant="subtitle1" fontWeight="600" gutterBottom>
-                Lead Funnel Report
-              </Typography>
-              {/* <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 3 }}>
-                Pipeline overview for the last 7 days
-              </Typography> */}
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 2 }}>
+                <Typography variant="subtitle1" fontWeight="600">
+                  Lead Funnel Report
+                </Typography>
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
+                    <DatePicker
+                      label="Start date"
+                      value={new Date(leadFunnelFilters.start_date)}
+                      onChange={(date) => date && handleLeadFunnelFilterChange('start_date', format(date, 'yyyy-MM-dd'))}
+                      slotProps={{ textField: { size: 'small', sx: { minWidth: 140 } } }}
+                    />
+                    <DatePicker
+                      label="End date"
+                      value={new Date(leadFunnelFilters.end_date)}
+                      onChange={(date) => date && handleLeadFunnelFilterChange('end_date', format(date, 'yyyy-MM-dd'))}
+                      slotProps={{ textField: { size: 'small', sx: { minWidth: 140 } } }}
+                    />
+                  </Box>
+                </LocalizationProvider>
+              </Box>
 
               {leadFunnelLoading ? (
                 <Box sx={{ mt: 2 }}>
@@ -730,7 +784,7 @@ export const AdminDashboard = () => {
 
                   {/* Funnel Stages */}
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    {/* New Leads */}
+                    {/* Contacts created on filter date (New Leads) */}
                     <Box sx={{ 
                       p: 2, 
                       border: '1px solid', 
@@ -758,10 +812,7 @@ export const AdminDashboard = () => {
                           </Box>
                           <Box>
                             <Typography variant="body2" fontWeight="600">
-                              {leadFunnelData.lead_funnel.new_leads.label}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              New opportunities
+                              Contacts created on {format(new Date(leadFunnelFilters.start_date), 'MMM d, yyyy')} – {format(new Date(leadFunnelFilters.end_date), 'MMM d, yyyy')}
                             </Typography>
                           </Box>
                         </Box>
