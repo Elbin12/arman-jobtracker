@@ -2665,6 +2665,9 @@ appointmentsParams.search = filterParams.appointment_search;
               <div className="w-full h-full max-w-full overflow-hidden">
                 <DnDCalendar
                   className="w-full max-w-full"
+                resourceAccessor="id"
+                resourceTitleAccessor="name"
+                dayLayoutAlgorithm="no-overlap"
                 localizer={localizer}
                 events={events}
                 startAccessor="start"
@@ -2771,7 +2774,7 @@ appointmentsParams.search = filterParams.appointment_search;
                 variant="outline"
                 size="icon"
                 onClick={() => setShowSidebar(true)}
-                className="rounded-full shadow-lg bg-background hover:bg-accent h-10 w-10"
+                className="rounded-full shadow-lg text-[#065F46] bg-[#34D399] hover:bg-[#34D399]/95 h-10 w-10"
                 title="Show filters"
               >
                 <PanelLeftClose className="h-5 w-5" />
@@ -3155,22 +3158,22 @@ appointmentsParams.search = filterParams.appointment_search;
                     </div>
                   )}
 
-                  {selectedEstimate.address && (
+                  {(selectedEstimate.address || selectedEstimate.contact_full_address) && (
                     <div className="flex items-start gap-2">
                       <MapPin size={16} className="text-muted-foreground flex-shrink-0 mt-0.5" />
-                      <div 
+                      <a
+                        href={`${import.meta.env.VITE_GOOGLE_MAPS_SEARCH_URL || 'https://www.google.com/maps/search/?api=1&query='}${encodeURIComponent(
+                          selectedEstimate.address || selectedEstimate.contact_full_address
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="text-sm text-primary hover:text-primary/80 cursor-pointer hover:underline transition-all duration-200"
-                        onClick={() =>
-                          window.open(
-                            `${import.meta.env.VITE_GOOGLE_MAPS_SEARCH_URL || 'https://www.google.com/maps/search/?api=1&query='}${encodeURIComponent(selectedEstimate.address)}`,
-                            "_blank",
-                          )
-                        }
                       >
-                        {selectedEstimate.address}
-                      </div>
+                        {selectedEstimate.address || selectedEstimate.contact_full_address}
+                      </a>
                     </div>
                   )}
+
 
                   {(selectedEstimate.contact_phone || selectedEstimate.customer_phone || selectedEstimate.phone) && (
                     <div className="flex items-center gap-2">

@@ -439,45 +439,62 @@ export const handleDownloadPDF = async (
       
       // Start new page for Terms & Conditions
       doc.addPage()
-      yPosition = 20
+      yPosition = 15 // Reduced from 20 - tighter top margin
+      
+      // Use tighter spacing for terms section to fit in 2-2.5 pages
+      const termsMargin = 15 // Reduced from 20 for tighter margins
+      const termsLineHeight = 3.5 // Further reduced from 4
+      const termsSpacing = 0.5 // Further reduced spacing between items
+      const termsMaxLineWidth = pageWidth - termsMargin * 2
+      
+      // Override checkPageBreak for terms section with tighter margins
+      const checkTermsPageBreak = (linesNeeded = 1) => {
+        if (yPosition + linesNeeded * termsLineHeight > pageHeight - 15) { // Reduced bottom margin from 30
+          doc.addPage()
+          yPosition = 15 // Reduced from 20
+        }
+      }
       
       // Header
-      doc.setFontSize(16)
+      doc.setFontSize(12) // Further reduced from 14
       doc.setFont(undefined, "bold")
       doc.setTextColor("#000000")
-      doc.text("TERMS AND CONDITIONS", margin, yPosition)
-      yPosition += 5
+      doc.text("TERMS AND CONDITIONS", termsMargin, yPosition)
+      yPosition += 3 // Reduced from 5
       
       // Company Name
-      doc.setFontSize(10)
+      doc.setFontSize(7) // Further reduced from 8
       doc.setFont(undefined, "normal")
-      doc.text(import.meta.env.VITE_COMPANY_NAME || 'TruShine Window Cleaning', margin, yPosition)
-      yPosition += 8
+      doc.text(import.meta.env.VITE_COMPANY_NAME || 'TruShine Window Cleaning', termsMargin, yPosition)
+      yPosition += 4 // Reduced from 8
       
       // Agreement Statement with Timestamp
-      doc.setFontSize(10)
+      doc.setFontSize(7) // Further reduced from 8
       doc.setFont(undefined, "bold")
       doc.setTextColor("#1f2937")
       const agreementText = `CLIENT AGREEMENT ACKNOWLEDGMENT`
-      doc.text(agreementText, margin, yPosition)
-      yPosition += 6
+      doc.text(agreementText, termsMargin, yPosition)
+      yPosition += 3 // Reduced from 6
       
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
       const acknowledgmentText = `The client has read and agreed to the Terms & Conditions and Privacy Policy`
-      const acknowledgmentLines = doc.splitTextToSize(acknowledgmentText, maxLineWidth)
-      doc.text(acknowledgmentLines, margin, yPosition)
-      yPosition += 6
+      const acknowledgmentLines = doc.splitTextToSize(acknowledgmentText, termsMaxLineWidth)
+      doc.text(acknowledgmentLines, termsMargin, yPosition)
+      yPosition += acknowledgmentLines.length * termsLineHeight + 2 // Reduced spacing
       
       doc.setFont(undefined, "bold")
       doc.setTextColor("#1f2937")
-      doc.text(`Agreement Date & Time: ${agreementDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} at ${agreementDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}`, margin, yPosition)
-      yPosition += 10
+      doc.setFontSize(6) // Further reduced from 7
+      const agreementDateText = `Agreement Date & Time: ${agreementDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} at ${agreementDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}`
+      const agreementDateLines = doc.splitTextToSize(agreementDateText, termsMaxLineWidth)
+      doc.text(agreementDateLines, termsMargin, yPosition)
+      yPosition += agreementDateLines.length * termsLineHeight + 3 // Reduced from 10
       
       // Divider line
       doc.setDrawColor(200, 200, 200)
-      doc.line(margin, yPosition, pageWidth - margin, yPosition)
-      yPosition += 10
+      doc.line(termsMargin, yPosition, pageWidth - termsMargin, yPosition)
+      yPosition += 4 // Reduced from 10
       
       // OLD TERMS - HIDDEN
       // Terms Content
@@ -489,22 +506,22 @@ export const handleDownloadPDF = async (
       
       // NEW TERMS AND CONDITIONS
       // Written Notice Definition
-      doc.setFontSize(9)
+      doc.setFontSize(6.5) // Further reduced from 7
       doc.setFont(undefined, "italic")
       doc.setTextColor("#374151")
       const noticeText = "Written notice for anything in this agreement means email or SMS/text message to TruShine's official contact information on your invoice/estimate/website (or the number/email used to confirm your appointment)."
-      const noticeLines = doc.splitTextToSize(noticeText, maxLineWidth)
-      doc.text(noticeLines, margin, yPosition)
-      yPosition += noticeLines.length * lineHeight + 5
+      const noticeLines = doc.splitTextToSize(noticeText, termsMaxLineWidth)
+      doc.text(noticeLines, termsMargin, yPosition)
+      yPosition += noticeLines.length * termsLineHeight + 1.5 // Further reduced spacing
       
       // 1) Definitions
-      doc.setFontSize(11)
+      doc.setFontSize(8) // Further reduced from 9
       doc.setFont(undefined, "bold")
       doc.setTextColor("#000000")
-      doc.text("1) Definitions", margin, yPosition)
-      yPosition += 7
+      doc.text("1) Definitions", termsMargin, yPosition)
+      yPosition += 3 // Further reduced from 4
       
-      doc.setFontSize(9)
+      doc.setFontSize(6.5) // Further reduced from 7
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
       const definitions = [
@@ -516,60 +533,60 @@ export const handleDownloadPDF = async (
         "\"Recurring Plan\" = ongoing services scheduled monthly, bi-monthly, quarterly, semi-annual, or annual."
       ]
       definitions.forEach(term => {
-        checkPageBreak(3)
-        const lines = doc.splitTextToSize(term, maxLineWidth - 5)
-        doc.text(lines, margin + 5, yPosition)
-        yPosition += lines.length * lineHeight + 2
+        checkTermsPageBreak(3)
+        const lines = doc.splitTextToSize(term, termsMaxLineWidth - 3)
+        doc.text(lines, termsMargin + 3, yPosition)
+        yPosition += lines.length * termsLineHeight + termsSpacing
       })
       
       // 2) Acceptance & Agreement
-      yPosition += 3
-      checkPageBreak(4)
-      doc.setFontSize(11)
+      yPosition += 1.5 // Further reduced from 2
+      checkTermsPageBreak(4)
+      doc.setFontSize(8) // Further reduced from 9
       doc.setFont(undefined, "bold")
       doc.setTextColor("#000000")
-      doc.text("2) Acceptance & Agreement", margin, yPosition)
-      yPosition += 7
+      doc.text("2) Acceptance & Agreement", termsMargin, yPosition)
+      yPosition += 3 // Further reduced from 4
       
-      doc.setFontSize(9)
+      doc.setFontSize(6.5) // Further reduced from 7
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
       const acceptanceText = "Quotes are valid for 30 days and must be accepted in writing (signature, electronic acceptance, or checkbox). By booking, approving, paying, or accepting electronically, Client agrees to these Master Terms & Conditions. If Client enrolls in a Recurring Plan, the Recurring Service Addendum also applies."
-      const acceptanceLines = doc.splitTextToSize(acceptanceText, maxLineWidth - 5)
-      doc.text(acceptanceLines, margin + 5, yPosition)
-      yPosition += acceptanceLines.length * lineHeight + 3
+      const acceptanceLines = doc.splitTextToSize(acceptanceText, termsMaxLineWidth - 3)
+      doc.text(acceptanceLines, termsMargin + 3, yPosition)
+      yPosition += acceptanceLines.length * termsLineHeight + 1.5 // Further reduced spacing
       
       // 3) Professional Standards
       checkPageBreak(4)
-      doc.setFontSize(11)
+      doc.setFontSize(9) // Reduced from 11
       doc.setFont(undefined, "bold")
       doc.setTextColor("#000000")
-      doc.text("3) Professional Standards, Codes, and Insurance", margin, yPosition)
-      yPosition += 7
+      doc.text("3) Professional Standards, Codes, and Insurance", termsMargin, yPosition)
+      yPosition += 4 // Reduced from 7
       
-      doc.setFontSize(9)
+      doc.setFontSize(7) // Reduced from 9
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
       const standardsText = "All work is performed in a professional, workmanlike manner and in compliance with applicable local codes and regulations. TruShine is properly insured against injury to employees and losses resulting from employee actions."
-      const standardsLines = doc.splitTextToSize(standardsText, maxLineWidth - 5)
-      doc.text(standardsLines, margin + 5, yPosition)
-      yPosition += standardsLines.length * lineHeight + 3
+        const standardsLines = doc.splitTextToSize(standardsText, termsMaxLineWidth - 3)
+        doc.text(standardsLines, termsMargin + 3, yPosition)
+      yPosition += standardsLines.length * termsLineHeight + 2 // Reduced spacing
       
       // 4) Scope of Work & Exclusions
       checkPageBreak(6)
-      doc.setFontSize(11)
+      doc.setFontSize(9) // Reduced from 11
       doc.setFont(undefined, "bold")
       doc.setTextColor("#000000")
-      doc.text("4) Scope of Work & Exclusions", margin, yPosition)
-      yPosition += 7
+      doc.text("4) Scope of Work & Exclusions", termsMargin, yPosition)
+      yPosition += 4 // Reduced from 7
       
-      doc.setFontSize(9)
+      doc.setFontSize(7) // Reduced from 9
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
       const scopeIntro = "The scope is limited to what is specifically included in the estimate/proposal/work order. Anything not listed is excluded unless agreed in writing."
-      const scopeIntroLines = doc.splitTextToSize(scopeIntro, maxLineWidth - 5)
-      doc.text(scopeIntroLines, margin + 5, yPosition)
-      yPosition += scopeIntroLines.length * lineHeight + 3
+        const scopeIntroLines = doc.splitTextToSize(scopeIntro, termsMaxLineWidth - 3)
+        doc.text(scopeIntroLines, termsMargin + 3, yPosition)
+      yPosition += scopeIntroLines.length * termsLineHeight + 2
       
       const scopeTerms = [
         "A) Window Cleaning: All windows must be securely closed on the day of service. Unsafe/inaccessible windows will not be cleaned. Exterior glass may be cleaned using a water-fed pole with pure water and left to dry naturally. \"Window\" includes frame, sill, sash, and glass (wood, aluminum, steel, UPVC). Brick/tile/stone sills are excluded. Add-ons (extra fee unless included): screen cleaning, track detailing, hard water removal, etc.",
@@ -578,22 +595,22 @@ export const handleDownloadPDF = async (
         "D) Awning Cleaning: TruShine is not liable for unexpected damage during awning cleaning. Service may be declined if material is over 5 years old or fails inspection."
       ]
       scopeTerms.forEach(term => {
-        checkPageBreak(4)
-        const lines = doc.splitTextToSize(term, maxLineWidth - 5)
-        doc.text(lines, margin + 5, yPosition)
-        yPosition += lines.length * lineHeight + 2
+        checkTermsPageBreak(4)
+        const lines = doc.splitTextToSize(term, termsMaxLineWidth - 3)
+        doc.text(lines, termsMargin + 3, yPosition)
+        yPosition += lines.length * termsLineHeight + termsSpacing
       })
       
       // 5) Access, Safety, and Property Condition
-      yPosition += 3
+      yPosition += 2 // Reduced from 3
       checkPageBreak(6)
-      doc.setFontSize(11)
+      doc.setFontSize(9) // Reduced from 11
       doc.setFont(undefined, "bold")
       doc.setTextColor("#000000")
-      doc.text("5) Access, Safety, and Property Condition", margin, yPosition)
-      yPosition += 7
+      doc.text("5) Access, Safety, and Property Condition", termsMargin, yPosition)
+      yPosition += 4 // Reduced from 7
       
-      doc.setFontSize(9)
+      doc.setFontSize(7) // Reduced from 9
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
       const accessTerms = [
@@ -604,22 +621,22 @@ export const handleDownloadPDF = async (
         "• Any special accommodations must be reviewed and approved by TruShine management before accepting the proposal."
       ]
       accessTerms.forEach(term => {
-        checkPageBreak(3)
-        const lines = doc.splitTextToSize(term, maxLineWidth - 5)
-        doc.text(lines, margin + 5, yPosition)
-        yPosition += lines.length * lineHeight + 2
+        checkTermsPageBreak(3)
+        const lines = doc.splitTextToSize(term, termsMaxLineWidth - 3)
+        doc.text(lines, termsMargin + 3, yPosition)
+        yPosition += lines.length * termsLineHeight + termsSpacing
       })
       
       // 6) Scheduling, Rescheduling, and Delays
-      yPosition += 3
+      yPosition += 2 // Reduced from 3
       checkPageBreak(6)
-      doc.setFontSize(11)
+      doc.setFontSize(9) // Reduced from 11
       doc.setFont(undefined, "bold")
       doc.setTextColor("#000000")
-      doc.text("6) Scheduling, Rescheduling, and Delays", margin, yPosition)
-      yPosition += 7
+      doc.text("6) Scheduling, Rescheduling, and Delays", termsMargin, yPosition)
+      yPosition += 4 // Reduced from 7
       
-      doc.setFontSize(9)
+      doc.setFontSize(7) // Reduced from 9
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
       const schedulingTerms = [
@@ -631,22 +648,22 @@ export const handleDownloadPDF = async (
         "• Important: These rescheduling rules apply to all Visits, including Recurring Plan Visits."
       ]
       schedulingTerms.forEach(term => {
-        checkPageBreak(3)
-        const lines = doc.splitTextToSize(term, maxLineWidth - 5)
-        doc.text(lines, margin + 5, yPosition)
-        yPosition += lines.length * lineHeight + 2
+        checkTermsPageBreak(3)
+        const lines = doc.splitTextToSize(term, termsMaxLineWidth - 3)
+        doc.text(lines, termsMargin + 3, yPosition)
+        yPosition += lines.length * termsLineHeight + termsSpacing
       })
       
       // 7) Pricing, Deposits, and Payments
-      yPosition += 3
+      yPosition += 2 // Reduced from 3
       checkPageBreak(6)
-      doc.setFontSize(11)
+      doc.setFontSize(9) // Reduced from 11
       doc.setFont(undefined, "bold")
       doc.setTextColor("#000000")
-      doc.text("7) Pricing, Deposits, and Payments", margin, yPosition)
-      yPosition += 7
+      doc.text("7) Pricing, Deposits, and Payments", termsMargin, yPosition)
+      yPosition += 4 // Reduced from 7
       
-      doc.setFontSize(9)
+      doc.setFontSize(7) // Reduced from 9
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
       const paymentTerms = [
@@ -660,22 +677,22 @@ export const handleDownloadPDF = async (
         "• All services are subject to applicable Texas state tax."
       ]
       paymentTerms.forEach(term => {
-        checkPageBreak(3)
-        const lines = doc.splitTextToSize(term, maxLineWidth - 5)
-        doc.text(lines, margin + 5, yPosition)
-        yPosition += lines.length * lineHeight + 2
+        checkTermsPageBreak(3)
+        const lines = doc.splitTextToSize(term, termsMaxLineWidth - 3)
+        doc.text(lines, termsMargin + 3, yPosition)
+        yPosition += lines.length * termsLineHeight + termsSpacing
       })
       
       // 8) Late Fees & Collections
-      yPosition += 3
+      yPosition += 2 // Reduced from 3
       checkPageBreak(6)
-      doc.setFontSize(11)
+      doc.setFontSize(9) // Reduced from 11
       doc.setFont(undefined, "bold")
       doc.setTextColor("#000000")
-      doc.text("8) Late Fees & Collections", margin, yPosition)
-      yPosition += 7
+      doc.text("8) Late Fees & Collections", termsMargin, yPosition)
+      yPosition += 4 // Reduced from 7
       
-      doc.setFontSize(9)
+      doc.setFontSize(7) // Reduced from 9
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
       const lateFeeTerms = [
@@ -684,22 +701,22 @@ export const handleDownloadPDF = async (
         "• Balances unpaid after 60 days may be sent to collections, including legal fees and collection costs as permitted by law."
       ]
       lateFeeTerms.forEach(term => {
-        checkPageBreak(3)
-        const lines = doc.splitTextToSize(term, maxLineWidth - 5)
-        doc.text(lines, margin + 5, yPosition)
-        yPosition += lines.length * lineHeight + 2
+        checkTermsPageBreak(3)
+        const lines = doc.splitTextToSize(term, termsMaxLineWidth - 3)
+        doc.text(lines, termsMargin + 3, yPosition)
+        yPosition += lines.length * termsLineHeight + termsSpacing
       })
       
       // 9) Guarantees
-      yPosition += 3
+      yPosition += 2 // Reduced from 3
       checkPageBreak(6)
-      doc.setFontSize(11)
+      doc.setFontSize(9) // Reduced from 11
       doc.setFont(undefined, "bold")
       doc.setTextColor("#000000")
-      doc.text("9) Guarantees (Service-Specific)", margin, yPosition)
-      yPosition += 7
+      doc.text("9) Guarantees (Service-Specific)", termsMargin, yPosition)
+      yPosition += 4 // Reduced from 7
       
-      doc.setFontSize(9)
+      doc.setFontSize(7) // Reduced from 9
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
       const guaranteeTerms = [
@@ -709,22 +726,22 @@ export const handleDownloadPDF = async (
         "• Pressure Washing: 3-day satisfaction guarantee on premium pressure washing packages only."
       ]
       guaranteeTerms.forEach(term => {
-        checkPageBreak(3)
-        const lines = doc.splitTextToSize(term, maxLineWidth - 5)
-        doc.text(lines, margin + 5, yPosition)
-        yPosition += lines.length * lineHeight + 2
+        checkTermsPageBreak(3)
+        const lines = doc.splitTextToSize(term, termsMaxLineWidth - 3)
+        doc.text(lines, termsMargin + 3, yPosition)
+        yPosition += lines.length * termsLineHeight + termsSpacing
       })
       
       // 10) Complaints, Re-Visits, and Trip Fees
-      yPosition += 3
+      yPosition += 2 // Reduced from 3
       checkPageBreak(6)
-      doc.setFontSize(11)
+      doc.setFontSize(9) // Reduced from 11
       doc.setFont(undefined, "bold")
       doc.setTextColor("#000000")
-      doc.text("10) Complaints, Re-Visits, and Trip Fees", margin, yPosition)
-      yPosition += 7
+      doc.text("10) Complaints, Re-Visits, and Trip Fees", termsMargin, yPosition)
+      yPosition += 4 // Reduced from 7
       
-      doc.setFontSize(9)
+      doc.setFontSize(7) // Reduced from 9
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
       const complaintTerms = [
@@ -733,90 +750,90 @@ export const handleDownloadPDF = async (
         "• If a complaint revisit finds the work satisfactory, a $75 trip fee applies."
       ]
       complaintTerms.forEach(term => {
-        checkPageBreak(3)
-        const lines = doc.splitTextToSize(term, maxLineWidth - 5)
-        doc.text(lines, margin + 5, yPosition)
-        yPosition += lines.length * lineHeight + 2
+        checkTermsPageBreak(3)
+        const lines = doc.splitTextToSize(term, termsMaxLineWidth - 3)
+        doc.text(lines, termsMargin + 3, yPosition)
+        yPosition += lines.length * termsLineHeight + termsSpacing
       })
       
       // 11) Refund Policy
       yPosition += 3
       checkPageBreak(4)
-      doc.setFontSize(11)
+      doc.setFontSize(9) // Reduced from 11
       doc.setFont(undefined, "bold")
       doc.setTextColor("#000000")
-      doc.text("11) Refund Policy", margin, yPosition)
-      yPosition += 7
+      doc.text("11) Refund Policy", termsMargin, yPosition)
+      yPosition += 4 // Reduced from 7
       
-      doc.setFontSize(9)
+      doc.setFontSize(7) // Reduced from 9
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
       const refundText = "All sales are final. Refunds are only for unused materials during service (if applicable)."
-      const refundLines = doc.splitTextToSize(refundText, maxLineWidth - 5)
-      doc.text(refundLines, margin + 5, yPosition)
+        const refundLines = doc.splitTextToSize(refundText, termsMaxLineWidth - 3)
+        doc.text(refundLines, termsMargin + 3, yPosition)
       yPosition += refundLines.length * lineHeight + 3
       
       // 12) Cancellation Policy
       checkPageBreak(4)
-      doc.setFontSize(11)
+      doc.setFontSize(9) // Reduced from 11
       doc.setFont(undefined, "bold")
       doc.setTextColor("#000000")
-      doc.text("12) Cancellation Policy (One-Time / Non-Recurring)", margin, yPosition)
-      yPosition += 7
+      doc.text("12) Cancellation Policy (One-Time / Non-Recurring)", termsMargin, yPosition)
+      yPosition += 4 // Reduced from 7
       
-      doc.setFontSize(9)
+      doc.setFontSize(7) // Reduced from 9
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
       const cancellationText = "Client cancellation requests should be provided with as much notice as possible. For larger or reserved jobs, TruShine may require 14 days' written notice; shorter notice may result in a charge up to the full service amount, depending on crew scheduling and reserved time."
-      const cancellationLines = doc.splitTextToSize(cancellationText, maxLineWidth - 5)
-      doc.text(cancellationLines, margin + 5, yPosition)
-      yPosition += cancellationLines.length * lineHeight + 3
+        const cancellationLines = doc.splitTextToSize(cancellationText, termsMaxLineWidth - 3)
+        doc.text(cancellationLines, termsMargin + 3, yPosition)
+      yPosition += cancellationLines.length * termsLineHeight + 2
       
       // 13) Liability Limits
       checkPageBreak(4)
-      doc.setFontSize(11)
+      doc.setFontSize(9) // Reduced from 11
       doc.setFont(undefined, "bold")
       doc.setTextColor("#000000")
-      doc.text("13) Liability Limits & Pre-Existing Damage", margin, yPosition)
-      yPosition += 7
+      doc.text("13) Liability Limits & Pre-Existing Damage", termsMargin, yPosition)
+      yPosition += 4 // Reduced from 7
       
-      doc.setFontSize(9)
+      doc.setFontSize(7) // Reduced from 9
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
       const liabilityText = "TruShine is not responsible for pre-existing damage or deterioration including (but not limited to): aged gutters, rotted wood, failing seals, cracked panes, loose screens, or previously weakened/fragile items. Client must notify TruShine of known issues or safety concerns prior to service."
-      const liabilityLines = doc.splitTextToSize(liabilityText, maxLineWidth - 5)
-      doc.text(liabilityLines, margin + 5, yPosition)
-      yPosition += liabilityLines.length * lineHeight + 3
+        const liabilityLines = doc.splitTextToSize(liabilityText, termsMaxLineWidth - 3)
+        doc.text(liabilityLines, termsMargin + 3, yPosition)
+      yPosition += liabilityLines.length * termsLineHeight + 2
       
       // 14) Updates to Terms
       checkPageBreak(4)
-      doc.setFontSize(11)
+      doc.setFontSize(9) // Reduced from 11
       doc.setFont(undefined, "bold")
       doc.setTextColor("#000000")
-      doc.text("14) Updates to Terms", margin, yPosition)
-      yPosition += 7
+      doc.text("14) Updates to Terms", termsMargin, yPosition)
+      yPosition += 4 // Reduced from 7
       
-      doc.setFontSize(9)
+      doc.setFontSize(7) // Reduced from 9
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
       const updatesText = "TruShine reserves the right to update these Terms & Conditions at any time. Updated terms apply prospectively."
-      const updatesLines = doc.splitTextToSize(updatesText, maxLineWidth - 5)
-      doc.text(updatesLines, margin + 5, yPosition)
-      yPosition += updatesLines.length * lineHeight + 3
+        const updatesLines = doc.splitTextToSize(updatesText, termsMaxLineWidth - 3)
+        doc.text(updatesLines, termsMargin + 3, yPosition)
+      yPosition += updatesLines.length * termsLineHeight + 2
       
       // 15) Order of Priority
       checkPageBreak(6)
-      doc.setFontSize(11)
+      doc.setFontSize(9) // Reduced from 11
       doc.setFont(undefined, "bold")
       doc.setTextColor("#000000")
-      doc.text("15) Order of Priority (If Anything Conflicts)", margin, yPosition)
-      yPosition += 7
+      doc.text("15) Order of Priority (If Anything Conflicts)", termsMargin, yPosition)
+      yPosition += 4 // Reduced from 7
       
-      doc.setFontSize(9)
+      doc.setFontSize(7) // Reduced from 9
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
-      const priorityIntro = "If there is a conflict between documents:"
-      doc.text(priorityIntro, margin + 5, yPosition)
+        const priorityIntro = "If there is a conflict between documents:"
+        doc.text(priorityIntro, termsMargin + 3, yPosition)
       yPosition += 6
       const priorityTerms = [
         "1. The signed/accepted proposal/work order/invoice for the Visit, then",
@@ -824,49 +841,49 @@ export const handleDownloadPDF = async (
         "3. these Master Terms & Conditions."
       ]
       priorityTerms.forEach(term => {
-        checkPageBreak(3)
-        const lines = doc.splitTextToSize(term, maxLineWidth - 5)
-        doc.text(lines, margin + 5, yPosition)
-        yPosition += lines.length * lineHeight + 2
+        checkTermsPageBreak(3)
+        const lines = doc.splitTextToSize(term, termsMaxLineWidth - 3)
+        doc.text(lines, termsMargin + 3, yPosition)
+        yPosition += lines.length * termsLineHeight + termsSpacing
       })
       
       // Recurring Service Addendum
-      yPosition += 5
-      checkPageBreak(8)
-      doc.setFontSize(12)
+      yPosition += 3 // Reduced from 5
+        checkTermsPageBreak(8)
+      doc.setFontSize(9) // Further reduced from 10
       doc.setFont(undefined, "bold")
       doc.setTextColor("#000000")
-      doc.text("Recurring Service Addendum", margin, yPosition)
-      yPosition += 8
-      doc.setFontSize(10)
+      doc.text("Recurring Service Addendum", termsMargin, yPosition)
+      yPosition += 4 // Further reduced from 5
+      doc.setFontSize(7) // Further reduced from 8
       doc.setFont(undefined, "normal")
-      doc.text("(Window Cleaning & Gutter Cleaning)", margin, yPosition)
-      yPosition += 8
+      doc.text("(Window Cleaning & Gutter Cleaning)", termsMargin, yPosition)
+      yPosition += 5 // Reduced from 8
       
       // R1) Scope of Recurring Services
-      doc.setFontSize(11)
+      doc.setFontSize(8) // Further reduced from 9
       doc.setFont(undefined, "bold")
       doc.setTextColor("#000000")
-      doc.text("R1) Scope of Recurring Services", margin, yPosition)
-      yPosition += 7
+      doc.text("R1) Scope of Recurring Services", termsMargin, yPosition)
+      yPosition += 4 // Reduced from 7
       
-      doc.setFontSize(9)
+      doc.setFontSize(6.5) // Further reduced from 7
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
       const recurringScopeText = "TruShine will perform recurring window cleaning and/or gutter cleaning as selected: Window Cleaning: exterior window cleaning for all accessible glass; interior if included; add-ons available for additional fee. Gutter Cleaning: removal of debris; flushing downspouts; light roof debris removal near gutter lines when safely accessible. Services occur on the chosen frequency: monthly, bi-monthly, quarterly, semi-annual, or annual, and continue until canceled per this Addendum."
-      const recurringScopeLines = doc.splitTextToSize(recurringScopeText, maxLineWidth - 5)
-      doc.text(recurringScopeLines, margin + 5, yPosition)
-      yPosition += recurringScopeLines.length * lineHeight + 3
+        const recurringScopeLines = doc.splitTextToSize(recurringScopeText, termsMaxLineWidth - 3)
+        doc.text(recurringScopeLines, termsMargin + 3, yPosition)
+      yPosition += recurringScopeLines.length * termsLineHeight + 1.5 // Further reduced
       
       // R2) Pricing & Payment Terms
-      checkPageBreak(6)
-      doc.setFontSize(11)
+      checkTermsPageBreak(6)
+      doc.setFontSize(8) // Further reduced from 9
       doc.setFont(undefined, "bold")
       doc.setTextColor("#000000")
-      doc.text("R2) Pricing & Payment Terms (Recurring)", margin, yPosition)
-      yPosition += 7
+      doc.text("R2) Pricing & Payment Terms (Recurring)", termsMargin, yPosition)
+      yPosition += 4 // Reduced from 7
       
-      doc.setFontSize(9)
+      doc.setFontSize(6.5) // Further reduced from 7
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
       const recurringPaymentTerms = [
@@ -876,22 +893,22 @@ export const handleDownloadPDF = async (
         "• A valid credit card must be kept on file for automated billing; receipts are sent via email after each charge."
       ]
       recurringPaymentTerms.forEach(term => {
-        checkPageBreak(3)
-        const lines = doc.splitTextToSize(term, maxLineWidth - 5)
-        doc.text(lines, margin + 5, yPosition)
-        yPosition += lines.length * lineHeight + 2
+        checkTermsPageBreak(3)
+        const lines = doc.splitTextToSize(term, termsMaxLineWidth - 3)
+        doc.text(lines, termsMargin + 3, yPosition)
+        yPosition += lines.length * termsLineHeight + termsSpacing
       })
       
       // R3) Minimum Commitment
-      yPosition += 3
-      checkPageBreak(6)
-      doc.setFontSize(11)
+      yPosition += 1.5 // Further reduced from 2
+      checkTermsPageBreak(6)
+      doc.setFontSize(8) // Further reduced from 9
       doc.setFont(undefined, "bold")
       doc.setTextColor("#000000")
-      doc.text("R3) Minimum Commitment (By Frequency)", margin, yPosition)
-      yPosition += 7
+      doc.text("R3) Minimum Commitment (By Frequency)", termsMargin, yPosition)
+      yPosition += 4 // Reduced from 7
       
-      doc.setFontSize(9)
+      doc.setFontSize(6.5) // Further reduced from 7
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
       const commitmentTerms = [
@@ -901,10 +918,10 @@ export const handleDownloadPDF = async (
         "• Annual: minimum two (2) year commitment with at least 2 scheduled services per year."
       ]
       commitmentTerms.forEach(term => {
-        checkPageBreak(3)
-        const lines = doc.splitTextToSize(term, maxLineWidth - 5)
-        doc.text(lines, margin + 5, yPosition)
-        yPosition += lines.length * lineHeight + 2
+        checkTermsPageBreak(3)
+        const lines = doc.splitTextToSize(term, termsMaxLineWidth - 3)
+        doc.text(lines, termsMargin + 3, yPosition)
+        yPosition += lines.length * termsLineHeight + termsSpacing
       })
       
       // R4-R9) Additional Recurring Terms
@@ -918,36 +935,36 @@ export const handleDownloadPDF = async (
       ]
       
       recurringSections.forEach(section => {
-        yPosition += 3
-        checkPageBreak(6)
-        doc.setFontSize(11)
+        yPosition += 2 // Further reduced from 3
+        checkTermsPageBreak(6)
+        doc.setFontSize(8) // Further reduced from 11
         doc.setFont(undefined, "bold")
         doc.setTextColor("#000000")
-        doc.text(section.title, margin, yPosition)
-        yPosition += 7
+        doc.text(section.title, termsMargin, yPosition)
+        yPosition += 3 // Further reduced from 4
         
-        doc.setFontSize(9)
+        doc.setFontSize(6.5) // Further reduced from 9
         doc.setFont(undefined, "normal")
         doc.setTextColor("#374151")
-        const sectionLines = doc.splitTextToSize(section.text, maxLineWidth - 5)
-        doc.text(sectionLines, margin + 5, yPosition)
-        yPosition += sectionLines.length * lineHeight + 2
+        const sectionLines = doc.splitTextToSize(section.text, termsMaxLineWidth - 3)
+        doc.text(sectionLines, termsMargin + 3, yPosition)
+        yPosition += sectionLines.length * termsLineHeight + termsSpacing
       })
       
       // Final Agreement Statement
-      yPosition += 10
-      checkPageBreak(6)
+      yPosition += 5 // Further reduced from 10
+      checkTermsPageBreak(6)
       doc.setDrawColor(200, 200, 200)
-      doc.line(margin, yPosition, pageWidth - margin, yPosition)
-      yPosition += 10
+      doc.line(termsMargin, yPosition, pageWidth - termsMargin, yPosition)
+      yPosition += 5 // Further reduced from 10
       
-      doc.setFontSize(10)
+      doc.setFontSize(7) // Further reduced from 8
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
       const finalAgreement = "By signing this document, the client acknowledges that they have read, understood, and agreed to all Terms & Conditions contained in this proposal."
-      const finalAgreementLines = doc.splitTextToSize(finalAgreement, maxLineWidth)
-      doc.text(finalAgreementLines, margin, yPosition)
-      yPosition += finalAgreementLines.length * lineHeight
+        const finalAgreementLines = doc.splitTextToSize(finalAgreement, termsMaxLineWidth)
+        doc.text(finalAgreementLines, termsMargin, yPosition)
+      yPosition += finalAgreementLines.length * termsLineHeight
       
       // Customer Signature Section (Professional Style)
       if (additional_data?.signature) {

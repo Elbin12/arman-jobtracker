@@ -138,109 +138,64 @@ export const quoteApi = createApi({
     }),
     // Submission Images
     uploadSubmissionImage: builder.mutation({
-      queryFn: async (formData) => {
-        try {
-          const result = await axiosInstance({
-            url: '/quote/submission-images/',
-            method: 'POST',
-            data: formData,
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          });
-          return { data: result.data };
-        } catch (error) {
-          return {
-            error: {
-              status: error.response?.status,
-              data: error.response?.data || error.message,
-            },
-          };
-        }
-      },
+      query: (formData) => ({
+        url: 'submission-images/',
+        method: 'POST',
+        data: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }),
+      // Don't transform response - return as-is to preserve structure
       invalidatesTags: ['quote', 'Details'],
     }),
+    
     getSubmissionImages: builder.query({
-      queryFn: async (submissionId) => {
-        try {
-          const result = await axiosInstance({
-            url: `/quote/submission-images/?submission_id=${submissionId}`,
-            method: 'GET',
-          });
-          return { data: result.data };
-        } catch (error) {
-          return {
-            error: {
-              status: error.response?.status,
-              data: error.response?.data || error.message,
-            },
-          };
-        }
-      },
+      query: (submissionId) => ({
+        url: `submission-images/?submission_id=${submissionId}`,
+        method: 'GET',
+      }),
       providesTags: ['quote', 'Details'],
     }),
+    
     updateSubmissionImage: builder.mutation({
-      queryFn: async ({ imageId, caption }) => {
-        try {
-          const result = await axiosInstance({
-            url: `/quote/submission-images/${imageId}/`,
-            method: 'PATCH',
-            data: { caption },
-          });
-          return { data: result.data };
-        } catch (error) {
-          return {
-            error: {
-              status: error.response?.status,
-              data: error.response?.data || error.message,
-            },
-          };
-        }
-      },
+      query: ({ imageId, caption }) => ({
+        url: `submission-images/${imageId}/`,
+        method: 'PATCH',
+        data: { caption },
+      }),
       invalidatesTags: ['quote', 'Details'],
     }),
+    
     replaceSubmissionImage: builder.mutation({
-      queryFn: async ({ imageId, formData }) => {
-        try {
-          const result = await axiosInstance({
-            url: `/quote/submission-images/${imageId}/`,
-            method: 'PUT',
-            data: formData,
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          });
-          return { data: result.data };
-        } catch (error) {
-          return {
-            error: {
-              status: error.response?.status,
-              data: error.response?.data || error.message,
-            },
-          };
-        }
-      },
+      query: ({ imageId, formData }) => ({
+        url: `submission-images/${imageId}/`,
+        method: 'PUT',
+        data: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }),
+      transformResponse: (response) => response ?? { success: true },
       invalidatesTags: ['quote', 'Details'],
     }),
+    
     deleteSubmissionImage: builder.mutation({
-      queryFn: async (imageId) => {
-        try {
-          const result = await axiosInstance({
-            url: `/quote/submission-images/${imageId}/`,
-            method: 'DELETE',
-          });
-          return { data: result.data };
-        } catch (error) {
-          return {
-            error: {
-              status: error.response?.status,
-              data: error.response?.data || error.message,
-            },
-          };
+      query: (imageId) => ({
+        url: `submission-images/${imageId}/`,
+        method: 'DELETE',
+      }),
+      // Handle empty responses (204 No Content) - return success object
+      transformResponse: (response, meta) => {
+        // If response is empty (204), return success indicator
+        if (!response && meta?.response?.status === 204) {
+          return { success: true }
         }
+        return response ?? { success: true }
       },
       invalidatesTags: ['quote', 'Details'],
     }),
+    
   }),
 });
 

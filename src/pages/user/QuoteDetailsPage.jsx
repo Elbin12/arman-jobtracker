@@ -1267,9 +1267,9 @@ const QuoteDetailsPage = () => {
                   </Box>
                   <Divider />
                   <CardContent sx={{ p: 3 }}>
-                    <Grid container spacing={2}>
+                    <Grid container spacing={2} sx={{ maxWidth: "100%" }}>
                       {images.map((image) => (
-                        <Grid item xs={6} sm={4} md={3} key={image.id}>
+                        <Grid item xs={4} sm={3} md={2} lg={2} xl={2} key={image.id}>
                           <Box
                             sx={{
                               position: "relative",
@@ -1279,6 +1279,20 @@ const QuoteDetailsPage = () => {
                               border: "2px solid #e2e8f0",
                               cursor: "pointer",
                               transition: "all 0.2s ease",
+                              maxWidth: {
+                                xs: "120px",
+                                sm: "150px",
+                                md: "180px",
+                                lg: "200px",
+                              },
+                              maxHeight: {
+                                xs: "120px",
+                                sm: "150px",
+                                md: "180px",
+                                lg: "200px",
+                              },
+                              width: "100%",
+                              mx: "auto",
                               "&:hover": {
                                 borderColor: "#023c8f",
                                 transform: "scale(1.02)",
@@ -1296,6 +1310,8 @@ const QuoteDetailsPage = () => {
                                 width: "100%",
                                 height: "100%",
                                 objectFit: "cover",
+                                maxWidth: "100%",
+                                display: "block",
                               }}
                               onError={(e) => {
                                 e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23ddd' width='100' height='100'/%3E%3Ctext fill='%23999' font-family='sans-serif' font-size='14' dy='10.5' font-weight='bold' x='50%25' y='50%25' text-anchor='middle'%3EImage%3C/text%3E%3C/svg%3E"

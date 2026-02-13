@@ -1494,6 +1494,8 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                     )
                     || !termsAccepted
                     || !isStepComplete(3)
+                    ||
+      (quoteData?.service_selections?.length !== Object.keys(data.selectedPackages).length)
                   }
 
                   sx={{

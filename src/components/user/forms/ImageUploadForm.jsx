@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { useUploadSubmissionImageMutation, useDeleteSubmissionImageMutation, useUpdateSubmissionImageMutation, useReplaceSubmissionImageMutation } from "../../../store/api/user/quoteApi"
 import { useToast } from "@/hooks/use-toast"
@@ -18,6 +18,9 @@ export function ImageUploadForm({ submissionId, quotedBy, quoteDetails, onQuoteD
   const [captionValue, setCaptionValue] = useState("")
   const [uploadingImages, setUploadingImages] = useState(false)
   const [uploadProgress, setUploadProgress] = useState({})
+  const [deletedImageIds, setDeletedImageIds] = useState(new Set()) // Track optimistically deleted images
+  const [replacedImageUrls, setReplacedImageUrls] = useState(new Map()) // Track optimistically replaced images: imageId -> preview URL
+  const [newlyUploadedImages, setNewlyUploadedImages] = useState(new Map()) // Track optimistically uploaded images: imageId -> image object
   const fileInputRef = useRef(null)
   const replaceImageInputRef = useRef(null)
   const { toast } = useToast()
@@ -27,8 +30,104 @@ export function ImageUploadForm({ submissionId, quotedBy, quoteDetails, onQuoteD
   const [updateSubmissionImage] = useUpdateSubmissionImageMutation()
   const [replaceSubmissionImage] = useReplaceSubmissionImageMutation()
   
-  // Get images from quoteDetails instead of separate API call
-  const existingImages = quoteDetails?.images || []
+  // Get images from quoteDetails and filter out optimistically deleted ones
+  // Also merge in newly uploaded images that haven't appeared in quoteDetails yet
+  const existingImagesFromAPI = (quoteDetails?.images || []).filter(img => !deletedImageIds.has(img.id))
+  const existingImages = [
+    ...existingImagesFromAPI,
+    ...Array.from(newlyUploadedImages.values()).filter(img => 
+      // Exclude if already in API response (to avoid duplicates)
+      !existingImagesFromAPI.some(apiImg => apiImg.id === img.id) &&
+      // Exclude if optimistically deleted
+      !deletedImageIds.has(img.id)
+    )
+  ]
+  
+  // Sync deletedImageIds, replacedImageUrls, and newlyUploadedImages with quoteDetails
+  useEffect(() => {
+    if (quoteDetails?.images) {
+      const currentImageIds = new Set(quoteDetails.images.map(img => img.id))
+      
+      // Sync deletedImageIds - remove IDs from deleted set if they're back in the API response
+      setDeletedImageIds(prev => {
+        const updated = new Set(prev)
+        prev.forEach(id => {
+          if (currentImageIds.has(id)) {
+            updated.delete(id)
+          }
+        })
+        return updated
+      })
+      
+      // Clean up newlyUploadedImages - remove images that now appear in quoteDetails
+      setNewlyUploadedImages(prev => {
+        const updated = new Map(prev)
+        prev.forEach((img, imageId) => {
+          if (currentImageIds.has(imageId)) {
+            // Image is now in quoteDetails, remove from optimistic cache
+            updated.delete(imageId)
+          }
+        })
+        return updated
+      })
+      
+      // Sync replacedImageUrls - always prefer API URLs over preview URLs
+      setReplacedImageUrls(prev => {
+        const updated = new Map(prev)
+        quoteDetails.images.forEach(img => {
+          const imageId = img.id
+          const apiImageUrl = img.ghl_file_url || img.image_url || img.image
+          
+          if (updated.has(imageId)) {
+            const currentUrl = updated.get(imageId)
+            const isPreviewUrl = currentUrl && currentUrl.startsWith('blob:')
+            
+            // If we have an API URL, always use it (even if we have a preview)
+            if (apiImageUrl) {
+              // If current URL is a preview blob URL, revoke it
+              if (isPreviewUrl) {
+                URL.revokeObjectURL(currentUrl)
+              }
+              // Update with API URL (even if same, to ensure consistency)
+              updated.set(imageId, apiImageUrl)
+            }
+            // If no API URL but we have a preview, keep the preview
+            // (This handles edge cases where API response is delayed)
+          } else if (apiImageUrl) {
+            // Image wasn't in replaced map but exists in API - this shouldn't happen
+            // but if it does, we don't need to track it
+          }
+        })
+        
+        // Remove entries for images that no longer exist in API response
+        const currentImageIds = new Set(quoteDetails.images.map(img => img.id))
+        updated.forEach((url, imageId) => {
+          if (!currentImageIds.has(imageId)) {
+            // Image was deleted - clean up blob URL if it's a preview
+            if (url && url.startsWith('blob:')) {
+              URL.revokeObjectURL(url)
+            }
+            updated.delete(imageId)
+          }
+        })
+        
+        return updated
+      })
+    }
+  }, [quoteDetails?.images])
+  
+  // Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      // Clean up all blob URLs when component unmounts
+      replacedImageUrls.forEach((url) => {
+        if (url && typeof url === 'string' && url.startsWith('blob:')) {
+          URL.revokeObjectURL(url)
+        }
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   
   // Allow uploads - backend will handle authorization
   
@@ -103,28 +202,146 @@ export function ImageUploadForm({ submissionId, quotedBy, quoteDetails, onQuoteD
     
     try {
       const result = await uploadSubmissionImage(formData).unwrap()
-      setLocalImages(prev => prev.map(img => 
-        img.id === image.id ? { ...img, uploaded: true, uploading: false, serverId: result.id } : img
-      ))
-      setUploadProgress(prev => ({ ...prev, [image.id]: 100 }))
-      if (onQuoteDetailsUpdate) {
-        await onQuoteDetailsUpdate()
+      
+      // Handle response - API returns image object with id, image_url, etc.
+      // Extract the actual data if wrapped
+      const imageData = result?.id ? result : (result?.data || result)
+      const serverId = imageData?.id
+      
+      // Clean up preview URL before removing from localImages
+      if (image.preview) {
+        URL.revokeObjectURL(image.preview)
       }
+      
+      // Add to optimistically uploaded images immediately so it shows in "Uploaded Images"
+      if (imageData && serverId) {
+        // Format the image data to match the expected structure
+        // Use the actual API response fields, preserving nulls if they exist
+        const uploadedImageData = {
+          id: serverId,
+          ghl_file_url: imageData.ghl_file_url || null,
+          image_url: imageData.image_url || null,
+          image: imageData.image || null,
+          caption: imageData.caption || image.caption || null,
+          submission: imageData.submission || submissionId,
+          submission_id: imageData.submission_id || imageData.submission || submissionId,
+          created_at: imageData.created_at,
+          updated_at: imageData.updated_at,
+          uploaded_by: imageData.uploaded_by,
+          uploaded_by_name: imageData.uploaded_by_name,
+        }
+        
+        setNewlyUploadedImages(prev => {
+          const updated = new Map(prev)
+          updated.set(serverId, uploadedImageData)
+          return updated
+        })
+      }
+      
+      // Remove image from localImages after successful upload
+      // It will appear in "Uploaded Images" immediately via optimistic update
+      setLocalImages(prev => {
+        const updated = prev.filter(img => img.id !== image.id)
+        return updated
+      })
+      
+      // Clean up upload progress
+      setUploadProgress(prev => {
+        const newProgress = { ...prev }
+        delete newProgress[image.id]
+        return newProgress
+      })
+      
+      // Refresh quote details to get updated image list
+      // Note: RTK Query will auto-refetch due to invalidatesTags, but we call this for immediate update
+      if (onQuoteDetailsUpdate) {
+        try {
+          await onQuoteDetailsUpdate()
+        } catch (refetchError) {
+          // Query might not be active yet - that's okay, tag invalidation will handle it
+          console.warn('Could not refetch quote details:', refetchError?.message)
+        }
+      }
+      
       toast({
         title: "Upload Successful",
         description: `${image.file.name} uploaded successfully.`,
         variant: "default",
       })
     } catch (error) {
-      toast({
-        title: "Upload Failed",
-        description: error?.data?.message || error?.data?.detail || `Failed to upload ${image.file.name}. Please try again.`,
-        variant: "destructive",
-      })
-      setLocalImages(prev => prev.map(img => 
-        img.id === image.id ? { ...img, uploading: false } : img
-      ))
-      throw error
+      console.error('Upload error:', error)
+      
+      // Extract error message from various possible error formats
+      let errorMessage = `Failed to upload ${image.file.name}.`
+      
+      if (error?.data) {
+        errorMessage = error.data.message || 
+                      error.data.detail || 
+                      error.data.error || 
+                      errorMessage
+      } else if (error?.message) {
+        errorMessage = error.message
+      }
+      
+      // Only show error toast if it's a real error (not just unexpected format)
+      const isRealError = error?.status === 'FETCH_ERROR' || 
+                         error?.status === 'PARSING_ERROR' ||
+                         (error?.data && (error.data.message || error.data.detail || error.data.error)) ||
+                         (error?.status >= 400 && error?.status < 600)
+      
+      if (isRealError) {
+        toast({
+          title: "Upload Failed",
+          description: errorMessage,
+          variant: "destructive",
+        })
+        
+        setLocalImages(prev => prev.map(img => 
+          img.id === image.id ? { ...img, uploading: false, uploaded: false } : img
+        ))
+        setUploadProgress(prev => {
+          const newProgress = { ...prev }
+          delete newProgress[image.id]
+          return newProgress
+        })
+      } else {
+        // Unexpected format but might be success - refresh and remove from localImages
+        console.warn('Unexpected response format, treating as success:', error)
+        
+        // Clean up preview URL before removing from localImages
+        if (image.preview) {
+          URL.revokeObjectURL(image.preview)
+        }
+        
+        // Remove image from localImages after successful upload
+        setLocalImages(prev => {
+          const updated = prev.filter(img => img.id !== image.id)
+          return updated
+        })
+        
+        // Clean up upload progress
+        setUploadProgress(prev => {
+          const newProgress = { ...prev }
+          delete newProgress[image.id]
+          return newProgress
+        })
+        
+        // Note: RTK Query will auto-refetch due to invalidatesTags, but we call this for immediate update
+        if (onQuoteDetailsUpdate) {
+          try {
+            await onQuoteDetailsUpdate()
+          } catch (refetchError) {
+            // Query might not be active yet - that's okay, tag invalidation will handle it
+            console.warn('Could not refetch quote details:', refetchError?.message)
+          }
+        }
+        
+        toast({
+          title: "Upload Successful",
+          description: `${image.file.name} uploaded successfully.`,
+          variant: "default",
+        })
+      }
     }
   }
   
@@ -145,19 +362,6 @@ export function ImageUploadForm({ submissionId, quotedBy, quoteDetails, onQuoteD
     }
     
     setUploadingImages(false)
-    
-    if (errors.length > 0) {
-      toast({
-        title: "Some uploads failed",
-        description: errors.join(", "),
-        variant: "destructive",
-      })
-    } else if (localImages.length > 0) {
-      // Clear successfully uploaded images after a delay
-      setTimeout(() => {
-        setLocalImages(prev => prev.filter(img => !img.uploaded))
-      }, 1000)
-    }
   }
   
   const handleDeleteImage = async (imageId) => {
@@ -165,20 +369,56 @@ export function ImageUploadForm({ submissionId, quotedBy, quoteDetails, onQuoteD
       return
     }
     
-    try {
-      await deleteSubmissionImage(imageId).unwrap()
-      if (onQuoteDetailsUpdate) {
-        await onQuoteDetailsUpdate()
+    // Optimistically remove the image from UI immediately
+    setDeletedImageIds(prev => new Set(prev).add(imageId))
+    
+    // Also remove from newlyUploadedImages if it's there (for newly added images)
+    setNewlyUploadedImages(prev => {
+      const updated = new Map(prev)
+      if (updated.has(imageId)) {
+        updated.delete(imageId)
       }
+      return updated
+    })
+    
+    try {
+      const result = await deleteSubmissionImage(imageId).unwrap()
+      
+      // Delete endpoint may return empty response (204) or success object
+      // Both are valid success cases
+      // Note: RTK Query will auto-refetch due to invalidatesTags, but we call this for immediate update
+      if (onQuoteDetailsUpdate) {
+        try {
+          await onQuoteDetailsUpdate()
+        } catch (refetchError) {
+          // Query might not be active yet - that's okay, tag invalidation will handle it
+          console.warn('Could not refetch quote details:', refetchError?.message)
+        }
+      }
+      
       toast({
         title: "Image Deleted",
         description: "Image has been deleted successfully.",
         variant: "default",
       })
     } catch (error) {
+      console.error('Delete error:', error)
+      
+      // Revert optimistic update on error
+      setDeletedImageIds(prev => {
+        const updated = new Set(prev)
+        updated.delete(imageId)
+        return updated
+      })
+      
+      const errorMessage = error?.data?.message || 
+                          error?.data?.detail || 
+                          error?.message || 
+                          "Failed to delete image. Please try again."
+      
       toast({
         title: "Delete Failed",
-        description: error?.data?.message || error?.data?.detail || "Failed to delete image. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       })
     }
@@ -220,6 +460,10 @@ export function ImageUploadForm({ submissionId, quotedBy, quoteDetails, onQuoteD
       return
     }
     
+    // Create preview URL immediately for optimistic update
+    const previewUrl = URL.createObjectURL(file)
+    setReplacedImageUrls(prev => new Map(prev).set(imageId, previewUrl))
+    
     try {
       const formData = new FormData()
       formData.append('submission', submissionId)
@@ -229,10 +473,38 @@ export function ImageUploadForm({ submissionId, quotedBy, quoteDetails, onQuoteD
         formData.append('caption', existingImage.caption)
       }
       
-      await replaceSubmissionImage({ imageId, formData }).unwrap()
+      const result = await replaceSubmissionImage({ imageId, formData }).unwrap()
       
+      // Handle both response formats: direct object or wrapped in success
+      const imageData = result?.id ? result : (result?.data || result)
+      
+      // If API returns new image URL, use it instead of preview
+      const newImageUrl = imageData?.ghl_file_url || imageData?.image_url || imageData?.image
+      if (newImageUrl) {
+        // Revoke the preview URL since we have the real URL now
+        URL.revokeObjectURL(previewUrl)
+        setReplacedImageUrls(prev => {
+          const updated = new Map(prev)
+          updated.set(imageId, newImageUrl)
+          return updated
+        })
+      }
+      
+      // Validate response - if it has id or success, it's valid
+      if (!imageData || (!imageData.id && !imageData.success && imageData !== result)) {
+        // If result is the same as imageData and has no error, consider it success
+        // (some APIs return empty object or minimal response)
+        console.warn('Replace response may be unexpected:', result)
+      }
+      
+      // Note: RTK Query will auto-refetch due to invalidatesTags, but we call this for immediate update
       if (onQuoteDetailsUpdate) {
-        await onQuoteDetailsUpdate()
+        try {
+          await onQuoteDetailsUpdate()
+        } catch (refetchError) {
+          // Query might not be active yet - that's okay, tag invalidation will handle it
+          console.warn('Could not refetch quote details:', refetchError?.message)
+        }
       }
       
       toast({
@@ -241,9 +513,24 @@ export function ImageUploadForm({ submissionId, quotedBy, quoteDetails, onQuoteD
         variant: "default",
       })
     } catch (error) {
+      console.error('Replace error:', error)
+      
+      // Revert optimistic update on error - remove preview URL
+      URL.revokeObjectURL(previewUrl)
+      setReplacedImageUrls(prev => {
+        const updated = new Map(prev)
+        updated.delete(imageId)
+        return updated
+      })
+      
+      const errorMessage = error?.data?.message || 
+                          error?.data?.detail || 
+                          error?.message || 
+                          "Failed to replace image. Please try again."
+      
       toast({
         title: "Replace Failed",
-        description: error?.data?.message || error?.data?.detail || "Failed to replace image. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
@@ -256,9 +543,21 @@ export function ImageUploadForm({ submissionId, quotedBy, quoteDetails, onQuoteD
   
   const handleUpdateCaption = async (imageId) => {
     try {
-      await updateSubmissionImage({ imageId, caption: captionValue }).unwrap()
+      const result = await updateSubmissionImage({ imageId, caption: captionValue }).unwrap()
+      
+      // Validate response
+      if (result && (result.error || (result.data && result.data.error))) {
+        throw new Error(result.error || result.data?.error || 'Update failed')
+      }
+      
+      // Note: RTK Query will auto-refetch due to invalidatesTags, but we call this for immediate update
       if (onQuoteDetailsUpdate) {
-        await onQuoteDetailsUpdate()
+        try {
+          await onQuoteDetailsUpdate()
+        } catch (refetchError) {
+          // Query might not be active yet - that's okay, tag invalidation will handle it
+          console.warn('Could not refetch quote details:', refetchError?.message)
+        }
       }
       setEditingCaption(null)
       setCaptionValue("")
@@ -268,9 +567,15 @@ export function ImageUploadForm({ submissionId, quotedBy, quoteDetails, onQuoteD
         variant: "default",
       })
     } catch (error) {
+      console.error('Update caption error:', error)
+      const errorMessage = error?.data?.message || 
+                          error?.data?.detail || 
+                          error?.message || 
+                          "Failed to update caption. Please try again."
+      
       toast({
         title: "Update Failed",
-        description: error?.data?.message || error?.data?.detail || "Failed to update caption. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       })
     }
@@ -422,7 +727,7 @@ export function ImageUploadForm({ submissionId, quotedBy, quoteDetails, onQuoteD
                   )}
                 </div>
                 
-                {!image.uploaded && (
+                {/* {!image.uploaded && (
                   <input
                     type="text"
                     placeholder="Add caption (optional)"
@@ -434,7 +739,7 @@ export function ImageUploadForm({ submissionId, quotedBy, quoteDetails, onQuoteD
                     }}
                     className="mt-2 w-full text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                )}
+                )} */}
                 
                 {uploadProgress[image.id] && uploadProgress[image.id] < 100 && (
                   <div className="mt-2 h-1 bg-gray-200 rounded-full overflow-hidden">
@@ -466,28 +771,64 @@ export function ImageUploadForm({ submissionId, quotedBy, quoteDetails, onQuoteD
                       <Loader2 className="h-8 w-8 text-white animate-spin" />
                     </div>
                   ) : null}
-                  <img
-                    src={image.image || image.image_url}
-                    alt={image.caption || "Uploaded image"}
-                    className="w-full h-full object-cover"
-                  />
+                  {(() => {
+                    // Check if this image was replaced optimistically - use replaced URL first
+                    const replacedUrl = replacedImageUrls.get(image.id)
+                    
+                    // Prioritize replaced URL, then ghl_file_url, then image_url, then image
+                    const imageSrc = replacedUrl || image.ghl_file_url || image.image_url || image.image
+                    
+                    if (!imageSrc) {
+                      return (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                          <span className="text-xs text-gray-500">No image URL</span>
+                        </div>
+                      )
+                    }
+                    
+                    return (
+                      <img
+                        src={imageSrc}
+                        alt={image.caption || "Uploaded image"}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Fallback if primary image URL fails - try ghl_file_url first, then others
+                          if (image.ghl_file_url && e.target.src !== image.ghl_file_url) {
+                            e.target.src = image.ghl_file_url
+                          } else if (image.image_url && e.target.src !== image.image_url) {
+                            e.target.src = image.image_url
+                          } else if (image.image && e.target.src !== image.image) {
+                            e.target.src = image.image
+                          } else {
+                            e.target.style.display = 'none'
+                            console.error('Failed to load image:', image.id, 'URLs:', {
+                              replacedUrl,
+                              ghl_file_url: image.ghl_file_url,
+                              image_url: image.image_url,
+                              image: image.image
+                            })
+                          }
+                        }}
+                      />
+                    )
+                  })()}
                   
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-200 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
-                    <button
+                    {/* <button
                       onClick={() => handleReplaceImage(image)}
                       className="p-2 bg-blue-500 rounded-full hover:bg-blue-600 transition-colors"
                       title="Replace image"
                       disabled={replacingImage === image.id}
                     >
                       <RefreshCw className="h-4 w-4 text-white" />
-                    </button>
-                    <button
+                    </button> */}
+                    {/* <button
                       onClick={() => startEditingCaption(image)}
                       className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors"
                       title="Edit caption"
                     >
                       <Edit2 className="h-4 w-4 text-gray-700" />
-                    </button>
+                    </button> */}
                     <button
                       onClick={() => handleDeleteImage(image.id)}
                       className="p-2 bg-red-500 rounded-full hover:bg-red-600 transition-colors"

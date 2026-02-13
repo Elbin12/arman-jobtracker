@@ -99,14 +99,15 @@ export const AdminDashboard = () => {
   const { data: leadFunnelData, isLoading: leadFunnelLoading } = useGetLeadFunnelReportQuery(filters);
 
   const formatForecastChartData = () => {
-    if (!salesForecastData?.forecasts?.monthly?.periods) return [];
-    return salesForecastData.forecasts.monthly.periods
-      .slice(0, 6)
-      .map((period) => ({
-        month: format(new Date(period.month), 'MMM yyyy'),
-        revenue: period.forecasted_revenue,
-        invoices: period.forecasted_invoice_count,
-      }));
+    if (!salesForecastData?.months) return [];
+    return salesForecastData.months.map((month) => ({
+      month: month.month_label,
+      forecast: month.forecast,
+      actual: month.actual || 0,
+      scheduled_revenue: month.scheduled_revenue,
+      historical_average: month.historical_average,
+      type: month.type,
+    }));
   };
 
   const formatCurrency = (amount) =>
@@ -663,10 +664,22 @@ export const AdminDashboard = () => {
                 </Box>
               ) : leadFunnelData ? (
                 <>
+                  {/* Report Period Info */}
+                  {leadFunnelData.report_period && (
+                    <Box sx={{ mb: 2, p: 1.5, bgcolor: '#f0f9ff', borderRadius: 1 }}>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Report Period: {format(new Date(leadFunnelData.report_period.start_date), 'MMM dd, yyyy')} - {format(new Date(leadFunnelData.report_period.end_date), 'MMM dd, yyyy')}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" fontSize="0.7rem">
+                        {leadFunnelData.report_period.filter_description}
+                      </Typography>
+                    </Box>
+                  )}
+
                   {/* Summary Metrics */}
                   <Box sx={{ 
                     display: 'grid', 
-                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(5, 1fr)' },
                     gap: 2,
                     mb: 3,
                     p: 2,
@@ -695,6 +708,14 @@ export const AdminDashboard = () => {
                       </Typography>
                       <Typography variant="h6" fontWeight="600" color="success.main">
                         {leadFunnelData.summary_metrics.acceptance_rate_percent.toFixed(1)}%
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Rejection Rate
+                      </Typography>
+                      <Typography variant="h6" fontWeight="600" color="error.main">
+                        {leadFunnelData.summary_metrics.rejection_rate_percent.toFixed(1)}%
                       </Typography>
                     </Box>
                     <Box>
@@ -728,12 +749,12 @@ export const AdminDashboard = () => {
                             width: 40, 
                             height: 40, 
                             borderRadius: '50%', 
-                            bgcolor: 'blue.50',
+                            bgcolor: 'rgba(25, 118, 210, 0.1)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center'
                           }}>
-                            <PersonStandingIcon sx={{ color: 'primary.main', fontSize: 20 }} />
+                            <PersonStandingIcon style={{ color: theme.palette.primary.main, fontSize: 20 }} />
                           </Box>
                           <Box>
                             <Typography variant="body2" fontWeight="600">
@@ -771,7 +792,7 @@ export const AdminDashboard = () => {
                             width: 40, 
                             height: 40, 
                             borderRadius: '50%', 
-                            bgcolor: 'orange.50',
+                            bgcolor: 'rgba(237, 108, 2, 0.1)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center'
@@ -787,15 +808,58 @@ export const AdminDashboard = () => {
                             </Typography>
                           </Box>
                         </Box>
+                        <Chip 
+                          label={leadFunnelData.lead_funnel.open_estimates.count} 
+                          color="warning" 
+                          variant="outlined"
+                          sx={{ fontWeight: 600, fontSize: '0.875rem' }}
+                        />
+                      </Box>
+                    </Box>
+
+                    {/* Rejected Estimates */}
+                    <Box sx={{ 
+                      p: 2, 
+                      border: '1px solid', 
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      bgcolor: 'background.paper',
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        boxShadow: 2,
+                        borderColor: 'error.main'
+                      }
+                    }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          <Box sx={{ 
+                            width: 40, 
+                            height: 40, 
+                            borderRadius: '50%', 
+                            bgcolor: 'rgba(211, 47, 47, 0.1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <ErrorIcon sx={{ color: 'error.main', fontSize: 20 }} />
+                          </Box>
+                          <Box>
+                            <Typography variant="body2" fontWeight="600">
+                              {leadFunnelData.lead_funnel.rejected_estimates.label}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Declined opportunities
+                            </Typography>
+                          </Box>
+                        </Box>
                         <Box sx={{ textAlign: 'right' }}>
                           <Chip 
-                            label={leadFunnelData.lead_funnel.open_estimates.count} 
-                            color="warning" 
-                            variant="outlined"
+                            label={leadFunnelData.lead_funnel.rejected_estimates.count} 
+                            color="error" 
                             sx={{ fontWeight: 600, fontSize: '0.875rem', mb: 0.5 }}
                           />
-                          <Typography variant="caption" color="warning.main" fontWeight="600" display="block">
-                            {formatCurrency(leadFunnelData.lead_funnel.open_estimates.total_value)}
+                          <Typography variant="caption" color="error.main" fontWeight="600" display="block">
+                            {formatCurrency(leadFunnelData.lead_funnel.rejected_estimates.total_value)}
                           </Typography>
                         </Box>
                       </Box>
@@ -820,7 +884,7 @@ export const AdminDashboard = () => {
                             width: 40, 
                             height: 40, 
                             borderRadius: '50%', 
-                            bgcolor: 'success.lighter',
+                            bgcolor: 'rgba(46, 125, 50, 0.1)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center'
@@ -849,6 +913,102 @@ export const AdminDashboard = () => {
                       </Box>
                     </Box>
 
+                    {/* Scheduled Quotes */}
+                    <Box sx={{ 
+                      p: 2, 
+                      border: '1px solid', 
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      bgcolor: 'background.paper',
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        boxShadow: 2,
+                        borderColor: 'info.main'
+                      }
+                    }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          <Box sx={{ 
+                            width: 40, 
+                            height: 40, 
+                            borderRadius: '50%', 
+                            bgcolor: 'rgba(25, 118, 210, 0.1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <FileText sx={{ color: 'info.main', fontSize: 20 }} />
+                          </Box>
+                          <Box>
+                            <Typography variant="body2" fontWeight="600">
+                              {leadFunnelData.lead_funnel.scheduled_quotes.label}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Accepted quotes
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box sx={{ textAlign: 'right' }}>
+                          <Chip 
+                            label={leadFunnelData.lead_funnel.scheduled_quotes.count} 
+                            color="info" 
+                            sx={{ fontWeight: 600, fontSize: '0.875rem', mb: 0.5 }}
+                          />
+                          <Typography variant="caption" color="info.main" fontWeight="600" display="block">
+                            {formatCurrency(leadFunnelData.lead_funnel.scheduled_quotes.total_value)}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+
+                    {/* Estimate to Convert */}
+                    <Box sx={{ 
+                      p: 2, 
+                      border: '1px solid', 
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      bgcolor: 'background.paper',
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        boxShadow: 2,
+                        borderColor: 'warning.main'
+                      }
+                    }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          <Box sx={{ 
+                            width: 40, 
+                            height: 40, 
+                            borderRadius: '50%', 
+                            bgcolor: 'rgba(237, 108, 2, 0.1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <Warning sx={{ color: 'warning.main', fontSize: 20 }} />
+                          </Box>
+                          <Box>
+                            <Typography variant="body2" fontWeight="600">
+                              {leadFunnelData.lead_funnel.estimate_to_convert.label}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Awaiting conversion
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box sx={{ textAlign: 'right' }}>
+                          <Chip 
+                            label={leadFunnelData.lead_funnel.estimate_to_convert.count} 
+                            color="warning" 
+                            sx={{ fontWeight: 600, fontSize: '0.875rem', mb: 0.5 }}
+                          />
+                          <Typography variant="caption" color="warning.main" fontWeight="600" display="block">
+                            {formatCurrency(leadFunnelData.lead_funnel.estimate_to_convert.total_value)}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+
                     {/* Scheduled Jobs */}
                     <Box sx={{ 
                       p: 2, 
@@ -868,7 +1028,7 @@ export const AdminDashboard = () => {
                             width: 40, 
                             height: 40, 
                             borderRadius: '50%', 
-                            bgcolor: 'info.lighter',
+                            bgcolor: 'rgba(25, 118, 210, 0.1)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center'
@@ -880,7 +1040,7 @@ export const AdminDashboard = () => {
                               {leadFunnelData.lead_funnel.scheduled_jobs.label}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
-                              In progress
+                              Upcoming jobs
                             </Typography>
                           </Box>
                         </Box>
@@ -897,13 +1057,109 @@ export const AdminDashboard = () => {
                       </Box>
                     </Box>
 
+                    {/* In Progress Jobs */}
+                    <Box sx={{ 
+                      p: 2, 
+                      border: '1px solid', 
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      bgcolor: 'background.paper',
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        boxShadow: 2,
+                        borderColor: 'primary.main'
+                      }
+                    }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          <Box sx={{ 
+                            width: 40, 
+                            height: 40, 
+                            borderRadius: '50%', 
+                            bgcolor: 'rgba(25, 118, 210, 0.1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <Clock sx={{ color: 'primary.main', fontSize: 20 }} />
+                          </Box>
+                          <Box>
+                            <Typography variant="body2" fontWeight="600">
+                              {leadFunnelData.lead_funnel.in_progress_jobs.label}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Currently active
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box sx={{ textAlign: 'right' }}>
+                          <Chip 
+                            label={leadFunnelData.lead_funnel.in_progress_jobs.count} 
+                            color="primary" 
+                            sx={{ fontWeight: 600, fontSize: '0.875rem', mb: 0.5 }}
+                          />
+                          <Typography variant="caption" color="primary.main" fontWeight="600" display="block">
+                            {formatCurrency(leadFunnelData.lead_funnel.in_progress_jobs.total_value)}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+
+                    {/* Cancelled Jobs */}
+                    <Box sx={{ 
+                      p: 2, 
+                      border: '1px solid', 
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      bgcolor: 'background.paper',
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        boxShadow: 2,
+                        borderColor: 'error.main'
+                      }
+                    }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          <Box sx={{ 
+                            width: 40, 
+                            height: 40, 
+                            borderRadius: '50%', 
+                            bgcolor: 'rgba(211, 47, 47, 0.1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <ErrorIcon sx={{ color: 'error.main', fontSize: 20 }} />
+                          </Box>
+                          <Box>
+                            <Typography variant="body2" fontWeight="600">
+                              {leadFunnelData.lead_funnel.cancelled_jobs.label}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Cancelled
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box sx={{ textAlign: 'right' }}>
+                          <Chip 
+                            label={leadFunnelData.lead_funnel.cancelled_jobs.count} 
+                            color="error" 
+                            sx={{ fontWeight: 600, fontSize: '0.875rem', mb: 0.5 }}
+                          />
+                          <Typography variant="caption" color="error.main" fontWeight="600" display="block">
+                            {formatCurrency(leadFunnelData.lead_funnel.cancelled_jobs.total_value)}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+
                     {/* Closed Jobs */}
                     <Box sx={{ 
                       p: 2, 
                       border: '2px solid', 
                       borderColor: 'success.main',
                       borderRadius: 2,
-                      bgcolor: 'success.lighter',
+                      bgcolor: 'rgba(46, 125, 50, 0.1)',
                       transition: 'all 0.2s',
                       '&:hover': {
                         boxShadow: 3,
@@ -959,86 +1215,127 @@ export const AdminDashboard = () => {
           {/* Sales Forecasting */}
           <Card sx={{ mb: 3, boxShadow: 1 }}>
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-              <Typography variant="subtitle1" fontWeight="600" gutterBottom>
-                Sales Forecasting
-              </Typography>
-              <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 3 }}>
-                Revenue predictions for the next 6 months
-              </Typography>
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle1" fontWeight="600" gutterBottom>
+                  Sales Forecasting
+                </Typography>
+                {salesForecastData && (
+                  <>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Forecast generated at: {format(new Date(salesForecastData.forecast_generated_at), 'MMM dd, yyyy HH:mm')}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                      Data source: {salesForecastData.data_source}
+                    </Typography>
+                  </>
+                )}
+              </Box>
 
               {forecastLoading ? (
                 <Skeleton variant="rectangular" height={300} />
               ) : salesForecastData ? (
                 <>
-                  {/* Forecast Summary Cards */}
-                  <Box sx={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
-                    gap: 2,
-                    mb: 3
-                  }}>
-                    <Paper sx={{ p: 2, bgcolor: '#f0f9ff', border: '1px solid #bae6fd' }}>
-                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-                        Next 8 Weeks
-                      </Typography>
-                      <Typography variant="h6" fontWeight="700" color="primary.main">
-                        {formatCurrency(salesForecastData.forecasts.weekly.total_forecasted_revenue_8_weeks)}
-                      </Typography>
-                    </Paper>
-                    <Paper sx={{ p: 2, bgcolor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-                        Next 12 Months
-                      </Typography>
-                      <Typography variant="h6" fontWeight="700" color="success.main">
-                        {formatCurrency(salesForecastData.forecasts.monthly.total_forecasted_revenue_12_months)}
-                      </Typography>
-                    </Paper>
-                    <Paper sx={{ p: 2, bgcolor: '#fef3c7', border: '1px solid #fde68a' }}>
-                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-                        Next 4 Quarters
-                      </Typography>
-                      <Typography variant="h6" fontWeight="700" sx={{ color: '#d97706' }}>
-                        {formatCurrency(salesForecastData.forecasts.quarterly.total_forecasted_revenue_4_quarters)}
-                      </Typography>
-                    </Paper>
-                    <Paper sx={{ p: 2, bgcolor: '#fce7f3', border: '1px solid #fbcfe8' }}>
-                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-                        Historical Revenue
-                      </Typography>
-                      <Typography variant="h6" fontWeight="700" sx={{ color: '#db2777' }}>
-                        {formatCurrency(salesForecastData.historical_period.total_revenue)}
-                      </Typography>
-                    </Paper>
+                  {/* Forecast Formula Info */}
+                  <Box sx={{ mb: 3, p: 2, bgcolor: '#f0f9ff', borderRadius: 1 }}>
+                    <Typography variant="caption" fontWeight="600" display="block" sx={{ mb: 1 }}>
+                      Forecast Formula:
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" fontSize="0.75rem">
+                      {salesForecastData.forecast_formula}
+                    </Typography>
                   </Box>
 
                   {/* Forecast Chart */}
-                  <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
+                  <ResponsiveContainer width="100%" height={isMobile ? 250 : 350}>
                     <BarChart data={formatForecastChartData()}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                       <XAxis 
                         dataKey="month" 
-                        tick={{ fontSize: isMobile ? 10 : 12 }}
-                        angle={isMobile ? -45 : 0}
-                        textAnchor={isMobile ? 'end' : 'middle'}
-                        height={isMobile ? 60 : 30}
+                        tick={{ fontSize: isMobile ? 9 : 11 }}
+                        angle={isMobile ? -45 : -30}
+                        textAnchor={isMobile ? 'end' : 'end'}
+                        height={isMobile ? 80 : 60}
                       />
                       <YAxis tick={{ fontSize: isMobile ? 10 : 12 }} />
                       <Tooltip 
-                        formatter={(value, name) => [
-                          name === 'revenue' ? formatCurrency(Number(value)) : value,
-                          name === 'revenue' ? 'Forecasted Revenue' : 'Invoice Count'
-                        ]}
+                        formatter={(value, name) => {
+                          const labels = {
+                            forecast: 'Forecast',
+                            actual: 'Actual',
+                            scheduled_revenue: 'Scheduled Revenue',
+                            historical_average: 'Historical Average'
+                          };
+                          return [formatCurrency(Number(value)), labels[name] || name];
+                        }}
+                        contentStyle={{ fontSize: isMobile ? '11px' : '12px' }}
                       />
-                      <Legend wrapperStyle={{ fontSize: isMobile ? 10 : 12 }} />
-                      <Bar dataKey="revenue" fill="#3b82f6" name="Forecasted Revenue" radius={[4, 4, 0, 0]} />
+                      <Legend 
+                        wrapperStyle={{ fontSize: isMobile ? 10 : 12 }}
+                        iconSize={isMobile ? 12 : 14}
+                      />
+                      <Bar dataKey="forecast" fill="#3b82f6" name="Forecast" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="actual" fill="#22c55e" name="Actual" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="scheduled_revenue" fill="#f59e0b" name="Scheduled Revenue" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="historical_average" fill="#8b5cf6" name="Historical Average" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
 
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-                    Based on {salesForecastData.historical_period.total_invoices} historical invoices from{' '}
-                    {format(new Date(salesForecastData.historical_period.start_date), 'MMM dd, yyyy')} to{' '}
-                    {format(new Date(salesForecastData.historical_period.end_date), 'MMM dd, yyyy')}
-                  </Typography>
+                  {/* Summary Table */}
+                  <Box sx={{ mt: 3 }}>
+                    <Typography variant="subtitle2" fontWeight="600" gutterBottom>
+                      Monthly Breakdown
+                    </Typography>
+                    <TableContainer component={Paper} variant="outlined" sx={{ mt: 1 }}>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow sx={{ bgcolor: '#f9fafb' }}>
+                            <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>Month</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 600, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>Type</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 600, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>Historical Avg</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 600, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>Scheduled</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 600, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>Forecast</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 600, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>Actual</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {salesForecastData.months.map((month, index) => (
+                            <TableRow key={index} hover>
+                              <TableCell sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+                                {month.month_label}
+                              </TableCell>
+                              <TableCell align="right">
+                                <Chip 
+                                  label={month.type} 
+                                  size="small"
+                                  color={month.type === 'actual' ? 'success' : 'primary'}
+                                  sx={{ 
+                                    height: isMobile ? 18 : 20,
+                                    fontSize: isMobile ? '0.6rem' : '0.65rem'
+                                  }}
+                                />
+                              </TableCell>
+                              <TableCell align="right" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+                                {formatCurrency(month.historical_average)}
+                              </TableCell>
+                              <TableCell align="right" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+                                {formatCurrency(month.scheduled_revenue)}
+                              </TableCell>
+                              <TableCell align="right" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, fontWeight: 600 }}>
+                                {formatCurrency(month.forecast)}
+                              </TableCell>
+                              <TableCell align="right" sx={{ 
+                                fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                fontWeight: 600,
+                                color: month.actual !== null ? 'success.main' : 'text.secondary'
+                              }}>
+                                {month.actual !== null ? formatCurrency(month.actual) : 'N/A'}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Box>
                 </>
               ) : (
                 <Alert severity="info">No forecasting data available</Alert>
