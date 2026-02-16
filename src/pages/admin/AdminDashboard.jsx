@@ -53,6 +53,17 @@ import {
 } from 'recharts';
 import { format } from 'date-fns';
 import { useGetAnalyticsQuery, useGetHeatMapQuery, useGetLeadFunnelReportQuery, useGetSalesForecastingQuery } from '../../store/api/dashboardApi';
+
+// Parse date-only string (yyyy-MM-dd) as local date so CDT/other timezones don't show previous day
+const parseLocalDate = (dateStr) => {
+  if (!dateStr) return null;
+  const s = typeof dateStr === 'string' ? dateStr : String(dateStr);
+  if (s.length >= 10) {
+    const [y, m, d] = s.slice(0, 10).split('-').map(Number);
+    if (!Number.isNaN(y) && !Number.isNaN(m) && !Number.isNaN(d)) return new Date(y, m - 1, d);
+  }
+  return new Date(s);
+};
 import { useGetEmployeesQuery } from '../../store/api/payrollApi';
 import { AlertCircle, AlertTriangle, CheckCircle, Clock, File, FileText, PersonStandingIcon } from 'lucide-react';
 
@@ -407,7 +418,7 @@ export const AdminDashboard = () => {
               <Grid item xs={12} sm={6} md={3}>
                 <DatePicker
                   label="Start Date"
-                  value={new Date(filters.start_date)}
+                  value={parseLocalDate(filters.start_date)}
                   onChange={(date) =>
                     date && handleFilterChange('start_date', format(date, 'yyyy-MM-dd'))
                   }
@@ -419,7 +430,7 @@ export const AdminDashboard = () => {
               <Grid item xs={12} sm={6} md={3}>
                 <DatePicker
                   label="End Date"
-                  value={new Date(filters.end_date)}
+                  value={parseLocalDate(filters.end_date)}
                   onChange={(date) =>
                     date && handleFilterChange('end_date', format(date, 'yyyy-MM-dd'))
                   }
@@ -780,13 +791,13 @@ export const AdminDashboard = () => {
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
                     <DatePicker
                       label="Start date"
-                      value={new Date(leadFunnelFilters.start_date)}
+                      value={parseLocalDate(leadFunnelFilters.start_date)}
                       onChange={(date) => date && handleLeadFunnelFilterChange('start_date', format(date, 'yyyy-MM-dd'))}
                       slotProps={{ textField: { size: 'small', sx: { minWidth: 140 } } }}
                     />
                     <DatePicker
                       label="End date"
-                      value={new Date(leadFunnelFilters.end_date)}
+                      value={parseLocalDate(leadFunnelFilters.end_date)}
                       onChange={(date) => date && handleLeadFunnelFilterChange('end_date', format(date, 'yyyy-MM-dd'))}
                       slotProps={{ textField: { size: 'small', sx: { minWidth: 140 } } }}
                     />
@@ -810,7 +821,7 @@ export const AdminDashboard = () => {
                   {leadFunnelData.report_period && (
                     <Box sx={{ mb: 2, p: 1.5, bgcolor: '#f0f9ff', borderRadius: 1 }}>
                       <Typography variant="caption" color="text.secondary" display="block">
-                        Report Period: {format(new Date(leadFunnelData.report_period.start_date), 'MMM dd, yyyy')} - {format(new Date(leadFunnelData.report_period.end_date), 'MMM dd, yyyy')}
+                        Report Period: {format(parseLocalDate(leadFunnelData.report_period.start_date), 'MMM dd, yyyy')} – {format(parseLocalDate(leadFunnelData.report_period.end_date), 'MMM dd, yyyy')}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" fontSize="0.7rem">
                         {leadFunnelData.report_period.filter_description}
@@ -862,11 +873,15 @@ export const AdminDashboard = () => {
                     </Box>
                   </Box>
 
-                  {/* Funnel Stages */}
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {/* Funnel Stages — grid to reduce scrolling */}
+                  <Box sx={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, 
+                    gap: 1.5 
+                  }}>
                     {/* Contacts created on filter date (New Leads) */}
                     <Box sx={{ 
-                      p: 2, 
+                      p: 1.5, 
                       border: '1px solid', 
                       borderColor: 'divider',
                       borderRadius: 2,
@@ -877,22 +892,23 @@ export const AdminDashboard = () => {
                         borderColor: 'primary.main'
                       }
                     }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
                           <Box sx={{ 
-                            width: 40, 
-                            height: 40, 
+                            width: 36, 
+                            height: 36, 
                             borderRadius: '50%', 
                             bgcolor: 'rgba(25, 118, 210, 0.1)',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center'
+                            justifyContent: 'center',
+                            flexShrink: 0
                           }}>
-                            <PersonStandingIcon style={{ color: theme.palette.primary.main, fontSize: 20 }} />
+                            <PersonStandingIcon style={{ color: theme.palette.primary.main, fontSize: 18 }} />
                           </Box>
                           <Box>
                             <Typography variant="body2" fontWeight="600">
-                              Contacts created on {format(new Date(leadFunnelFilters.start_date), 'MMM d, yyyy')} – {format(new Date(leadFunnelFilters.end_date), 'MMM d, yyyy')}
+                              Contacts created on {format(parseLocalDate(leadFunnelFilters.start_date), 'MMM d, yyyy')} – {format(parseLocalDate(leadFunnelFilters.end_date), 'MMM d, yyyy')}
                             </Typography>
                           </Box>
                         </Box>
@@ -906,7 +922,7 @@ export const AdminDashboard = () => {
 
                     {/* Open Quotes */}
                     <Box sx={{ 
-                      p: 2, 
+                      p: 1.5, 
                       border: '1px solid', 
                       borderColor: 'divider',
                       borderRadius: 2,
@@ -917,18 +933,19 @@ export const AdminDashboard = () => {
                         borderColor: 'warning.main'
                       }
                     }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
                           <Box sx={{ 
-                            width: 40, 
-                            height: 40, 
+                            width: 36, 
+                            height: 36, 
                             borderRadius: '50%', 
                             bgcolor: 'rgba(237, 108, 2, 0.1)',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center'
+                            justifyContent: 'center',
+                            flexShrink: 0
                           }}>
-                            <Description sx={{ color: 'warning.main', fontSize: 20 }} />
+                            <Description sx={{ color: 'warning.main', fontSize: 18 }} />
                           </Box>
                           <Box>
                             <Typography variant="body2" fontWeight="600">
@@ -950,7 +967,7 @@ export const AdminDashboard = () => {
 
                     {/* Rejected Quotes */}
                     <Box sx={{ 
-                      p: 2, 
+                      p: 1.5, 
                       border: '1px solid', 
                       borderColor: 'divider',
                       borderRadius: 2,
@@ -964,26 +981,27 @@ export const AdminDashboard = () => {
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                           <Box sx={{ 
-                            width: 40, 
-                            height: 40, 
+                            width: 36, 
+                            height: 36, 
                             borderRadius: '50%', 
                             bgcolor: 'rgba(211, 47, 47, 0.1)',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center'
+                            justifyContent: 'center',
+                            flexShrink: 0
                           }}>
-                            <ErrorIcon sx={{ color: 'error.main', fontSize: 20 }} />
+                            <ErrorIcon sx={{ color: 'error.main', fontSize: 18 }} />
                           </Box>
                           <Box>
                             <Typography variant="body2" fontWeight="600">
-                              Rejected Quotes
+                            Rejected Quotes
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                               Declined opportunities
                             </Typography>
                           </Box>
                         </Box>
-                        <Box sx={{ textAlign: 'right' }}>
+                        <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
                           <Chip 
                             label={leadFunnelData.lead_funnel.rejected_estimates.count} 
                             color="error" 
@@ -998,7 +1016,7 @@ export const AdminDashboard = () => {
 
                     {/* Accepted Quotes */}
                     <Box sx={{ 
-                      p: 2, 
+                      p: 1.5, 
                       border: '1px solid', 
                       borderColor: 'divider',
                       borderRadius: 2,
@@ -1012,15 +1030,15 @@ export const AdminDashboard = () => {
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                           <Box sx={{ 
-                            width: 40, 
-                            height: 40, 
+                            width: 36, 
+                            height: 36, 
                             borderRadius: '50%', 
                             bgcolor: 'rgba(46, 125, 50, 0.1)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center'
                           }}>
-                            <CheckCircle sx={{ color: 'success.main', fontSize: 20 }} />
+                            <CheckCircle sx={{ color: 'success.main', fontSize: 18 }} />
                           </Box>
                           <Box>
                             <Typography variant="body2" fontWeight="600">
@@ -1046,7 +1064,7 @@ export const AdminDashboard = () => {
 
                     {/* Scheduled Quotes */}
                     <Box sx={{ 
-                      p: 2, 
+                      p: 1.5, 
                       border: '1px solid', 
                       borderColor: 'divider',
                       borderRadius: 2,
@@ -1060,15 +1078,15 @@ export const AdminDashboard = () => {
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                           <Box sx={{ 
-                            width: 40, 
-                            height: 40, 
+                            width: 36, 
+                            height: 36, 
                             borderRadius: '50%', 
                             bgcolor: 'rgba(25, 118, 210, 0.1)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center'
                           }}>
-                            <FileText sx={{ color: 'info.main', fontSize: 20 }} />
+                            <FileText sx={{ color: 'info.main', fontSize: 18 }} />
                           </Box>
                           <Box>
                             <Typography variant="body2" fontWeight="600">
@@ -1094,7 +1112,7 @@ export const AdminDashboard = () => {
 
                     {/* Estimate to Convert */}
                     <Box sx={{ 
-                      p: 2, 
+                      p: 1.5, 
                       border: '1px solid', 
                       borderColor: 'divider',
                       borderRadius: 2,
@@ -1108,15 +1126,15 @@ export const AdminDashboard = () => {
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                           <Box sx={{ 
-                            width: 40, 
-                            height: 40, 
+                            width: 36, 
+                            height: 36, 
                             borderRadius: '50%', 
                             bgcolor: 'rgba(237, 108, 2, 0.1)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center'
                           }}>
-                            <Warning sx={{ color: 'warning.main', fontSize: 20 }} />
+                            <Warning sx={{ color: 'warning.main', fontSize: 18 }} />
                           </Box>
                           <Box>
                             <Typography variant="body2" fontWeight="600">
@@ -1142,7 +1160,7 @@ export const AdminDashboard = () => {
 
                     {/* Scheduled Jobs */}
                     <Box sx={{ 
-                      p: 2, 
+                      p: 1.5, 
                       border: '1px solid', 
                       borderColor: 'divider',
                       borderRadius: 2,
@@ -1156,15 +1174,15 @@ export const AdminDashboard = () => {
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                           <Box sx={{ 
-                            width: 40, 
-                            height: 40, 
+                            width: 36, 
+                            height: 36, 
                             borderRadius: '50%', 
                             bgcolor: 'rgba(25, 118, 210, 0.1)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center'
                           }}>
-                            <Clock sx={{ color: 'info.main', fontSize: 20 }} />
+                            <Clock sx={{ color: 'info.main', fontSize: 18 }} />
                           </Box>
                           <Box>
                             <Typography variant="body2" fontWeight="600">
@@ -1190,7 +1208,7 @@ export const AdminDashboard = () => {
 
                     {/* In Progress Jobs */}
                     <Box sx={{ 
-                      p: 2, 
+                      p: 1.5, 
                       border: '1px solid', 
                       borderColor: 'divider',
                       borderRadius: 2,
@@ -1204,15 +1222,15 @@ export const AdminDashboard = () => {
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                           <Box sx={{ 
-                            width: 40, 
-                            height: 40, 
+                            width: 36, 
+                            height: 36, 
                             borderRadius: '50%', 
                             bgcolor: 'rgba(25, 118, 210, 0.1)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center'
                           }}>
-                            <Clock sx={{ color: 'primary.main', fontSize: 20 }} />
+                            <Clock sx={{ color: 'primary.main', fontSize: 18 }} />
                           </Box>
                           <Box>
                             <Typography variant="body2" fontWeight="600">
@@ -1238,7 +1256,7 @@ export const AdminDashboard = () => {
 
                     {/* Cancelled Jobs */}
                     <Box sx={{ 
-                      p: 2, 
+                      p: 1.5, 
                       border: '1px solid', 
                       borderColor: 'divider',
                       borderRadius: 2,
@@ -1252,15 +1270,15 @@ export const AdminDashboard = () => {
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                           <Box sx={{ 
-                            width: 40, 
-                            height: 40, 
+                            width: 36, 
+                            height: 36, 
                             borderRadius: '50%', 
                             bgcolor: 'rgba(211, 47, 47, 0.1)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center'
                           }}>
-                            <ErrorIcon sx={{ color: 'error.main', fontSize: 20 }} />
+                            <ErrorIcon sx={{ color: 'error.main', fontSize: 18 }} />
                           </Box>
                           <Box>
                             <Typography variant="body2" fontWeight="600">
@@ -1286,7 +1304,7 @@ export const AdminDashboard = () => {
 
                     {/* Closed Jobs */}
                     <Box sx={{ 
-                      p: 2, 
+                      p: 1.5, 
                       border: '2px solid', 
                       borderColor: 'success.main',
                       borderRadius: 2,
@@ -1299,15 +1317,15 @@ export const AdminDashboard = () => {
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                           <Box sx={{ 
-                            width: 40, 
-                            height: 40, 
+                            width: 36, 
+                            height: 36, 
                             borderRadius: '50%', 
                             bgcolor: 'success.main',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center'
                           }}>
-                            <CheckCircle sx={{ color: 'white', fontSize: 20 }} />
+                            <CheckCircle sx={{ color: 'white', fontSize: 18 }} />
                           </Box>
                           <Box>
                             <Typography variant="body2" fontWeight="600" color="success.dark">
@@ -1367,14 +1385,14 @@ export const AdminDashboard = () => {
               ) : salesForecastData ? (
                 <>
                   {/* Forecast Formula Info */}
-                  <Box sx={{ mb: 3, p: 2, bgcolor: '#f0f9ff', borderRadius: 1 }}>
+                  {/* <Box sx={{ mb: 3, p: 2, bgcolor: '#f0f9ff', borderRadius: 1 }}>
                     <Typography variant="caption" fontWeight="600" display="block" sx={{ mb: 1 }}>
                       Forecast Formula:
                     </Typography>
                     <Typography variant="caption" color="text.secondary" fontSize="0.75rem">
                       {salesForecastData.forecast_formula}
                     </Typography>
-                  </Box>
+                  </Box> */}
 
                   {/* Forecast Chart */}
                   <ResponsiveContainer width="100%" height={isMobile ? 250 : 350}>
@@ -1457,7 +1475,9 @@ export const AdminDashboard = () => {
                               <TableCell align="right" sx={{ 
                                 fontSize: { xs: '0.7rem', sm: '0.75rem' },
                                 fontWeight: 600,
-                                color: month.actual !== null ? 'success.main' : 'text.secondary'
+                                color: month.actual !== null && month.actual !== undefined
+                                  ? (month.actual < month.forecast ? 'error.main' : month.actual > month.forecast ? 'success.main' : 'text.secondary')
+                                  : 'text.secondary'
                               }}>
                                 {month.actual !== null ? formatCurrency(month.actual) : 'N/A'}
                               </TableCell>
