@@ -1261,7 +1261,7 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
           </FormControl>
 
           <div className="space-y-2">
-            <Label>Assign Team Members</Label>
+            <Label>Assign Team Members *</Label>
             {employeesLoading ? (
               <div className="flex items-center justify-center py-4">
                 <div className="flex flex-col items-center gap-2">
@@ -1447,7 +1447,7 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
             Cancel
           </Button>
         )}
-        <Button type="submit" disabled={loading} className="sm:flex-1 w-full">
+        <Button type="submit" disabled={loading || !formData.assignments?.length} className="sm:flex-1 w-full">
           {loading ? "Creating..." : "Create Job"}
         </Button>
       </div>

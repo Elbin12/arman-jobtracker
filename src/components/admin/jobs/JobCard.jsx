@@ -37,7 +37,10 @@ import {
   RotateCw,
   FileText,
   ExternalLink,
+  Percent,
+  DollarSign,
 } from "lucide-react"
+import { Input } from "@/components/ui/input"
 import DeleteJobDialog from "./DeleteJobDialog"
 import StatusChangeConfirmationDialog from "./StatusChangeConfirmationDialog"
 import { JobCompletionDetails } from "./JobCompletionDetails"
@@ -51,6 +54,11 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
   const [pendingStatus, setPendingStatus] = useState(null)
   const [displayStatus, setDisplayStatus] = useState(job?.status)
   const [selectedImage, setSelectedImage] = useState(null)
+  const [discountType, setDiscountType] = useState(job?.discount_type ?? null)
+  const [discountValue, setDiscountValue] = useState(
+    job?.discount_type ? String(job?.discount_value ?? "") : ""
+  )
+  const [discountSaving, setDiscountSaving] = useState(false)
   const [updateJob] = useUpdateJobMutation()
   const { toast } = useToast()
 
@@ -60,6 +68,12 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
       setDisplayStatus(job.status)
     }
   }, [job?.status])
+
+  // Sync discount from job when job changes (e.g. after apply)
+  useEffect(() => {
+    setDiscountType(job?.discount_type ?? null)
+    setDiscountValue(job?.discount_type ? String(job?.discount_value ?? "") : "")
+  }, [job?.discount_type, job?.discount_value])
 
   const getStatusColor = (status) => {
     const colors = {
@@ -212,8 +226,43 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
     .filter((name) => name)
     .join(", ") || "Unassigned"
 
-  // Calculate total from items if available
+  // Calculate subtotal from items if available
   const servicesTotal = job.items?.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0) || job.total_price || 0
+
+  // Discount: amount (fixed $) or percentage (%). Payload: discount_type ("amount" | "percentage" | null), discount_value (string)
+  const numDiscountValue = parseFloat(discountValue) || 0
+  const discountAmount =
+    discountType === "amount"
+      ? numDiscountValue
+      : discountType === "percentage"
+        ? (servicesTotal * numDiscountValue) / 100
+        : 0
+  const finalTotal = Math.max(0, servicesTotal - discountAmount)
+
+  const handleApplyDiscount = async () => {
+    const jobId = job?.job_id || job?.id
+    if (!jobId) return
+    setDiscountSaving(true)
+    try {
+      const payload =
+        !discountType || (discountType !== "amount" && discountType !== "percentage")
+          ? { discount_type: null, discount_value: "0.00" }
+          : discountType === "amount"
+            ? { discount_type: "amount", discount_value: String(Number(numDiscountValue.toFixed(2))) }
+            : { discount_type: "percentage", discount_value: String(Number(numDiscountValue.toFixed(2))) }
+      const result = await updateJob({ id: jobId, ...payload }).unwrap()
+      if (onUpdate) onUpdate(result)
+      toast({ title: "Discount updated", description: "Job discount has been saved." })
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to update discount. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setDiscountSaving(false)
+    }
+  }
 
   // Check if job is recurring based on job_type
   const isRecurring = job.job_type === "recurring" || job.is_recurring
@@ -715,13 +764,101 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                   )
                 })}
               </Box>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-                <Typography variant="body2" sx={{ fontSize: '0.875rem', fontWeight: 600 }}>
-                  Total
+              {/* Discount section */}
+              <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', mb: 1, display: 'block', fontSize: '0.7rem', letterSpacing: '0.5px' }}>
+                  Discount
                 </Typography>
-                <Typography variant="body2" sx={{ fontSize: '0.875rem', fontWeight: 700, color: "success.main" }}>
-                  {formatPrice(servicesTotal)}
-                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
+                  <Select
+                    value={discountType === null ? "none" : discountType}
+                    onValueChange={(v) => {
+                      setDiscountType(v === "none" ? null : v)
+                      if (v === "none") setDiscountValue("")
+                    }}
+                    disabled={discountSaving}
+                  >
+                    <SelectTrigger className="w-[120px] h-9">
+                      <SelectValue placeholder="Type" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[1300]">
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="amount">Amount ($)</SelectItem>
+                      <SelectItem value="percentage">Percentage (%)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {discountType === null && (job?.discount_type === "amount" || job?.discount_type === "percentage") && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleApplyDiscount}
+                      disabled={discountSaving}
+                    >
+                      {discountSaving ? "Saving…" : "Clear discount"}
+                    </Button>
+                  )}
+                  {(discountType === "amount" || discountType === "percentage") && (
+                    <>
+                      <Box sx={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+                        {discountType === "amount" && (
+                          <DollarSign size={14} style={{ position: 'absolute', left: 10, color: 'rgba(0,0,0,0.5)', pointerEvents: 'none' }} />
+                        )}
+                        {discountType === "percentage" && (
+                          <Percent size={14} style={{ position: 'absolute', right: 10, color: 'rgba(0,0,0,0.5)', pointerEvents: 'none' }} />
+                        )}
+                        <Input
+                          type="number"
+                          min={0}
+                          max={discountType === "percentage" ? 100 : undefined}
+                          step={discountType === "amount" ? 0.01 : 1}
+                          placeholder={discountType === "amount" ? "0.00" : "0"}
+                          value={discountValue}
+                          onChange={(e) => setDiscountValue(e.target.value)}
+                          disabled={discountSaving}
+                          className={discountType === "amount" ? "w-[100px] h-9 pl-7" : "w-[80px] h-9 pr-7"}
+                        />
+                      </Box>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={handleApplyDiscount}
+                        disabled={discountSaving || (discountType === "amount" && numDiscountValue <= 0) || (discountType === "percentage" && (numDiscountValue <= 0 || numDiscountValue > 100))}
+                      >
+                        {discountSaving ? "Saving…" : "Apply"}
+                      </Button>
+                    </>
+                  )}
+                </Box>
+              </Box>
+              <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                {discountAmount > 0 && (
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <Typography variant="body2" sx={{ fontSize: '0.875rem', fontWeight: 500, color: 'text.secondary' }}>
+                      Subtotal
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontSize: '0.875rem', color: "text.secondary", fontWeight: 500 }}>
+                      {formatPrice(servicesTotal)}
+                    </Typography>
+                  </Box>
+                )}
+                {discountAmount > 0 && (
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" sx={{ fontSize: '0.875rem', fontWeight: 500, color: 'error.main' }}>
+                      Discount {discountType === "percentage" ? `(${numDiscountValue}%)` : ""}
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontSize: '0.875rem', color: "error.main", fontWeight: 500 }}>
+                      -{formatPrice(discountAmount)}
+                    </Typography>
+                  </Box>
+                )}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="body2" sx={{ fontSize: '0.875rem', fontWeight: 600 }}>
+                    Total
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontSize: '0.875rem', fontWeight: 700, color: "success.main" }}>
+                    {formatPrice(finalTotal)}
+                  </Typography>
+                </Box>
               </Box>
               </>
             ) : (

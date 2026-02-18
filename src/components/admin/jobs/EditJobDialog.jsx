@@ -431,10 +431,29 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
     e.preventDefault();
 
     if (!formData.title.trim()) {
+      toast({
+        title: "Error",
+        description: "Job title is required",
+        variant: "destructive",
+      });
       return;
     }
 
     if (formData.items.length === 0) {
+      toast({
+        title: "Error",
+        description: "At least one service is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.assignments || formData.assignments.length === 0) {
+      toast({
+        title: "Error",
+        description: "At least one team member must be assigned",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -1119,7 +1138,7 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
               </FormControl>
 
               <div className="space-y-2">
-                <Label>Assign Team Members</Label>
+                <Label>Assign Team Members *</Label>
                 {employeesLoading ? (
                   <div className="flex items-center justify-center py-4">
                     <div className="flex flex-col items-center gap-2">
@@ -1310,7 +1329,7 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
 
           {/* Action Buttons */}
           <div className="flex flex-col-reverse sm:flex-row gap-3 sticky bottom-0">
-            <Button variant="contained" onClick={handleSubmit} disabled={isLoading} className="sm:flex-1 w-full">
+            <Button variant="contained" onClick={handleSubmit} disabled={isLoading || !formData.assignments?.length} className="sm:flex-1 w-full">
               {isLoading ? "Updating..." : objective === "convert"? "Convert to Job" : "Update Job"}
             </Button>
           </div>
