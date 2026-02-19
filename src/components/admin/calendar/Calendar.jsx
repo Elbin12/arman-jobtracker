@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Calendar as BigCalendar, momentLocalizer } from "react-big-calendar";
-import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
+import FullCalendar from "@fullcalendar/react";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import timeGridPlugin from "@fullcalendar/timegrid";
+import interactionPlugin from "@fullcalendar/interaction";
 import { DndProvider, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import moment from "moment-timezone";
@@ -17,11 +19,54 @@ import { Calendar as DatePicker } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import "react-big-calendar/lib/css/react-big-calendar.css";
-import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
+import { DayByTechnicianView } from "./DayByTechnicianView";
+// FullCalendar v6 injects CSS via JS – no manual import. Overrides below for design + mobile.
 
-// Custom styles to prevent calendar width overflow and improve event styling
+// FullCalendar custom styles – match current design, mobile-friendly, light borders like day view
 const calendarStyles = `
+  .fc {
+    font-family: inherit;
+    --fc-border-color: #e5e7eb;
+    --fc-page-bg-color: transparent;
+  }
+  .fc-toolbar-title { font-size: 1.25rem; }
+  .fc .fc-button { padding: 0.25rem 0.5rem; font-size: 0.875rem; }
+  .fc-theme-standard .fc-scrollgrid,
+  .fc-theme-standard .fc-scrollgrid td,
+  .fc-theme-standard .fc-scrollgrid th { border-color: #e5e7eb !important; }
+  .fc-theme-standard td,
+  .fc-theme-standard th { border-color: #e5e7eb !important; }
+  .fc .fc-daygrid-body-unbalanced .fc-daygrid-day-events,
+  .fc .fc-daygrid-day-frame,
+  .fc .fc-timegrid-axis,
+  .fc .fc-timegrid-slot-label,
+  .fc .fc-col-header-cell { border-color: #e5e7eb !important; }
+  .fc-daygrid-day-number { padding: 4px 6px; font-weight: 600; font-size: 13px; }
+  .fc-event { border: none; border-radius: 6px; padding: 4px 6px; cursor: pointer; font-weight: 500; font-size: 13px; }
+  .fc-event:hover { transform: translateY(-1px); }
+  .fc-timegrid-slot { height: 48px; border-color: #e5e7eb !important; }
+  .fc-timegrid-slot-label { font-size: 12px; }
+  .fc .fc-scrollgrid-section > *,
+  .fc .fc-daygrid-day,
+  .fc .fc-col-header-cell { border-color: #e5e7eb !important; }
+  @media (max-width: 639px) {
+    .fc-toolbar-title { font-size: 1rem; }
+    .fc .fc-button { padding: 0.2rem 0.4rem; font-size: 0.75rem; }
+    .fc-daygrid-day-number { padding: 2px 4px; font-size: 11px; }
+    .fc-event { padding: 4px 6px; font-size: 10px; border-radius: 4px; }
+    .fc-scrollgrid { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  }
+  .fc-daygrid-day-frame { min-height: 80px; }
+  .fc-more-link { font-size: 12px; }
+  .daily-job-total-fc {
+    font-size: 10px; font-weight: 700; color: #111827;
+    padding: 2px 4px; margin: 0; pointer-events: none;
+  }
+  @media (max-width: 639px) {
+    .daily-job-total-fc { font-size: 7px; }
+  }
+  /* Legacy RBC styles kept for any leftover refs – can remove once confirmed unused */
+  .rbc-calendar {
   .rbc-calendar {
     width: 100% !important;
     max-width: 100% !important;
@@ -383,6 +428,78 @@ const calendarStyles = `
     pointer-events: none !important;
     white-space: nowrap !important;
   }
+  /* Day/Week resource view: one column per technician (resourceGroupingLayout) */
+  .rbc-time-view-resources .rbc-time-header-content .rbc-row.rbc-row-resource .rbc-header,
+  .rbc-time-view-resources .rbc-resource-grouping .rbc-header {
+    padding: 8px 10px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    border-left: 1px solid var(--rbc-border, #ddd) !important;
+    min-width: 120px !important;
+  }
+  .rbc-time-view-resources .rbc-time-content {
+    display: flex !important;
+    overflow-x: auto !important;
+  }
+  /* Range-first layout: one flex row per date, columns = resources; align with header */
+  .rbc-time-view-resources .rbc-time-content > div {
+    display: flex !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+  }
+  .rbc-time-view-resources .rbc-time-content .rbc-day-slot {
+    flex: 1 1 0% !important;
+    min-width: 120px !important;
+  }
+  .rbc-time-view-resources .rbc-time-gutter {
+    flex-shrink: 0 !important;
+  }
+  .rbc-time-view-resources .rbc-time-header-gutter {
+    min-width: 50px !important;
+  }
+  .rbc-time-view-resources .rbc-time-header-content.rbc-resource-grouping {
+    flex: 1 1 0% !important;
+    min-width: 120px !important;
+  }
+  /* Time column: reduce width so more space for technician columns */
+  .rbc-time-gutter,
+  .rbc-time-view-resources .rbc-time-gutter {
+    max-width: 52px !important;
+    min-width: 44px !important;
+    width: 48px !important;
+  }
+  .rbc-time-header-gutter,
+  .rbc-time-view-resources .rbc-time-header-gutter,
+  .rbc-label.rbc-time-header-gutter {
+    max-width: 52px !important;
+    min-width: 44px !important;
+    width: 48px !important;
+  }
+  @media (max-width: 639px) {
+    .rbc-time-gutter,
+    .rbc-time-view-resources .rbc-time-gutter {
+      max-width: 44px !important;
+      min-width: 38px !important;
+      width: 42px !important;
+    }
+    .rbc-time-header-gutter,
+    .rbc-time-view-resources .rbc-time-header-gutter,
+    .rbc-label.rbc-time-header-gutter {
+      max-width: 44px !important;
+      min-width: 38px !important;
+      width: 42px !important;
+    }
+  }
+  /* Events above time column (time gutter has z-index 10) */
+  .rbc-time-view .rbc-day-slot .rbc-event-wrapper,
+  .rbc-time-view .rbc-day-slot .rbc-event,
+  .rbc-time-view .rbc-day-slot .rbc-events-container .rbc-event {
+    z-index: 15 !important;
+    position: relative !important;
+  }
+  .rbc-time-view .rbc-day-slot .rbc-events-container {
+    z-index: 5 !important;
+  }
   /* Mobile styles - top left position */
   @media (max-width: 639px) {
     .daily-job-total {
@@ -446,7 +563,7 @@ const calendarStyles = `
   }
   .rbc-month-view .rbc-events-container {
     padding: 2px 1px !important;
-    position: relative !important;image.png
+    position: relative !important;
   }
   .rbc-month-view .rbc-day-bg {
     padding: 2px !important;
@@ -457,120 +574,171 @@ const calendarStyles = `
   }
 `;
 import { JobCard } from "../jobs/JobCard";
-import { jobsApi, useGetCalendarJobsQuery, useGetAppointmentsCalendarQuery, useGetEstimateAppointmentsCalendarQuery, useGetJobDetailsQuery, useUpdateAppointmentMutation, useDeleteAppointmentMutation, useUpdateEstimateStatusMutation, useDeleteEstimateMutation } from "../../../store/api/jobsApi";
+import { jobsApi, useGetCalendarJobsQuery, useGetJobsQuery, useGetAppointmentsCalendarQuery, useGetEstimateAppointmentsCalendarQuery, useGetJobDetailsQuery, useUpdateAppointmentMutation, useDeleteAppointmentMutation, useUpdateEstimateStatusMutation, useDeleteEstimateMutation } from "../../../store/api/jobsApi";
 import { useSelector, useDispatch } from "react-redux";
 import { EditJobDialog } from "../jobs/EditJobDialog";
 import { TimelineSidebar } from "./TimelineSidebar";
 import { useUpdateJobMutation } from "../../../store/api/jobsApi";
 import { Typography } from "@mui/material";
 
-const localizer = momentLocalizer(moment);
-const DnDCalendar = withDragAndDrop(BigCalendar);
+// Custom Event Content for FullCalendar – same design, accepts staff drops
+function FullCalendarEventContent({ arg, onStaffDrop, onSelectEvent, eventStyleGetter }) {
+  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth < 640);
+  const fcEvent = arg.event;
+  const extended = fcEvent.extendedProps || {};
+  const resource = extended.resource;
+  const type = extended.type || "job";
+  const title = fcEvent.title || "";
+  const start = fcEvent.start;
 
-// Custom Event Component that accepts staff drops
-function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, continuesPrior, continuesAfter, ...props }) {
-  // Detect mobile view
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
-  
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 640);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Extract time from event for mobile view (like Google Calendar)
+  const getDisplayTitle = () => {
+    if (!isMobile) return title;
+    if (start) {
+      const d = new Date(start);
+      const h = d.getHours();
+      const m = d.getMinutes();
+      const ampm = h >= 12 ? "PM" : "AM";
+      const h12 = h % 12 || 12;
+      return m === 0 ? `${h12} ${ampm}` : `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+    }
+    return title.substring(0, 6);
+  };
+
+  const displayTitle = getDisplayTitle();
+  const isAppointment = type === "appointment";
+
+  const [{ isOver }, drop] = useDrop({
+    accept: "staff",
+    drop: (item) => {
+      if (onStaffDrop && resource && !isAppointment) onStaffDrop(resource, item.user);
+    },
+    canDrop: () => !isAppointment,
+    collect: (monitor) => ({ isOver: monitor.isOver() && !isAppointment }),
+  });
+
+  const syntheticEvent = {
+    id: fcEvent.id,
+    title: fcEvent.title,
+    start: fcEvent.start,
+    end: fcEvent.end,
+    resource,
+    type,
+  };
+
+  let backgroundColor = "#9ca3ef";
+  if (eventStyleGetter) {
+    const result = eventStyleGetter(syntheticEvent);
+    backgroundColor = result?.style?.["--event-bg-color"] || result?.style?.backgroundColor || backgroundColor;
+  } else if (type === "appointment" && resource) {
+    const status = resource.appointment_status;
+    if (status === "confirmed") backgroundColor = "#06b6d4";
+    else if (status === "cancelled") backgroundColor = "#ef4444";
+    else if (status === "showed") backgroundColor = "#10b981";
+    else if (status === "noshow") backgroundColor = "#f59e0b";
+    else if (status === "invalid") backgroundColor = "#6b7280";
+  } else if (type === "estimate" && resource) {
+    const s = resource.estimate_status ?? resource.appointment_status ?? "confirmed";
+    if (s === "quoted") backgroundColor = "#f97316";
+    else if (s === "accepted") backgroundColor = "#22c55e";
+    else if (s === "canceled" || s === "cancelled") backgroundColor = "#ef4444";
+    else if (s === "declined" || s === "expired") backgroundColor = "#6b7280";
+    else backgroundColor = "#14b8a6";
+  } else if (resource?.status) {
+    if (resource.status === "pending") backgroundColor = "#f59e0b";
+    else if (resource.status === "in_progress") backgroundColor = "#3b82f6";
+    else if (resource.status === "completed") backgroundColor = "#10b981";
+    else if (resource.status === "cancelled") backgroundColor = "#ef4444";
+  }
+
+  const isRecurring = resource?.job_type === "recurring";
+  const isEstimate = type === "estimate";
+
+  return (
+    <div
+      ref={drop}
+      className={cn(
+        "fc-event-main-frame flex items-center w-full h-full rounded overflow-hidden",
+        isOver && "ring-2 ring-offset-1 ring-white/80"
+      )}
+      style={{
+        backgroundColor,
+        color: "white",
+        padding: isMobile ? "4px 6px" : "6px 10px",
+        fontSize: isMobile ? 10 : 13,
+        fontWeight: 500,
+        border: "none",
+        borderRadius: isMobile ? 4 : 6,
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelectEvent?.(syntheticEvent);
+      }}
+      title={title}
+    >
+      <span className="truncate flex items-center gap-1 flex-1 min-w-0">
+        <span className="truncate">{displayTitle}</span>
+        {isRecurring && <span className="flex-shrink-0 text-[11px]">(R)</span>}
+        {isEstimate && <span className="flex-shrink-0 text-[11px]">(E)</span>}
+      </span>
+    </div>
+  );
+}
+
+// Legacy DroppableEvent kept for any non-FC usage (e.g. day view uses DayByTechnicianView)
+function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, continuesPrior, continuesAfter, ...props }) {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const getDisplayTitle = () => {
     if (!isMobile) return title || event?.title || "";
-    
-    // On mobile, show only the time - extract from event start time
     if (event?.start) {
       const eventDate = new Date(event.start);
       const hours = eventDate.getHours();
       const minutes = eventDate.getMinutes();
-      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const ampm = hours >= 12 ? "PM" : "AM";
       const displayHours = hours % 12 || 12;
-      
-      // Format: "8 AM" or "1:30 PM"
-      if (minutes === 0) {
-        return `${displayHours} ${ampm}`;
-      } else {
-        return `${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
-      }
+      if (minutes === 0) return `${displayHours} ${ampm}`;
+      return `${displayHours}:${minutes.toString().padStart(2, "0")} ${ampm}`;
     }
-    
-    // Fallback: try to extract from title if event.start is not available
     const fullTitle = title || event?.title || "";
     const timeMatch = fullTitle.match(/^(\d{1,2}(?::\d{2})?\s?(AM|PM))/i);
-    if (timeMatch) {
-      return timeMatch[1];
-    }
-    
-    // Last fallback
-    return fullTitle.substring(0, 6);
+    return timeMatch ? timeMatch[1] : fullTitle.substring(0, 6);
   };
 
   const displayTitle = getDisplayTitle();
 
-  // Handle "+X more" event type
-  if (event?.type === 'more') {
+  if (event?.type === "more") {
     return (
       <div
         className="rbc-event"
-        style={{
-          backgroundColor: "transparent",
-          border: "none",
-          outline: "none",
-          borderRadius: "8px",
-          padding: "0",
-          boxShadow: "none",
-          margin: "0",
-          cursor: "pointer",
-        }}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (onSelectEvent) {
-            onSelectEvent(event);
-          }
-        }}
+        style={{ backgroundColor: "transparent", border: "none", outline: "none", borderRadius: "8px", padding: 0, boxShadow: "none", margin: 0, cursor: "pointer" }}
+        onClick={(e) => { e.stopPropagation(); onSelectEvent?.(event); }}
         title={event?.title}
         {...props}
       >
-        <div
-          className="truncate"
-          style={{
-            lineHeight: "1.4",
-            backgroundColor: "#e5e7eb",
-            borderRadius: "8px",
-            padding: "6px 10px",
-            fontWeight: "500",
-            fontSize: "13px",
-            color: "#374151",
-            boxShadow: "none",
-            transition: "all 0.2s ease",
-          }}
-        >
+        <div className="truncate" style={{ lineHeight: "1.4", backgroundColor: "#e5e7eb", borderRadius: "8px", padding: "6px 10px", fontWeight: 500, fontSize: 13, color: "#374151" }}>
           {event?.title || "+more"}
         </div>
       </div>
     );
   }
-  
-  // Don't allow staff drops on appointments
-  const isAppointment = event?.type === 'appointment';
-  
+
+  const isAppointment = event?.type === "appointment";
   const [{ isOver }, drop] = useDrop({
     accept: "staff",
-    drop: (item) => {
-      if (onStaffDrop && event?.resource && !isAppointment) {
-        onStaffDrop(event.resource, item.user);
-      }
-    },
+    drop: (item) => { if (onStaffDrop && event?.resource && !isAppointment) onStaffDrop(event.resource, item.user); },
     canDrop: () => !isAppointment,
-    collect: (monitor) => ({
-      isOver: monitor.isOver() && !isAppointment,
-    }),
+    collect: (monitor) => ({ isOver: monitor.isOver() && !isAppointment }),
   });
 
   // Use a ref to ensure click handler works on first render
@@ -838,24 +1006,24 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [monthRowHeight, setMonthRowHeight] = useState(140);
   const [expandedDays, setExpandedDays] = useState(new Set()); // Track which days are expanded
-  const [showSidebar, setShowSidebar] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(false);
   
   // Responsive sidebar state - hidden on mobile by default
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 768) {
-        setShowSidebar(false);
-      } else {
-        setShowSidebar(true);
-      }
-    };
+  // useEffect(() => {
+  //   const handleResize = () => {
+  //     if (window.innerWidth < 768) {
+  //       setShowSidebar(false);
+  //     } else {
+  //       setShowSidebar(true);
+  //     }
+  //   };
     
-    // Set initial state
-    handleResize();
+  //   // Set initial state
+  //   handleResize();
     
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  //   window.addEventListener('resize', handleResize);
+  //   return () => window.removeEventListener('resize', handleResize);
+  // }, []);
   // Initialize categories - both jobs and appointments checked by default
   const [selectedCategories, setSelectedCategories] = useState({
     jobs: true,
@@ -878,6 +1046,9 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
   const [isUpdatingTime, setIsUpdatingTime] = useState(false);
   const [lastUpdateInfo, setLastUpdateInfo] = useState(null); // Store original scheduled_at for undo
   const undoTimeoutRef = useRef(null);
+
+  console.log(users, 'users')
+  console.log(selectedAssignees, 'selectedAssignees')
 
   // Initialize all staff as unchecked when users are loaded (only on mount)
   const isInitialized = useRef(false);
@@ -946,10 +1117,15 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
       start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59);
     } else if (view === "week") {
+      // Week: Monday to Sunday
       const weekStart = new Date(currentDate);
-      weekStart.setDate(currentDate.getDate() - currentDate.getDay());
+      const day = currentDate.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      weekStart.setDate(currentDate.getDate() + diff);
+      weekStart.setHours(0, 0, 0, 0);
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
       start = weekStart;
       end = weekEnd;
     } else if (view === "day") {
@@ -1073,13 +1249,22 @@ appointmentsParams.search = filterParams.appointment_search;
   
   const { data: calendarJobs, isLoading, isFetching } = useGetCalendarJobsQuery(calendarJobsParams);
   const { data: appointments, isLoading: isLoadingAppointments, isFetching: isFetchingAppointments } = useGetAppointmentsCalendarQuery(appointmentsParams);
+  const jobs = Array.isArray(calendarJobs) ? calendarJobs : [];
+  // Unique job_ids from occurrences so we fetch full job details (with assignments) only for visible jobs
+  const occurrenceJobIds = useMemo(
+    () => [...new Set(jobs.map((j) => j.job_id ?? j.id).filter(Boolean))].slice(0, 200),
+    [jobs]
+  );
+  const jobIdsParam = occurrenceJobIds.length > 0 ? occurrenceJobIds.join(",") : "";
+  const { data: fullJobsResponse } = useGetJobsQuery(
+    { job_ids: jobIdsParam, ...calendarJobsParams },
+    { skip: selectedCategories.jobs === false || !jobIdsParam }
+  );
+  const fullJobsList = Array.isArray(fullJobsResponse) ? fullJobsResponse : fullJobsResponse?.results ?? [];
   // Only fetch estimates when the estimates category is enabled (not false)
   const { data: estimates, isLoading: isLoadingEstimates, isFetching: isFetchingEstimates } = useGetEstimateAppointmentsCalendarQuery(estimatesParams, {
     skip: selectedCategories.estimates === false
   });
-  
-  // New API returns array directly, not wrapped in results
-  const jobs = Array.isArray(calendarJobs) ? calendarJobs : [];
   
   // Handle both array response and results-wrapped response for appointments
   const appointmentsList = Array.isArray(appointments) 
@@ -1108,6 +1293,118 @@ appointmentsParams.search = filterParams.appointment_search;
     return fallbackName || defaultName;
   };
 
+  // Current user id for worker view (single column, no assignee names)
+  const currentUserId = user?.user_id ?? user?.id ?? user?.email;
+
+  // Resources for day/week view: one column per technician (and Unassigned). For workers: single column, no assignee names.
+  const calendarResources = useMemo(() => {
+    if (userRole === "worker") {
+      return [{ id: "schedule", name: "" }];
+    }
+    const list = users
+      .filter((u) => selectedAssignees[u.user_id] !== false)
+      .map((u) => {
+        const rid = String(u.user_id ?? u.id);
+        return {
+          id: rid,
+          name: `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim() || u.full_name || u.email || rid,
+        };
+      });
+    list.push({ id: "unassigned", name: "Unassigned" });
+    return list;
+  }, [users, selectedAssignees, userRole]);
+
+  // Map any assignee id (user_id, employee id, or email) to our resource id so events land in the right column
+  const assigneeIdToResourceId = useMemo(() => {
+    const map = new Map();
+    if (userRole === "worker") {
+      if (currentUserId != null) {
+        map.set(String(currentUserId), "schedule");
+        if (user?.id != null) map.set(String(user.id), "schedule");
+        if (user?.email) {
+          map.set(String(user.email), "schedule");
+          map.set(String(user.email).toLowerCase(), "schedule");
+        }
+      }
+      return map;
+    }
+    map.set("unassigned", "unassigned");
+    users
+      .filter((u) => selectedAssignees[u.user_id] !== false)
+      .forEach((u) => {
+        const rid = String(u.user_id ?? u.id);
+        map.set(String(u.user_id), rid);
+        map.set(String(u.id), rid);
+        if (u.email) {
+          map.set(String(u.email), rid);
+          map.set(String(u.email).toLowerCase(), rid);
+        }
+      });
+    return map;
+  }, [users, selectedAssignees, userRole, currentUserId, user?.id, user?.email]);
+
+  // Map assignee display name to resource id (for appointments/estimates that only have assigned_user_name from API)
+  const normalizeName = (s) => (s && String(s).trim().replace(/\s+/g, " ").toLowerCase()) || "";
+  const assigneeNameToResourceId = useMemo(() => {
+    const map = new Map();
+    if (userRole === "worker") return map;
+    users
+      .filter((u) => selectedAssignees[u.user_id] !== false)
+      .forEach((u) => {
+        const rid = String(u.user_id ?? u.id);
+        const full = `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim() || u.full_name || "";
+        if (full) map.set(normalizeName(full), rid);
+        if (u.full_name) map.set(normalizeName(u.full_name), rid);
+      });
+    return map;
+  }, [users, selectedAssignees, userRole]);
+
+  // From full jobs (with assignments), map job_id / id -> array of assignee ids so occurrence events show under all assignees
+  const jobIdToAssigneeIds = useMemo(() => {
+    const map = new Map();
+    fullJobsList.forEach((job) => {
+      const assigneeIds = new Set();
+      // All assignments
+      (job.assignments || []).forEach((a) => {
+        const id = a?.user ?? a?.user_id ?? a?.assignee_id;
+        if (id != null) assigneeIds.add(String(id));
+      });
+      (job.assigned_users || []).forEach((u) => {
+        const id = typeof u === "object" && u != null ? u?.user_id ?? u?.id : u;
+        if (id != null) assigneeIds.add(String(id));
+      });
+      // Legacy single-assignee fields (add if no assignments so unassigned fallback still works)
+      const single =
+        job.assigned_user_id ?? job.assignee_id ?? job.assigned_to ??
+        (typeof job.assignee === "object" && job.assignee != null ? job.assignee?.user_id ?? job.assignee?.id : job.assignee);
+      if (single != null) assigneeIds.add(String(single));
+      const arr = [...assigneeIds];
+      if (job.job_id != null) map.set(String(job.job_id), arr);
+      if (job.id != null) map.set(String(job.id), arr);
+    });
+    return map;
+  }, [fullJobsList]);
+
+  // Collect all assignee IDs from a job (assignments + assigned_users + legacy single fields)
+  const getJobAssigneeIds = (job) => {
+    const fromFull = jobIdToAssigneeIds.get(String(job.job_id)) ?? jobIdToAssigneeIds.get(String(job.id));
+    if (fromFull && fromFull.length > 0) return fromFull;
+    const ids = new Set();
+    (job.assignments || []).forEach((a) => {
+      const id = a?.user ?? a?.user_id ?? a?.assignee_id;
+      if (id != null) ids.add(String(id));
+    });
+    (job.assigned_users || []).forEach((u) => {
+      const id = typeof u === "object" && u != null ? u?.user_id ?? u?.id : u;
+      if (id != null) ids.add(String(id));
+    });
+    const single =
+      job.assigned_user_id ?? job.assignee_id ?? job.assigned_to ??
+      (typeof job.assignee === "object" && job.assignee != null ? job.assignee?.user_id ?? job.assignee?.id : job.assignee);
+    if (single != null) ids.add(String(single));
+    return [...ids];
+  };
+
   useEffect(() => {
     // Check if categories are enabled (default to true if not set)
     const showJobs = selectedCategories.jobs !== false;
@@ -1115,93 +1412,131 @@ appointmentsParams.search = filterParams.appointment_search;
     const showEstimates = selectedCategories.estimates !== false;
 
     // Transform jobs to events (only if jobs category is enabled)
-    // New API returns job_id instead of id, and includes series_id
+    // Worker: one event per job (assigned to me), single column. Else: one event per assignee so job shows under all technicians.
     const jobEvents = showJobs
       ? jobs
           .filter((job) => {
             if (!job.scheduled_at) return false;
+            if (userRole === "worker") {
+              const assigneeIds = getJobAssigneeIds(job);
+              return assigneeIds.some((rawId) => assigneeIdToResourceId.get(String(rawId)) === "schedule");
+            }
             return true;
           })
-          .map((job) => {
-            // Parse as UTC and create Date object with UTC time components as local time
-            // This ensures the calendar displays the UTC time directly without conversion
+          .flatMap((job) => {
             const m = moment.utc(job.scheduled_at);
             const startDate = new Date(m.year(), m.month(), m.date(), m.hour(), m.minute(), m.second());
             const duration = parseFloat(job.duration_hours) || 2;
             const endDate = new Date(m.year(), m.month(), m.date(), m.hour() + duration, m.minute(), m.second());
-            // Format time with minutes if not zero: "6 PM" or "6:30 PM"
             const timeStr = m.minute() === 0 ? m.format("h A") : m.format("h:mm A");
             const displayName = getDisplayName(job, job.customer_name, "Customer");
 
-            return {
-              id: job.job_id, // Use job_id from new API
+            if (userRole === "worker") {
+              return [{
+                id: job.job_id,
+                title: `${timeStr} ${displayName}`,
+                start: startDate,
+                end: endDate,
+                resourceId: "schedule",
+                resource: { ...job, id: job.job_id },
+                type: "job",
+              }];
+            }
+
+            const assigneeIds = getJobAssigneeIds(job);
+            const resourceIds = assigneeIds.length > 0
+              ? [...new Set(assigneeIds.map((rawId) => assigneeIdToResourceId.get(String(rawId)) ?? "unassigned").filter(Boolean))]
+              : ["unassigned"];
+
+            return resourceIds.map((resourceId, index) => ({
+              id: resourceIds.length === 1 ? job.job_id : `${job.job_id}-${resourceId}-${index}`,
               title: `${timeStr} ${displayName}`,
               start: startDate,
               end: endDate,
-              resource: {
-                ...job,
-                id: job.job_id, // Map job_id to id for compatibility
-              },
-              type: 'job',
-            };
+              resourceId,
+              resource: { ...job, id: job.job_id },
+              type: "job",
+            }));
           })
       : [];
 
     // Transform appointments to events (only if appointments category is enabled)
-    const appointmentEvents = showAppointments
+    const appointmentEventsRaw = showAppointments
       ? appointmentsList
           .filter((appointment) => {
             if (!appointment.start_time) return false;
             return true;
           })
           .map((appointment) => {
-            // Parse as UTC and convert to America/Chicago timezone for display
             const startM = moment.utc(appointment.start_time).tz("America/Chicago");
             const endM = moment.utc(appointment.end_time).tz("America/Chicago");
             const startDate = new Date(startM.year(), startM.month(), startM.date(), startM.hour(), startM.minute(), startM.second());
             const endDate = new Date(endM.year(), endM.month(), endM.date(), endM.hour(), endM.minute(), endM.second());
-            // Format time with minutes if not zero: "6 PM" or "6:30 PM"
             const timeStr = startM.minute() === 0 ? startM.format("h A") : startM.format("h:mm A");
             const displayName = getDisplayName(appointment, appointment.title || appointment.contact_name, "Appointment");
 
+            const rawAppId =
+              appointment.assigned_user_id ??
+              appointment.user_id ??
+              appointment.assigned_user?.user_id ??
+              appointment.assigned_user?.id ??
+              null;
+            let resourceId = rawAppId != null ? assigneeIdToResourceId.get(String(rawAppId)) : null;
+            if (resourceId == null && appointment.assigned_user_name) {
+              resourceId = assigneeNameToResourceId.get(normalizeName(appointment.assigned_user_name));
+            }
+            resourceId = resourceId ?? "unassigned";
             return {
               id: appointment.appointment_id,
               title: `${timeStr} ${displayName}`,
               start: startDate,
               end: endDate,
+              resourceId,
               resource: appointment,
-              type: 'appointment',
+              type: "appointment",
             };
           })
       : [];
+    const appointmentEvents = userRole === "worker" ? appointmentEventsRaw.filter((ev) => ev.resourceId === "schedule") : appointmentEventsRaw;
 
     // Transform estimates to events (only if estimates category is enabled)
-    const estimateEvents = showEstimates
+    const estimateEventsRaw = showEstimates
       ? estimatesList
           .filter((estimate) => {
             if (!estimate.start_time) return false;
             return true;
           })
           .map((estimate) => {
-            // Parse as UTC and convert to America/Chicago timezone for display
             const startM = moment.utc(estimate.start_time).tz("America/Chicago");
             const endM = moment.utc(estimate.end_time).tz("America/Chicago");
             const startDate = new Date(startM.year(), startM.month(), startM.date(), startM.hour(), startM.minute(), startM.second());
             const endDate = new Date(endM.year(), endM.month(), endM.date(), endM.hour(), endM.minute(), endM.second());
-            // Format time with minutes if not zero: "6 PM" or "6:30 PM"
             const timeStr = startM.minute() === 0 ? startM.format("h A") : startM.format("h:mm A");
             const displayName = getDisplayName(estimate, estimate.title || estimate.contact_name, "Estimate");
 
+            const rawEstId =
+              estimate.assigned_user_id ??
+              estimate.user_id ??
+              estimate.assigned_user?.user_id ??
+              estimate.assigned_user?.id ??
+              null;
+            let resourceId = rawEstId != null ? assigneeIdToResourceId.get(String(rawEstId)) : null;
+            if (resourceId == null && estimate.assigned_user_name) {
+              resourceId = assigneeNameToResourceId.get(normalizeName(estimate.assigned_user_name));
+            }
+            resourceId = resourceId ?? "unassigned";
             return {
               id: estimate.appointment_id,
               title: `${timeStr} ${displayName}`,
               start: startDate,
               end: endDate,
+              resourceId,
               resource: estimate,
-              type: 'estimate',
+              type: "estimate",
             };
           })
       : [];
+    const estimateEvents = userRole === "worker" ? estimateEventsRaw.filter((ev) => ev.resourceId === "schedule") : estimateEventsRaw;
 
     // Merge all events
     const allEvents = [...jobEvents, ...appointmentEvents, ...estimateEvents];
@@ -1211,7 +1546,21 @@ appointmentsParams.search = filterParams.appointment_search;
     
     // Show all events - no limiting, height will adjust dynamically
     setEvents(allEvents);
-  }, [jobs, appointmentsList, estimatesList, accountTimezone, selectedCategories]);
+  }, [jobs, appointmentsList, estimatesList, accountTimezone, selectedCategories, assigneeIdToResourceId, jobIdToAssigneeIds, userRole]);
+
+  // FullCalendar event format (id, title, start, end, extendedProps, editable)
+  const fcEvents = useMemo(
+    () =>
+      events.map((ev) => ({
+        id: String(ev.id),
+        title: ev.title,
+        start: ev.start,
+        end: ev.end,
+        extendedProps: { resource: ev.resource, type: ev.type },
+        editable: ev.type !== "appointment" && ev.type !== "more",
+      })),
+    [events]
+  );
 
   // Format price as currency (memoized to avoid dependency issues)
   const formatPrice = useMemo(() => {
@@ -1261,6 +1610,27 @@ appointmentsParams.search = filterParams.appointment_search;
 
     return totals;
   }, [jobs, currentDate, showJobs]);
+
+  // Weekly totals by Sunday date (Mon–Sun week): key = "YYYY-MM-DD" of the week-ending Sunday, value = sum of job total_price in that week
+  const weeklyTotalsBySunday = useMemo(() => {
+    if (!showJobs) return {};
+    const bySunday = {};
+    jobs.forEach((job) => {
+      if (!job.scheduled_at || job.total_price == null) return;
+      const m = moment.utc(job.scheduled_at);
+      const jobDate = new Date(m.year(), m.month(), m.date());
+      const day = jobDate.getDay();
+      const sundayOffset = (7 - day) % 7;
+      const sundayDate = new Date(jobDate);
+      sundayDate.setDate(jobDate.getDate() + sundayOffset);
+      const y = sundayDate.getFullYear();
+      const mo = String(sundayDate.getMonth() + 1).padStart(2, "0");
+      const d = String(sundayDate.getDate()).padStart(2, "0");
+      const key = `${y}-${mo}-${d}`;
+      bySunday[key] = (bySunday[key] || 0) + (parseFloat(job.total_price) || 0);
+    });
+    return bySunday;
+  }, [jobs, showJobs]);
 
   // Dynamically set month row height so all events fit
   useEffect(() => {
@@ -1371,9 +1741,10 @@ appointmentsParams.search = filterParams.appointment_search;
           if (!dayBgCell) return;
           
           // Determine the actual date by checking which week row we're in
-          // Get the first day of the month to determine the starting day of week
+          // Week is Monday–Sunday: column 0 = Monday, 6 = Sunday
           const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-          const firstDayOfWeek = firstDayOfMonth.getDay();
+          const firstDayOfMonthDow = firstDayOfMonth.getDay();
+          const firstDayOfWeek = firstDayOfMonthDow === 0 ? 6 : firstDayOfMonthDow - 1;
           
           // Find which week row this is (0-based)
           const allMonthRows = document.querySelectorAll('.rbc-month-row');
@@ -1392,22 +1763,34 @@ appointmentsParams.search = filterParams.appointment_search;
           const month = String(actualDate.getMonth() + 1).padStart(2, '0');
           const date = String(actualDate.getDate()).padStart(2, '0');
           const dateKey = `${year}-${month}-${date}`;
-          
-          const dayTotal = dailyTotals[dateKey] || 0;
-          
-          // Check if there are any job events visible for this day
-          const hasJobEvents = events.some(event => {
-            if (event.type !== 'job') return false;
-            const eventDate = event.start;
-            const eventYear = eventDate.getFullYear();
-            const eventMonth = String(eventDate.getMonth() + 1).padStart(2, '0');
-            const eventDateNum = String(eventDate.getDate()).padStart(2, '0');
-            const eventDateKey = `${eventYear}-${eventMonth}-${eventDateNum}`;
-            return eventDateKey === dateKey;
-          });
+          const isSunday = actualDate.getDay() === 0;
 
-          // Only show total if: jobs are selected, there's a total, AND there are job events visible
-          if (showJobs && dayTotal > 0 && hasJobEvents) {
+          let displayTotal = 0;
+          let label = '';
+
+          if (isSunday) {
+            // Sunday: show weekly total (Mon–Sun) for that week
+            const weekTotal = weeklyTotalsBySunday[dateKey] || 0;
+            displayTotal = weekTotal;
+            label = `Week: ${formatPrice(weekTotal)}`;
+          } else {
+            const dayTotal = dailyTotals[dateKey] || 0;
+            const hasJobEvents = events.some(event => {
+              if (event.type !== 'job') return false;
+              const eventDate = event.start;
+              const eventYear = eventDate.getFullYear();
+              const eventMonth = String(eventDate.getMonth() + 1).padStart(2, '0');
+              const eventDateNum = String(eventDate.getDate()).padStart(2, '0');
+              const eventDateKey = `${eventYear}-${eventMonth}-${eventDateNum}`;
+              return eventDateKey === dateKey;
+            });
+            if (!showJobs || dayTotal <= 0 || !hasJobEvents) return;
+            displayTotal = dayTotal;
+            label = `Total: ${formatPrice(dayTotal)}`;
+          }
+
+          // Show: Sunday always show week total when showJobs; other days show when dayTotal > 0 and hasJobEvents
+          if (showJobs && (isSunday || displayTotal > 0)) {
             // Check if total already exists to avoid duplicates
             if (dayBgCell.querySelector('.daily-job-total')) return;
             
@@ -1416,7 +1799,7 @@ appointmentsParams.search = filterParams.appointment_search;
             totalEl.className = 'daily-job-total';
             
             // Single line format for all devices - CSS will handle positioning
-            totalEl.textContent = `Total: ${formatPrice(dayTotal)}`;
+            totalEl.textContent = label;
             
             // Base styles that apply to all devices
             totalEl.style.cssText = `
@@ -1463,7 +1846,7 @@ appointmentsParams.search = filterParams.appointment_search;
       clearTimeout(timeoutId1);
       clearTimeout(timeoutId2);
     };
-  }, [view, dailyTotals, currentDate, formatPrice, events.length, showJobs]);
+  }, [view, dailyTotals, weeklyTotalsBySunday, currentDate, formatPrice, events.length, showJobs]);
 
   const handleSelectEvent = (event) => {
     console.log('handleSelectEvent called:', event?.type, event?.resource?.job_id || event?.resource?.appointment_id);
@@ -1573,12 +1956,15 @@ appointmentsParams.search = filterParams.appointment_search;
     switch (view) {
       case "month":
         return `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
-      case "week":
+      case "week": {
         const weekStart = new Date(currentDate);
-        weekStart.setDate(currentDate.getDate() - currentDate.getDay());
+        const day = currentDate.getDay();
+        const diff = day === 0 ? -6 : 1 - day;
+        weekStart.setDate(currentDate.getDate() + diff);
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekStart.getDate() + 6);
         return `${monthNames[weekStart.getMonth()]} ${weekStart.getDate()} - ${monthNames[weekEnd.getMonth()]} ${weekEnd.getDate()}, ${weekEnd.getFullYear()}`;
+      }
       case "day":
         return `${monthNames[currentDate.getMonth()]} ${currentDate.getDate()}, ${currentDate.getFullYear()}`;
       default:
@@ -2663,50 +3049,136 @@ appointmentsParams.search = filterParams.appointment_search;
               }}
             >
               <div className="w-full h-full max-w-full overflow-hidden">
-                <DnDCalendar
-                  className="w-full max-w-full"
-                resourceAccessor="id"
-                resourceTitleAccessor="name"
-                dayLayoutAlgorithm="no-overlap"
-                localizer={localizer}
-                events={events}
-                startAccessor="start"
-                endAccessor="end"
-                view={view}
-                onView={setView}
-                date={currentDate}
-                onNavigate={handleNavigate}
-                onSelectEvent={handleSelectEvent}
-                onEventDrop={handleEventDrop}
-                onEventResize={handleEventResize}
-                resizable={(event) => event.type !== 'appointment' && event.type !== 'more'}
-                eventPropGetter={eventStyleGetter}
-                min={new Date(1970, 1, 1, 6, 0, 0)}
-                max={new Date(1970, 1, 1, 23, 59, 59)}
-                draggableAccessor={(event) => event.type !== 'appointment' && event.type !== 'more'}
-                components={{
-                  event: (props) => (
-                    <DroppableEvent
-                      {...props}
-                      onStaffDrop={handleStaffDrop}
-                      onSelectEvent={handleSelectEvent}
-                    />
-                  ),
-                }}
-                key={
-                  view === "month"
-                    ? `month-${currentDate.getFullYear()}-${currentDate.getMonth()}-${monthRowHeight}-${events.length}-${selectedCategories.jobs}-${selectedCategories.appointments}-${selectedCategories.estimates}`
-                    : `view-${view}-${events.length}`
-                }
-                style={{ height: view === "month" ? "100%" : "auto" }}
-                popup={false}
-                toolbar={false}
-                formats={{
-                  timeGutterFormat: "h A",
-                  eventTimeRangeFormat: () => "",
-                  agendaTimeRangeFormat: () => "",
-                }}
-              />
+                {view === "day" ? (
+                  <DayByTechnicianView
+                    date={currentDate}
+                    events={events}
+                    resources={calendarResources.map((r) => ({ id: r.id, title: r.name, name: r.name }))}
+                    eventStyleGetter={eventStyleGetter}
+                    onSelectEvent={handleSelectEvent}
+                    onStaffDrop={handleStaffDrop}
+                    onRemoveAssignee={(assigneeId) => handleAssigneeToggle(assigneeId, false)}
+                  />
+                ) : (
+                  <FullCalendar
+                    key={`fc-${view}-${currentDate.getTime()}-${fcEvents.length}`}
+                    plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                    initialView={view === "month" ? "dayGridMonth" : "timeGridWeek"}
+                    initialDate={currentDate}
+                    events={fcEvents}
+                    headerToolbar={false}
+                    firstDay={1}
+                    height={view === "month" ? monthTotalHeight : "auto"}
+                    contentHeight={view === "month" ? monthTotalHeight : undefined}
+                    dayMaxEvents={false}
+                    slotMinTime="06:00:00"
+                    slotMaxTime="24:00:00"
+                    allDaySlot={false}
+                    nowIndicator
+                    editable
+                    eventStartEditable={(info) => info.event.extendedProps?.type !== "appointment" && info.event.extendedProps?.type !== "more"}
+                    eventDurationEditable={(info) => info.event.extendedProps?.type !== "appointment" && info.event.extendedProps?.type !== "more"}
+                    eventClick={(info) => {
+                      info.jsEvent.preventDefault();
+                      const ext = info.event.extendedProps || {};
+                      handleSelectEvent({
+                        id: info.event.id,
+                        title: info.event.title,
+                        start: info.event.start,
+                        end: info.event.end,
+                        resource: ext.resource,
+                        type: ext.type || "job",
+                      });
+                    }}
+                    eventDrop={(info) => {
+                      const ext = info.event.extendedProps || {};
+                      handleEventDrop({
+                        event: {
+                          id: info.event.id,
+                          title: info.event.title,
+                          start: info.event.start,
+                          end: info.event.end,
+                          resource: ext.resource,
+                          type: ext.type || "job",
+                        },
+                        start: info.event.start,
+                        end: info.event.end,
+                      });
+                    }}
+                    eventResize={(info) => {
+                      const ext = info.event.extendedProps || {};
+                      handleEventResize({
+                        event: {
+                          id: info.event.id,
+                          title: info.event.title,
+                          start: info.event.start,
+                          end: info.event.end,
+                          resource: ext.resource,
+                          type: ext.type || "job",
+                        },
+                        start: info.event.start,
+                        end: info.event.end,
+                      });
+                    }}
+                    dayCellDidMount={(arg) => {
+                      const d = new Date(arg.date);
+                      const year = d.getFullYear();
+                      const month = String(d.getMonth() + 1).padStart(2, "0");
+                      const day = String(d.getDate()).padStart(2, "0");
+                      const dateKey = `${year}-${month}-${day}`;
+                      const isSunday = d.getDay() === 0;
+                      let label;
+                      let amount;
+                      if (isSunday && view === "month") {
+                        // Sunday in month view: show weekly total (Mon–Sun) for that week
+                        const weekTotal = weeklyTotalsBySunday[dateKey] || 0;
+                        amount = weekTotal;
+                        label = `Week: ${formatPrice(weekTotal)}`;
+                      } else {
+                        const dayTotal = dailyTotals[dateKey] || 0;
+                        const hasJobEvents = events.some((ev) => {
+                          if (ev.type !== "job") return false;
+                          const ed = new Date(ev.start);
+                          return (
+                            ed.getFullYear() === year &&
+                            String(ed.getMonth() + 1).padStart(2, "0") === month &&
+                            String(ed.getDate()).padStart(2, "0") === day
+                          );
+                        });
+                        if (!showJobs || dayTotal <= 0 || !hasJobEvents) return;
+                        amount = dayTotal;
+                        label = `Total: ${formatPrice(dayTotal)}`;
+                      }
+                      if (!showJobs) return;
+                      if (!isSunday && amount <= 0) return;
+                      const hasJobEventsInCell = !isSunday && events.some((ev) => {
+                        if (ev.type !== "job") return false;
+                        const ed = new Date(ev.start);
+                        return (
+                          ed.getFullYear() === year &&
+                          String(ed.getMonth() + 1).padStart(2, "0") === month &&
+                          String(ed.getDate()).padStart(2, "0") === day
+                        );
+                      });
+                      if (!isSunday && !hasJobEventsInCell) return;
+                      const div = document.createElement("div");
+                      div.className = "daily-job-total-fc";
+                      div.textContent = label;
+                      div.style.cssText =
+                        "position:absolute;top:2px;left:2px;z-index:2;max-width:calc(100% - 4px);overflow:hidden;text-overflow:ellipsis;pointer-events:none;";
+                      arg.el.style.position = "relative";
+                      arg.el.appendChild(div);
+                    }}
+                    eventContent={(arg) => (
+                      <FullCalendarEventContent
+                        arg={arg}
+                        onStaffDrop={handleStaffDrop}
+                        onSelectEvent={handleSelectEvent}
+                        eventStyleGetter={eventStyleGetter}
+                      />
+                    )}
+                  />
+                )}
               </div>
             </div>
           </CardContent>

@@ -95,10 +95,13 @@ const PayrollTeamManagement = () => {
   const [updateEmployee, { isLoading: updating }] = useUpdateEmployeeMutation();
   const [deleteEmployee, { isLoading: deleting }] = useDeleteEmployeeMutation();
   const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [success, setSuccess] = useState(null);
 
   const handleAddEmployee = () => {
     setSelectedEmployee(null);
+    setError(null);
+    setFieldErrors({});
     setCollaborationRates([1]);
     setFormData({
       user: '',
@@ -122,6 +125,8 @@ const PayrollTeamManagement = () => {
 
   const handleEditEmployee = (employee) => {
     setSelectedEmployee(employee);
+    setError(null);
+    setFieldErrors({});
     // Set collaboration rates from employee data
     const memberCounts = employee.collaboration_rates?.length > 0
       ? employee.collaboration_rates.map(r => r.member_count)
@@ -174,8 +179,9 @@ const PayrollTeamManagement = () => {
 
   const handleSave = async () => {
     setError(null);
+    setFieldErrors({});
     setSuccess(null);
-    
+
     try {
       const payload = {
         ...formData,
@@ -201,9 +207,31 @@ const PayrollTeamManagement = () => {
       setShowDialog(false);
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError(err.data?.detail || err.data?.message || 'Failed to save employee');
+      const data = err?.data;
+      if (data && typeof data === 'object' && !Array.isArray(data)) {
+        const detail = data.detail || data.message;
+        const rest = { ...data };
+        delete rest.detail;
+        delete rest.message;
+        const keys = Object.keys(rest);
+        if (keys.length > 0) {
+          const next = {};
+          keys.forEach((key) => {
+            const val = rest[key];
+            next[key] = Array.isArray(val) ? val.join(' ') : (val != null ? String(val) : '');
+          });
+          setFieldErrors(next);
+          setError(detail || 'Please fix the errors below.');
+        } else {
+          setError(detail || 'Failed to save employee');
+        }
+      } else {
+        setError(typeof data === 'string' ? data : (data?.detail || data?.message || 'Failed to save employee'));
+      }
     }
   };
+
+  const getFieldError = (fieldName) => fieldErrors[fieldName] || null;
 
   const handleDelete = async () => {
     setError(null);
@@ -621,6 +649,11 @@ const PayrollTeamManagement = () => {
           }}
         >
           <Stack spacing={{ xs: 2, sm: 2.5 }}>
+            {error && (
+              <Alert severity="error" onClose={() => { setError(null); setFieldErrors({}); }} sx={{ borderRadius: 1 }}>
+                {error}
+              </Alert>
+            )}
 
             {/* Avatar section for editing existing employees */}
             {selectedEmployee && (
@@ -707,6 +740,8 @@ const PayrollTeamManagement = () => {
                 size="small"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                error={!!getFieldError('phone')}
+                helperText={getFieldError('phone')}
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 1,
@@ -723,7 +758,8 @@ const PayrollTeamManagement = () => {
                 size="small"
                 value={formData.address || ''}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                // InputProps={{ readOnly: !!selectedEmployee }}
+                error={!!getFieldError('address')}
+                helperText={getFieldError('address')}
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 1,
@@ -739,6 +775,8 @@ const PayrollTeamManagement = () => {
                 size="small"
                 value={formData.date_of_birth}
                 onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                error={!!getFieldError('date_of_birth')}
+                helperText={getFieldError('date_of_birth')}
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 1,
@@ -748,17 +786,17 @@ const PayrollTeamManagement = () => {
             </Box>
 
             <Box display="flex" gap={2} sx={{flexWrap: { xs: 'wrap', sm: 'nowrap' }}}>
-              <TextField fullWidth size='small' label="Position" value={formData.position} onChange={(e) => setFormData({ ...formData, position: e.target.value })} />
-              <TextField fullWidth size='small' label="Department" value={formData.department} onChange={(e) => setFormData({ ...formData, department: e.target.value })} />
+              <TextField fullWidth size='small' label="Position" value={formData.position} onChange={(e) => setFormData({ ...formData, position: e.target.value })} error={!!getFieldError('position')} helperText={getFieldError('position')} />
+              <TextField fullWidth size='small' label="Department" value={formData.department} onChange={(e) => setFormData({ ...formData, department: e.target.value })} error={!!getFieldError('department')} helperText={getFieldError('department')} />
             </Box>
 
             <Box display="flex" gap={2} sx={{flexWrap: { xs: 'wrap', sm: 'nowrap' }}}>
-              <TextField fullWidth size='small' label="Emergeny Contact Name" value={formData.emergency_contact_name} onChange={(e) => setFormData({ ...formData, emergency_contact_name: e.target.value })} />
-              <TextField type="tel" fullWidth size='small' label="Emergency Contact Number" value={formData.emergency_contact_number} onChange={(e) => setFormData({ ...formData, emergency_contact_number: e.target.value })} />
+              <TextField fullWidth size='small' label="Emergeny Contact Name" value={formData.emergency_contact_name} onChange={(e) => setFormData({ ...formData, emergency_contact_name: e.target.value })} error={!!getFieldError('emergency_contact_name')} helperText={getFieldError('emergency_contact_name')} />
+              <TextField type="tel" fullWidth size='small' label="Emergency Contact Number" value={formData.emergency_contact_number} onChange={(e) => setFormData({ ...formData, emergency_contact_number: e.target.value })} error={!!getFieldError('emergency_contact_number')} helperText={getFieldError('emergency_contact_number')} />
             </Box>
 
             <Box display="flex" gap={2} sx={{flexWrap: { xs: 'wrap', sm: 'nowrap' }}}>
-              <TextField fullWidth size='small' label="Hire Date" type="date" InputLabelProps={{ shrink: true }} value={formData.hire_date} onChange={(e) => setFormData({ ...formData, hire_date: e.target.value })} />
+              <TextField fullWidth size='small' label="Hire Date" type="date" InputLabelProps={{ shrink: true }} value={formData.hire_date} onChange={(e) => setFormData({ ...formData, hire_date: e.target.value })} error={!!getFieldError('hire_date')} helperText={getFieldError('hire_date')} />
             </Box>
 
             {/* Timezone */}
@@ -800,6 +838,8 @@ const PayrollTeamManagement = () => {
                 size="small"
                 value={formData.hourly_rate || ''}
                 onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
+                error={!!getFieldError('hourly_rate')}
+                helperText={getFieldError('hourly_rate')}
                 InputProps={{
                   startAdornment: <InputAdornment position="start">$</InputAdornment>,
                   endAdornment: <InputAdornment position="end">/hr</InputAdornment>,

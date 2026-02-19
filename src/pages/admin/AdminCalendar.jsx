@@ -13,8 +13,7 @@ const AdminCalendar = () => {
   const canViewStaff = ["admin", "manager", "supervisor"].includes(userRole);
   
   const { data: assigneesData, isLoading: assigneesLoading } = useGetEmployeesQuery(
-    { is_active: true,},
-    { skip: !canViewStaff }
+    { is_active: true,}
   );
 
   return (
@@ -42,7 +41,7 @@ const AdminCalendar = () => {
         Scheduled jobs grouped by day.
       </Typography>
       <NewCalendar 
-        users={canViewStaff ? (assigneesData?.results || []) : []} 
+        users={assigneesData?.results } 
         isLoadingUsers={canViewStaff ? assigneesLoading : false} 
       />
     </Box>
