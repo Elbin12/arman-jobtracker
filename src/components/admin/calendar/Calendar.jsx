@@ -859,6 +859,9 @@ function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, conti
       case "in_progress":
         backgroundColor = "#3b82f6";
         break;
+      case "onhold":
+        backgroundColor = "#8b5cf6";
+        break;
       case "completed":
         backgroundColor = "#10b981";
         break;
@@ -1548,10 +1551,24 @@ appointmentsParams.search = filterParams.appointment_search;
     setEvents(allEvents);
   }, [jobs, appointmentsList, estimatesList, accountTimezone, selectedCategories, assigneeIdToResourceId, jobIdToAssigneeIds, userRole]);
 
+  // In month view: one event per job (deduplicate by job id). In day/week: one event per technician (keep duplicates).
+  const displayEvents = useMemo(() => {
+    if (view !== "month") return events;
+    const seenJobIds = new Set();
+    return events.filter((ev) => {
+      if (ev.type !== "job") return true;
+      const jobId = ev.resource?.id ?? ev.resource?.job_id;
+      if (jobId == null) return true;
+      if (seenJobIds.has(String(jobId))) return false;
+      seenJobIds.add(String(jobId));
+      return true;
+    });
+  }, [events, view]);
+
   // FullCalendar event format (id, title, start, end, extendedProps, editable)
   const fcEvents = useMemo(
     () =>
-      events.map((ev) => ({
+      displayEvents.map((ev) => ({
         id: String(ev.id),
         title: ev.title,
         start: ev.start,
@@ -1559,7 +1576,7 @@ appointmentsParams.search = filterParams.appointment_search;
         extendedProps: { resource: ev.resource, type: ev.type },
         editable: ev.type !== "appointment" && ev.type !== "more",
       })),
-    [events]
+    [displayEvents]
   );
 
   // Format price as currency (memoized to avoid dependency issues)
@@ -1632,16 +1649,17 @@ appointmentsParams.search = filterParams.appointment_search;
     return bySunday;
   }, [jobs, showJobs]);
 
-  // Dynamically set month row height so all events fit
+  // Dynamically set month row height so all events fit (month view uses deduplicated job events)
   useEffect(() => {
     if (view !== "month") return;
 
     const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999);
 
-    // Count actual events per day using local date components
+    // Count actual events per day; in month view use displayEvents (one job per event)
+    const eventsToCount = displayEvents;
     const counts = {};
-    originalEvents.forEach((ev) => {
+    eventsToCount.forEach((ev) => {
       const d = ev.start;
       if (d >= monthStart && d <= monthEnd) {
         const year = d.getFullYear();
@@ -1672,7 +1690,7 @@ appointmentsParams.search = filterParams.appointment_search;
     // Set minimum height, but always use calculated height if it's larger
     const minHeight = hasAnyTotals ? 170 : 140; // Increased minimum when totals are present
     setMonthRowHeight(Math.max(minHeight, calculatedHeight));
-  }, [originalEvents, view, currentDate, dailyTotals]);
+  }, [displayEvents, view, currentDate, dailyTotals]);
 
   const weeksInMonth =
     view === "month"
@@ -1775,7 +1793,8 @@ appointmentsParams.search = filterParams.appointment_search;
             label = `Week: ${formatPrice(weekTotal)}`;
           } else {
             const dayTotal = dailyTotals[dateKey] || 0;
-            const hasJobEvents = events.some(event => {
+            const eventsForDay = view === "month" ? displayEvents : events;
+            const hasJobEvents = eventsForDay.some(event => {
               if (event.type !== 'job') return false;
               const eventDate = event.start;
               const eventYear = eventDate.getFullYear();
@@ -1846,7 +1865,7 @@ appointmentsParams.search = filterParams.appointment_search;
       clearTimeout(timeoutId1);
       clearTimeout(timeoutId2);
     };
-  }, [view, dailyTotals, weeklyTotalsBySunday, currentDate, formatPrice, events.length, showJobs]);
+  }, [view, dailyTotals, weeklyTotalsBySunday, currentDate, formatPrice, events.length, displayEvents, showJobs]);
 
   const handleSelectEvent = (event) => {
     console.log('handleSelectEvent called:', event?.type, event?.resource?.job_id || event?.resource?.appointment_id);
@@ -2085,6 +2104,9 @@ appointmentsParams.search = filterParams.appointment_search;
         break;
       case "in_progress":
         backgroundColor = "#3b82f6"; // Blue
+        break;
+      case "onhold":
+        backgroundColor = "#8b5cf6"; // Violet (On Hold)
         break;
       case "completed":
         backgroundColor = "#10b981"; // Green (matching the design)
@@ -3136,7 +3158,8 @@ appointmentsParams.search = filterParams.appointment_search;
                         label = `Week: ${formatPrice(weekTotal)}`;
                       } else {
                         const dayTotal = dailyTotals[dateKey] || 0;
-                        const hasJobEvents = events.some((ev) => {
+                        const eventsForDay = view === "month" ? displayEvents : events;
+                        const hasJobEvents = eventsForDay.some((ev) => {
                           if (ev.type !== "job") return false;
                           const ed = new Date(ev.start);
                           return (
@@ -3151,7 +3174,8 @@ appointmentsParams.search = filterParams.appointment_search;
                       }
                       if (!showJobs) return;
                       if (!isSunday && amount <= 0) return;
-                      const hasJobEventsInCell = !isSunday && events.some((ev) => {
+                      const eventsForCell = view === "month" ? displayEvents : events;
+                      const hasJobEventsInCell = !isSunday && eventsForCell.some((ev) => {
                         if (ev.type !== "job") return false;
                         const ed = new Date(ev.start);
                         return (
