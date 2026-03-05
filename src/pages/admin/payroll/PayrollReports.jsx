@@ -58,35 +58,34 @@ const PayrollReports = () => {
   const userRole = user?.role || 'worker';
   const canEditDelete = ['admin', 'supervisor', "manager"].includes(userRole);
 
-  // Helper function to get default date range (1 year ago to today)
+  // Default date range: current calendar year (Jan 1 – today) so yearly stats don't accumulate.
+  // Resets conceptually on Jan 1 when users open the page or clear filters.
   const getDefaultDateRange = () => {
     const today = new Date();
-    const oneYearAgo = new Date();
-    oneYearAgo.setFullYear(today.getFullYear() - 1);
-    
-    // Format as YYYY-MM-DD for date input
+    const jan1 = new Date(today.getFullYear(), 0, 1);
+
     const formatDate = (date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
     };
-    
+
     return {
-      start_date: formatDate(oneYearAgo),
+      start_date: formatDate(jan1),
       end_date: formatDate(today),
     };
   };
 
-  // Memoize default date range to recalculate when needed
-  const defaultDateRange = useMemo(() => getDefaultDateRange(), []);
-
-  const [filters, setFilters] = useState({
-    employee: '',
-    type: '',
-    project_title: '',
-    start_date: defaultDateRange.start_date,
-    end_date: defaultDateRange.end_date,
+  const [filters, setFilters] = useState(() => {
+    const d = getDefaultDateRange();
+    return {
+      employee: '',
+      type: '',
+      project_title: '',
+      start_date: d.start_date,
+      end_date: d.end_date,
+    };
   });
 
   const [page, setPage] = useState(1);
@@ -167,13 +166,13 @@ const PayrollReports = () => {
   };
   
   const handleClearFilters = () => {
-    const defaultDateRange = getDefaultDateRange();
+    const d = getDefaultDateRange();
     setFilters({
       employee: '',
       type: '',
       project_title: '',
-      start_date: "",
-      end_date: "",
+      start_date: d.start_date,
+      end_date: d.end_date,
     });
     setPage(1);
   };

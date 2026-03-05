@@ -25,7 +25,7 @@ export const questionsApi = createApi({
     updateQuestion: builder.mutation({
       query: ({ id, ...questionData }) => ({
         url: `${id}/`,
-        method: 'PUT',
+        method: 'PATCH',
         data: questionData,
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'Question', id }],
@@ -52,6 +52,14 @@ export const questionsApi = createApi({
         data: payload,
       }),
     }),
+    questionReorder: builder.mutation({
+      query: (payload) => ({
+        url: 'reorder/',
+        method: 'PATCH',
+        data: payload,
+      }),
+      invalidatesTags: ['Question'],
+    }),
   }),
 });
 
@@ -62,5 +70,6 @@ export const {
   useUpdateQuestionMutation,
   useDeleteQuestionMutation,
   useCreateQuestionPricingMutation,
-  useUpdateQuestionStatusMutation
+  useUpdateQuestionStatusMutation,
+  useQuestionReorderMutation,
 } = questionsApi;

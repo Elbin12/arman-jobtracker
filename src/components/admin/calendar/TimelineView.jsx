@@ -171,6 +171,7 @@ export function TimelineView({
       scheduled: "#8b5cf6",
       pending: "#f59e0b",
       in_progress: "#3b82f6",
+      onhold: "#8b5cf6",
       completed: "#10b981",
       cancelled: "#ef4444",
       confirmed: "#06b6d4",

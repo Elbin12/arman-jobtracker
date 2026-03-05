@@ -293,7 +293,10 @@ export function Jobs() {
       <FilterSidebar
         open={filterSidebarOpen}
         onClose={() => setFilterSidebarOpen(false)}
-        onApplyFilters={(filters)=>{setFilterParams(filters)}}
+        onApplyFilters={(filters) => {
+          setFilterParams(filters);
+          setPage(1);
+        }}
         assignees={users}
         initialFilters={filterParams}
         userRole={userRole}

@@ -27,6 +27,7 @@ import Jobs from './pages/admin/Jobs.jsx';
 import AdminCalendar from './pages/admin/AdminCalendar.jsx';
 import TeamManagement from './pages/admin/TeamManagement.jsx';
 import AcceptedQuotes from './pages/admin/AcceptedQuotes.jsx';
+import OnHoldJobs from './pages/admin/OnHoldJobs.jsx';
 import CreateJob from './pages/admin/CreateJob.jsx';
 import CalendarCreateJob from './pages/admin/CalendarCreateJob.jsx';
 import RoleProtectedRoute from './pages/RoleProtectedRoute.jsx';
@@ -120,7 +121,12 @@ function App() {
                           <AcceptedQuotes />
                         </RoleProtectedRoute>
                       }
-                      />
+                    />
+                    <Route path="on-hold-jobs" element={
+                        <RoleProtectedRoute allowedRoles={['admin', 'manager', 'supervisor']}>
+                          <OnHoldJobs />
+                        </RoleProtectedRoute>
+                    } />
                     <Route path="team" element={
                         <RoleProtectedRoute allowedRoles={['manager', 'supervisor']}>
                           <TeamManagement />

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import {
   Box,
   Typography,
@@ -24,10 +24,11 @@ import {
   Checkbox,
   FormControlLabel,
 } from "@mui/material"
-import { Add, Block, Delete, Edit, Restore } from "@mui/icons-material"
+import { Add, Block, Delete, DragIndicator, Edit, Restore } from "@mui/icons-material"
 import {
   useCreateQuestionMutation,
   useDeleteQuestionMutation,
+  useQuestionReorderMutation,
   useUpdateQuestionMutation,
   useUpdateQuestionStatusMutation,
 } from "../../../../store/api/questionsApi"
@@ -98,6 +99,8 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
   const [updateQuestion] = useUpdateQuestionMutation()
   const [deleteQuestion] = useDeleteQuestionMutation()
   const [updateQuestionStatus] = useUpdateQuestionStatusMutation()
+
+  const [questionReorder] = useQuestionReorderMutation()
 
   useEffect(() => {
     setQuestions(data.questions || [])
@@ -571,6 +574,40 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
       // Error handled by toast notification
     }
   }
+
+  const handleQuestionsDragEnd = async (result) => {
+    if (!result.destination) return
+    const sourceIndex = result.source.index
+    const destinationIndex = result.destination.index
+    if (sourceIndex === destinationIndex) return
+
+    const reordered = Array.from(questions)
+    const [moved] = reordered.splice(sourceIndex, 1)
+    reordered.splice(destinationIndex, 0, moved)
+
+    const withNewOrder = reordered.map((q, index) => ({ ...q, order: index + 1 }))
+    setQuestions(withNewOrder)
+    onUpdate({ questions: withNewOrder })
+    console.log('Reordered questions:', withNewOrder)
+
+    try {
+      const updatePromises = withNewOrder.map((q) =>
+        questionReorder({
+          question_id: q.id,
+          order: q.order,
+          service_id: data.id,
+        }).unwrap()
+      )
+      await Promise.all(updatePromises)
+    } catch (err) {
+      setQuestions(questions)
+      onUpdate({ questions })
+    }
+  }
+
+  const sortedQuestions = useMemo(() => {
+    return [...(questions || [])].sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
+  }, [questions])
 
   const renderOptionList = (question, isChild = false, parentQuestionId = null) => {
     const options = isChild ? question?.options || [] : question?.options || [];
@@ -1558,12 +1595,49 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
       {questions.length === 0 ? (
         <Typography color="text.secondary">No questions created yet.</Typography>
       ) : (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {questions.map((question) => (
-            <Card key={question.id}>
-              <CardContent>
-                <Box display="flex" justifyContent="space-between" alignItems="start">
-                  <Box sx={{ flex: 1 }}>
+        <DragDropContext onDragEnd={handleQuestionsDragEnd}>
+          <Droppable droppableId="questions-list">
+            {(provided, snapshot) => (
+              <Box
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 2,
+                  backgroundColor: snapshot.isDraggingOver ? "#f5f5f5" : "transparent",
+                  borderRadius: 1,
+                  p: snapshot.isDraggingOver ? 1 : 0,
+                }}
+              >
+                {sortedQuestions.map((question, index) => (
+                  <Draggable key={question.id} draggableId={`question-${question.id}`} index={index}>
+                    {(provided, snapshot) => (
+                      <Card
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        sx={{
+                          backgroundColor: snapshot.isDragging ? "#e3f2fd" : "background.paper",
+                          boxShadow: snapshot.isDragging ? 3 : 1,
+                        }}
+                      >
+                        <CardContent>
+                          <Box display="flex" justifyContent="space-between" alignItems="start">
+                            <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1, flex: 1 }}>
+                              <Box
+                                {...provided.dragHandleProps}
+                                sx={{
+                                  cursor: "grab",
+                                  color: "text.secondary",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  "&:active": { cursor: "grabbing" },
+                                }}
+                                aria-label="Drag to reorder"
+                              >
+                                <DragIndicator />
+                              </Box>
+                              <Box sx={{ flex: 1 }}>
                     {editingQuestionId === question.id ? (
                       <TextField
                         size="small"
@@ -1691,29 +1765,36 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                           ))}
                         </Box>
                       )}
-                  </Box>
+                              </Box>
 
-                  <Box>
-                    <Tooltip title={question.is_active ? "Disable question" : "Enable question"}>
-                      <IconButton onClick={() => handleToggleQuestionActive(question.id, question.is_active)}>
-                        {question.is_active ? (
-                          <Block sx={{ color: "#BE4B4B" }} />
-                        ) : (
-                          <Restore sx={{ color: "#4CAF50" }} />
-                        )}
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Permanently delete">
-                      <IconButton onClick={() => confirmHardDelete(question)}>
-                        <Delete sx={{ color: "#D32F2F" }} />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          ))}
-        </Box>
+                            <Box>
+                              <Tooltip title={question.is_active ? "Disable question" : "Enable question"}>
+                                <IconButton onClick={() => handleToggleQuestionActive(question.id, question.is_active)}>
+                                  {question.is_active ? (
+                                    <Block sx={{ color: "#BE4B4B" }} />
+                                  ) : (
+                                    <Restore sx={{ color: "#4CAF50" }} />
+                                  )}
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Permanently delete">
+                                <IconButton onClick={() => confirmHardDelete(question)}>
+                                  <Delete sx={{ color: "#D32F2F" }} />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
+                          </Box>
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+              </Box>
+            )}
+          </Droppable>
+        </DragDropContext>
       )}
 
       {/* Confirm Delete Dialog */}

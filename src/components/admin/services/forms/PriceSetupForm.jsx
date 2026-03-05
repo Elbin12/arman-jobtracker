@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import {
   Box,
   Typography,
@@ -19,6 +19,10 @@ import {
   IconButton,
   Popover,
   Button,
+  Select,
+  MenuItem,
+  InputLabel,
+  FormControl,
 } from "@mui/material"
 import { Info } from "@mui/icons-material"
 import { useCreateQuestionPricingMutation } from "../../../../store/api/questionsApi"
@@ -114,6 +118,9 @@ const PriceSetupForm = ({ data, onUpdate }) => {
     answer: undefined,
     optionId: undefined,
   })
+  // Extra amount per question, package AND option: { [questionId]: { [packageId]: { [optionKey]: { mode, value } } } }
+  // optionKey = for yes_no: question.id, multiple_yes_no: sub_question.id, options: option.id
+  const [extraAmountByQuestionAndPackageAndOption, setExtraAmountByQuestionAndPackageAndOption] = useState({})
 
   const [createQuestionPricing, { isLoading }] = useCreateQuestionPricingMutation()
   const [createOptionPricing] = useCreateOptionPricingMutation()
@@ -178,6 +185,27 @@ const PriceSetupForm = ({ data, onUpdate }) => {
 
   const isValueEditable = (priceType) => !["ignore", "bid_in_person"].includes(priceType)
 
+  // Get effective price in dollars from a rule (for display and for "add extra" math)
+  const getCurrentPriceDollars = (rule, base) => {
+    if (!rule?.priceType) return 0
+    const v = Number(rule.value) || 0
+    const b = Number(base) || 0
+    if (rule.priceType === "upcharge") return b * (1 + v / 100)
+    if (rule.priceType === "discount") return Math.max(0, b * (1 - v / 100))
+    if (rule.priceType === "bid_in_person" || rule.priceType === "fixed") return v
+    return 0
+  }
+
+  // Convert a target price (in dollars) back to stored value for the given price type
+  const getStoredValueFromPriceDollars = (priceType, priceDollars, base) => {
+    const p = Math.max(0, Number(priceDollars) || 0)
+    const b = Number(base) || 0
+    if (priceType === "upcharge" && b > 0) return ((p / b) - 1) * 100
+    if (priceType === "discount" && b > 0) return Math.max(0, Math.min(100, (1 - p / b) * 100))
+    if (priceType === "bid_in_person" || priceType === "fixed") return p
+    return 0
+  }
+
   const updatePriceRule = (questionId, packageId, field, value, answer, optionId) => {
     setPriceRules((prevRules) =>
       prevRules.map((rule) => {
@@ -221,6 +249,71 @@ const PriceSetupForm = ({ data, onUpdate }) => {
     return priceRules.find(
       (r) => r.questionId === questionId && r.packageId === packageId && r.answer === answer && r.optionId === optionId,
     )
+  }
+
+  // Get all rules that belong to this question's table (optionally filtered by packageId and/or optionKey)
+  const getRulesForQuestion = (question, packageId = null, optionKey = null) => {
+    let rules
+    if (question.question_type === "multiple_yes_no" && question.sub_questions?.length) {
+      const subIds = question.sub_questions.map((s) => s.id)
+      rules = priceRules.filter((r) => subIds.includes(r.questionId) && r.answer === "yes")
+      if (optionKey != null) rules = rules.filter((r) => r.questionId === optionKey)
+    } else if (question.question_type === "yes_no") {
+      rules = priceRules.filter((r) => r.questionId === question.id && r.answer === "yes")
+      if (optionKey != null) rules = rules.filter((r) => r.questionId === optionKey)
+    } else if (question.options?.length) {
+      rules = priceRules.filter(
+        (r) => r.questionId === question.id && question.options.some((opt) => opt.id === r.optionId),
+      )
+      if (optionKey != null) rules = rules.filter((r) => r.optionId === optionKey)
+    } else {
+      rules = []
+    }
+    if (packageId) rules = rules.filter((r) => r.packageId === packageId)
+    return rules
+  }
+
+  const handleApplyExtraAmount = (question, packageId, optionKey) => {
+    const extra = getExtraAmount(question.id, packageId, optionKey)
+    if (!extra || (extra.value !== 0 && extra.value !== "0" && !extra.value)) return
+    const rulesToUpdate = getRulesForQuestion(question, packageId, optionKey).filter((r) => isValueEditable(r.priceType))
+    const mode = extra.mode || "percent"
+    const amount = Number(extra.value) || 0
+    if (!rulesToUpdate.length) return
+    const pkg = packages.find((p) => p.id === packageId)
+    const base = pkg?.base_price != null ? Number(pkg.base_price) : 0
+    rulesToUpdate.forEach((rule) => {
+      const currentStored = Number(rule.value) || 0
+      let newValue
+      if (mode === "dollar") {
+        // Add dollar amount directly to the value in the cell: 10 + 10 = 20
+        newValue = currentStored + amount
+      } else {
+        // Add percentage to the value in the cell: 20 + 10% = 20 * (1 + 10/100) = 22
+        newValue = currentStored * (1 + amount / 100)
+      }
+      newValue = Math.max(0, Math.round(newValue * 100) / 100)
+      updatePriceRule(rule.questionId, rule.packageId, "value", newValue, rule.answer, rule.optionId)
+    })
+    setChangedQuestions((prev) => ({ ...prev, [question.id]: true }))
+  }
+
+  const setExtraAmount = (questionId, packageId, optionKey, field, value) => {
+    setExtraAmountByQuestionAndPackageAndOption((prev) => ({
+      ...prev,
+      [questionId]: {
+        ...(prev[questionId] || {}),
+        [packageId]: {
+          ...(prev[questionId]?.[packageId] || {}),
+          [optionKey]: { ...(prev[questionId]?.[packageId]?.[optionKey] || { mode: "percent", value: "" }), [field]: value },
+        },
+      },
+    }))
+  }
+
+  const getExtraAmount = (questionId, packageId, optionKey) => {
+    if (optionKey == null) return { mode: "percent", value: "" }
+    return extraAmountByQuestionAndPackageAndOption[questionId]?.[packageId]?.[optionKey] || { mode: "percent", value: "" }
   }
 
   const handlePopoverOpen = (event, questionId, packageId, answer, optionId) => {
@@ -423,9 +516,9 @@ const PriceSetupForm = ({ data, onUpdate }) => {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Options</TableCell>
+                <TableCell sx={{ width: 140 }}>Options</TableCell>
                 {packages.map((pkg) => (
-                  <TableCell key={pkg.id} align="center">
+                  <TableCell key={pkg.id} align="center" sx={{ width: 180, minWidth: 180 }}>
                     {pkg.name}
                   </TableCell>
                 ))}
@@ -442,101 +535,197 @@ const PriceSetupForm = ({ data, onUpdate }) => {
                   ) // For simple yes_no, treat it as a single item
                     .map((item) => {
                       const currentQuestionId = item.id
-                      const rowLabel = item.sub_question_text || `For: "Yes":` // Use sub_question_text for sub_questions, 'For: "Yes":' for simple yes_no
+                      const rowLabel = item.sub_question_text || `For: "Yes":` // optionKey for this row
+                      const optionKey = item.id
 
                       return (
-                        <TableRow key={currentQuestionId}>
-                          <TableCell>{rowLabel}</TableCell>
-                          {packages.map((pkg) => {
-                            const rule = getPriceRule(currentQuestionId, pkg.id, "yes", undefined)
-                            return (
-                              <TableCell key={pkg.id} align="center">
-                                <Box display="flex" alignItems="center" gap={1}>
-                                  <TextField
-                                    size="small"
-                                    type="number"
-                                    value={isValueEditable(rule?.priceType) ? (rule?.value ?? 0) : ""}
-                                    onChange={(e) => {
-                                      if (!isValueEditable(rule?.priceType)) return
-                                      updatePriceRule(
-                                        currentQuestionId,
-                                        pkg.id,
-                                        "value",
-                                        Number(e.target.value),
-                                        "yes",
-                                        undefined,
-                                      )
-                                    }}
-                                    disabled={!isValueEditable(rule?.priceType)}
-                                    placeholder={!isValueEditable(rule?.priceType) ? "" : undefined}
-                                    sx={{ width: 80 }}
-                                  />
-                                  <IconButton
-                                    size="small"
-                                    onClick={(e) => handlePopoverOpen(e, currentQuestionId, pkg.id, "yes")}
-                                    sx={{
-                                      bgcolor: getPriceTypeColor(rule?.priceType || "ignore"),
-                                      color: "white",
-                                      width: 24,
-                                      height: 24,
-                                    }}
-                                  >
-                                    <Typography fontSize="small">{getPriceTypeIcon(rule?.priceType)}</Typography>
-                                  </IconButton>
-                                </Box>
-                              </TableCell>
-                            )
-                          })}
-                        </TableRow>
+                        <React.Fragment key={currentQuestionId}>
+                          <TableRow>
+                            <TableCell sx={{ verticalAlign: "middle" }}>{rowLabel}</TableCell>
+                            {packages.map((pkg) => {
+                              const rule = getPriceRule(currentQuestionId, pkg.id, "yes", undefined)
+                              return (
+                                <TableCell key={pkg.id} align="center" sx={{ verticalAlign: "middle", width: 180, minWidth: 180 }}>
+                                  <Box display="flex" alignItems="center" justifyContent="center" gap={1}>
+                                    <TextField
+                                      size="small"
+                                      type="number"
+                                      value={isValueEditable(rule?.priceType) ? (rule?.value ?? 0) : ""}
+                                      onChange={(e) => {
+                                        if (!isValueEditable(rule?.priceType)) return
+                                        updatePriceRule(
+                                          currentQuestionId,
+                                          pkg.id,
+                                          "value",
+                                          Number(e.target.value),
+                                          "yes",
+                                          undefined,
+                                        )
+                                      }}
+                                      disabled={!isValueEditable(rule?.priceType)}
+                                      placeholder={!isValueEditable(rule?.priceType) ? "" : undefined}
+                                      sx={{ width: 72, "& .MuiInputBase-input": { textAlign: "center" } }}
+                                    />
+                                    <IconButton
+                                      size="small"
+                                      onClick={(e) => handlePopoverOpen(e, currentQuestionId, pkg.id, "yes")}
+                                      sx={{
+                                        bgcolor: getPriceTypeColor(rule?.priceType || "ignore"),
+                                        color: "white",
+                                        width: 28,
+                                        height: 28,
+                                      }}
+                                    >
+                                      <Typography fontSize="small">{getPriceTypeIcon(rule?.priceType)}</Typography>
+                                    </IconButton>
+                                  </Box>
+                                </TableCell>
+                              )
+                            })}
+                          </TableRow>
+                          <TableRow sx={{ bgcolor: "grey.50" }}>
+                            <TableCell component="th" scope="row" sx={{ fontWeight: 500, fontSize: "0.75rem", py: 0.75, verticalAlign: "middle" }}>
+                              Add to price
+                            </TableCell>
+                            {packages.map((pkg) => {
+                              const extra = getExtraAmount(question.id, pkg.id, optionKey)
+                              const hasEditableRule = getRulesForQuestion(question, pkg.id, optionKey).some((r) => isValueEditable(r.priceType))
+                              return (
+                                <TableCell key={pkg.id} align="center" sx={{ py: 0.75, verticalAlign: "middle", width: 180, minWidth: 180 }}>
+                                  <Box display="flex" alignItems="center" justifyContent="center" gap={0.75} flexWrap="nowrap">
+                                    <FormControl size="small" sx={{ width: 56 }} variant="outlined">
+                                      <Select
+                                        value={extra.mode ?? "percent"}
+                                        onChange={(e) => setExtraAmount(question.id, pkg.id, optionKey, "mode", e.target.value)}
+                                        sx={{ fontSize: "0.75rem", height: 32 }}
+                                        label={null}
+                                      >
+                                        <MenuItem value="dollar" sx={{ fontSize: "0.75rem" }}>$</MenuItem>
+                                        <MenuItem value="percent" sx={{ fontSize: "0.75rem" }}>%</MenuItem>
+                                      </Select>
+                                    </FormControl>
+                                    <TextField
+                                      size="small"
+                                      type="number"
+                                      placeholder="0"
+                                      value={extra.value ?? ""}
+                                      onChange={(e) => setExtraAmount(question.id, pkg.id, optionKey, "value", e.target.value)}
+                                      inputProps={{ min: 0, step: extra.mode === "percent" ? 0.1 : 0.01 }}
+                                      sx={{ width: 64, "& .MuiInputBase-input": { fontSize: "0.75rem", textAlign: "center" }, "& .MuiInputBase-root": { height: 32 } }}
+                                    />
+                                    <Button
+                                      variant="outlined"
+                                      size="small"
+                                      onClick={() => handleApplyExtraAmount(question, pkg.id, optionKey)}
+                                      disabled={!hasEditableRule}
+                                      sx={{ minWidth: 56, height: 32, fontSize: "0.75rem" }}
+                                    >
+                                      Apply
+                                    </Button>
+                                  </Box>
+                                </TableCell>
+                              )
+                            })}
+                          </TableRow>
+                        </React.Fragment>
                       )
                     })
                 : // Handle questions with options (describe, multiple_choice, etc.)
                   question.options && question.options.length > 0
-                  ? question.options.map((option) => (
-                      <TableRow key={option.id}>
-                        <TableCell>{option.option_text}</TableCell>
-                        {packages.map((pkg) => {
-                          const rule = getPriceRule(question.id, pkg.id, undefined, option.id)
-                          return (
-                            <TableCell key={pkg.id} align="center">
-                              <Box display="flex" alignItems="center" gap={1}>
-                                <TextField
-                                  size="small"
-                                  type="number"
-                                  value={isValueEditable(rule?.priceType) ? (rule?.value ?? 0) : ""}
-                                  onChange={(e) => {
-                                    if (!isValueEditable(rule?.priceType)) return
-                                    updatePriceRule(
-                                      question.id,
-                                      pkg.id,
-                                      "value",
-                                      Number(e.target.value),
-                                      undefined,
-                                      option.id,
-                                    )
-                                  }}
-                                  disabled={!isValueEditable(rule?.priceType)}
-                                  placeholder={!isValueEditable(rule?.priceType) ? "" : undefined}
-                                  sx={{ width: 80 }}
-                                />
-                                <IconButton
-                                  size="small"
-                                  onClick={(e) => handlePopoverOpen(e, question.id, pkg.id, undefined, option.id)}
-                                  sx={{
-                                    bgcolor: getPriceTypeColor(rule?.priceType || "ignore"),
-                                    color: "white",
-                                    width: 24,
-                                    height: 24,
-                                  }}
-                                >
-                                  <Typography fontSize="small">{getPriceTypeIcon(rule?.priceType)}</Typography>
-                                </IconButton>
-                              </Box>
+                  ? question.options.map((option) => {
+                      const optionKey = option.id
+                      return (
+                        <React.Fragment key={option.id}>
+                          <TableRow>
+                            <TableCell>{option.option_text}</TableCell>
+                            {packages.map((pkg) => {
+                              const rule = getPriceRule(question.id, pkg.id, undefined, option.id)
+                              return (
+                                <TableCell key={pkg.id} align="center" sx={{ verticalAlign: "middle", width: 180, minWidth: 180 }}>
+                                  <Box display="flex" alignItems="center" justifyContent="center" gap={1}>
+                                    <TextField
+                                      size="small"
+                                      type="number"
+                                      value={isValueEditable(rule?.priceType) ? (rule?.value ?? 0) : ""}
+                                      onChange={(e) => {
+                                        if (!isValueEditable(rule?.priceType)) return
+                                        updatePriceRule(
+                                          question.id,
+                                          pkg.id,
+                                          "value",
+                                          Number(e.target.value),
+                                          undefined,
+                                          option.id,
+                                        )
+                                      }}
+                                      disabled={!isValueEditable(rule?.priceType)}
+                                      placeholder={!isValueEditable(rule?.priceType) ? "" : undefined}
+                                      sx={{ width: 72, "& .MuiInputBase-input": { textAlign: "center" } }}
+                                    />
+                                    <IconButton
+                                      size="small"
+                                      onClick={(e) => handlePopoverOpen(e, question.id, pkg.id, undefined, option.id)}
+                                      sx={{
+                                        bgcolor: getPriceTypeColor(rule?.priceType || "ignore"),
+                                        color: "white",
+                                        width: 28,
+                                        height: 28,
+                                      }}
+                                    >
+                                      <Typography fontSize="small">{getPriceTypeIcon(rule?.priceType)}</Typography>
+                                    </IconButton>
+                                  </Box>
+                                </TableCell>
+                              )
+                            })}
+                          </TableRow>
+                          <TableRow sx={{ bgcolor: "grey.50" }}>
+                            <TableCell component="th" scope="row" sx={{ fontWeight: 500, fontSize: "0.75rem", py: 0.75, verticalAlign: "middle" }}>
+                              Add to price
                             </TableCell>
-                          )
-                        })}
-                      </TableRow>
-                    ))
+                            {packages.map((pkg) => {
+                              const extra = getExtraAmount(question.id, pkg.id, optionKey)
+                              const hasEditableRule = getRulesForQuestion(question, pkg.id, optionKey).some((r) => isValueEditable(r.priceType))
+                              return (
+                                <TableCell key={pkg.id} align="center" sx={{ py: 0.75, verticalAlign: "middle", width: 180, minWidth: 180 }}>
+                                  <Box display="flex" alignItems="center" justifyContent="center" gap={0.75} flexWrap="nowrap">
+                                    <FormControl size="small" sx={{ width: 56 }} variant="outlined">
+                                      <Select
+                                        value={extra.mode ?? "percent"}
+                                        onChange={(e) => setExtraAmount(question.id, pkg.id, optionKey, "mode", e.target.value)}
+                                        sx={{ fontSize: "0.75rem", height: 32 }}
+                                        label={null}
+                                      >
+                                        <MenuItem value="dollar" sx={{ fontSize: "0.75rem" }}>$</MenuItem>
+                                        <MenuItem value="percent" sx={{ fontSize: "0.75rem" }}>%</MenuItem>
+                                      </Select>
+                                    </FormControl>
+                                    <TextField
+                                      size="small"
+                                      type="number"
+                                      placeholder="0"
+                                      value={extra.value ?? ""}
+                                      onChange={(e) => setExtraAmount(question.id, pkg.id, optionKey, "value", e.target.value)}
+                                      inputProps={{ min: 0, step: extra.mode === "percent" ? 0.1 : 0.01 }}
+                                      sx={{ width: 64, "& .MuiInputBase-input": { fontSize: "0.75rem", textAlign: "center" }, "& .MuiInputBase-root": { height: 32 } }}
+                                    />
+                                    <Button
+                                      variant="outlined"
+                                      size="small"
+                                      onClick={() => handleApplyExtraAmount(question, pkg.id, optionKey)}
+                                      disabled={!hasEditableRule}
+                                      sx={{ minWidth: 56, height: 32, fontSize: "0.75rem" }}
+                                    >
+                                      Apply
+                                    </Button>
+                                  </Box>
+                                </TableCell>
+                              )
+                            })}
+                          </TableRow>
+                        </React.Fragment>
+                      )
+                    })
                   : null}
             </TableBody>
           </Table>
@@ -583,6 +772,9 @@ const PriceSetupForm = ({ data, onUpdate }) => {
     <Box>
       <Typography variant="h6" gutterBottom>
         Price Setup
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Set values per option and package. Under &quot;Add to price&quot;: choose $ or %, enter the amount, then Apply. Current price is shown so you add to the right base. Save to update the backend.
       </Typography>
       {topLevelQuestions.map((question) => renderQuestionTable(question))}
       <Popover

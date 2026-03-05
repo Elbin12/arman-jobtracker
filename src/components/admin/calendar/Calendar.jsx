@@ -574,7 +574,7 @@ const calendarStyles = `
   }
 `;
 import { JobCard } from "../jobs/JobCard";
-import { jobsApi, useGetCalendarJobsQuery, useGetJobsQuery, useGetAppointmentsCalendarQuery, useGetEstimateAppointmentsCalendarQuery, useGetJobDetailsQuery, useUpdateAppointmentMutation, useDeleteAppointmentMutation, useUpdateEstimateStatusMutation, useDeleteEstimateMutation } from "../../../store/api/jobsApi";
+import { jobsApi, useGetCalendarJobsQuery, useGetAppointmentsCalendarQuery, useGetEstimateAppointmentsCalendarQuery, useGetJobDetailsQuery, useUpdateAppointmentMutation, useDeleteAppointmentMutation, useUpdateEstimateStatusMutation, useDeleteEstimateMutation } from "../../../store/api/jobsApi";
 import { useSelector, useDispatch } from "react-redux";
 import { EditJobDialog } from "../jobs/EditJobDialog";
 import { TimelineSidebar } from "./TimelineSidebar";
@@ -1000,6 +1000,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
   const [updateEstimateStatus, { isLoading: isUpdatingEstimate }] = useUpdateEstimateStatusMutation();
   const [deleteEstimate, { isLoading: isDeletingEstimate }] = useDeleteEstimateMutation();
   const [events, setEvents] = useState([]);
+  const [rawEvents, setRawEvents] = useState([]); // One event per job (API-shaped) for month/week view
   const [originalEvents, setOriginalEvents] = useState([]); // Store original events for height calculation
   const [selectedJob, setSelectedJob] = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
@@ -1252,18 +1253,8 @@ appointmentsParams.search = filterParams.appointment_search;
   
   const { data: calendarJobs, isLoading, isFetching } = useGetCalendarJobsQuery(calendarJobsParams);
   const { data: appointments, isLoading: isLoadingAppointments, isFetching: isFetchingAppointments } = useGetAppointmentsCalendarQuery(appointmentsParams);
-  const jobs = Array.isArray(calendarJobs) ? calendarJobs : [];
-  // Unique job_ids from occurrences so we fetch full job details (with assignments) only for visible jobs
-  const occurrenceJobIds = useMemo(
-    () => [...new Set(jobs.map((j) => j.job_id ?? j.id).filter(Boolean))].slice(0, 200),
-    [jobs]
-  );
-  const jobIdsParam = occurrenceJobIds.length > 0 ? occurrenceJobIds.join(",") : "";
-  const { data: fullJobsResponse } = useGetJobsQuery(
-    { job_ids: jobIdsParam, ...calendarJobsParams },
-    { skip: selectedCategories.jobs === false || !jobIdsParam }
-  );
-  const fullJobsList = Array.isArray(fullJobsResponse) ? fullJobsResponse : fullJobsResponse?.results ?? [];
+  // Support both array and { results: [...] } from occurrences API — calendar uses only this (includes assigned_user_ids for columns)
+  const jobs = Array.isArray(calendarJobs) ? calendarJobs : (calendarJobs?.results ?? []);
   // Only fetch estimates when the estimates category is enabled (not false)
   const { data: estimates, isLoading: isLoadingEstimates, isFetching: isFetchingEstimates } = useGetEstimateAppointmentsCalendarQuery(estimatesParams, {
     skip: selectedCategories.estimates === false
@@ -1317,6 +1308,12 @@ appointmentsParams.search = filterParams.appointment_search;
     return list;
   }, [users, selectedAssignees, userRole]);
 
+  // Set of valid resource ids (for matching assigned_user_ids from occurrences API to technician columns in daily/week view)
+  const calendarResourceIdsSet = useMemo(
+    () => new Set(calendarResources.map((r) => String(r.id))),
+    [calendarResources]
+  );
+
   // Map any assignee id (user_id, employee id, or email) to our resource id so events land in the right column
   const assigneeIdToResourceId = useMemo(() => {
     const map = new Map();
@@ -1335,9 +1332,11 @@ appointmentsParams.search = filterParams.appointment_search;
     users
       .filter((u) => selectedAssignees[u.user_id] !== false)
       .forEach((u) => {
-        const rid = String(u.user_id ?? u.id);
+        const rid = String(u.user_id ?? u.id ?? u.employee_id ?? "");
+        if (!rid) return;
         map.set(String(u.user_id), rid);
         map.set(String(u.id), rid);
+        if (u.employee_id != null) map.set(String(u.employee_id), rid);
         if (u.email) {
           map.set(String(u.email), rid);
           map.set(String(u.email).toLowerCase(), rid);
@@ -1362,12 +1361,15 @@ appointmentsParams.search = filterParams.appointment_search;
     return map;
   }, [users, selectedAssignees, userRole]);
 
-  // From full jobs (with assignments), map job_id / id -> array of assignee ids so occurrence events show under all assignees
+  // From occurrences (assigned_user_ids + assignments/assignees), map job_id / id -> array of assignee ids for day/week columns
   const jobIdToAssigneeIds = useMemo(() => {
     const map = new Map();
-    fullJobsList.forEach((job) => {
+    jobs.forEach((job) => {
       const assigneeIds = new Set();
-      // All assignments
+      // Occurrences API: assigned_user_ids array
+      (job.assigned_user_ids || []).forEach((id) => {
+        if (id != null) assigneeIds.add(String(id));
+      });
       (job.assignments || []).forEach((a) => {
         const id = a?.user ?? a?.user_id ?? a?.assignee_id;
         if (id != null) assigneeIds.add(String(id));
@@ -1376,7 +1378,6 @@ appointmentsParams.search = filterParams.appointment_search;
         const id = typeof u === "object" && u != null ? u?.user_id ?? u?.id : u;
         if (id != null) assigneeIds.add(String(id));
       });
-      // Legacy single-assignee fields (add if no assignments so unassigned fallback still works)
       const single =
         job.assigned_user_id ?? job.assignee_id ?? job.assigned_to ??
         (typeof job.assignee === "object" && job.assignee != null ? job.assignee?.user_id ?? job.assignee?.id : job.assignee);
@@ -1386,13 +1387,16 @@ appointmentsParams.search = filterParams.appointment_search;
       if (job.id != null) map.set(String(job.id), arr);
     });
     return map;
-  }, [fullJobsList]);
+  }, [jobs]);
 
-  // Collect all assignee IDs from a job (assignments + assigned_users + legacy single fields)
+  // Collect all assignee IDs from a job/occurrence (assigned_user_ids + assignments + legacy fields)
   const getJobAssigneeIds = (job) => {
-    const fromFull = jobIdToAssigneeIds.get(String(job.job_id)) ?? jobIdToAssigneeIds.get(String(job.id));
-    if (fromFull && fromFull.length > 0) return fromFull;
+    const fromMap = jobIdToAssigneeIds.get(String(job.job_id)) ?? jobIdToAssigneeIds.get(String(job.id));
+    if (fromMap && fromMap.length > 0) return fromMap;
     const ids = new Set();
+    (job.assigned_user_ids || []).forEach((id) => {
+      if (id != null) ids.add(String(id));
+    });
     (job.assignments || []).forEach((a) => {
       const id = a?.user ?? a?.user_id ?? a?.assignee_id;
       if (id != null) ids.add(String(id));
@@ -1414,19 +1418,36 @@ appointmentsParams.search = filterParams.appointment_search;
     const showAppointments = selectedCategories.appointments !== false;
     const showEstimates = selectedCategories.estimates !== false;
 
-    // Transform jobs to events (only if jobs category is enabled)
-    // Worker: one event per job (assigned to me), single column. Else: one event per assignee so job shows under all technicians.
-    const jobEvents = showJobs
+    // Raw: one event per job (API-shaped, no expansion) for month/week view.
+    const jobEventsRaw = showJobs
       ? jobs
-          .filter((job) => {
-            if (!job.scheduled_at) return false;
-            if (userRole === "worker") {
-              const assigneeIds = getJobAssigneeIds(job);
-              return assigneeIds.some((rawId) => assigneeIdToResourceId.get(String(rawId)) === "schedule");
-            }
-            return true;
+          .filter((job) => job.scheduled_at)
+          .map((job) => {
+            const jobId = job.job_id ?? job.id;
+            const m = moment.utc(job.scheduled_at);
+            const startDate = new Date(m.year(), m.month(), m.date(), m.hour(), m.minute(), m.second());
+            const duration = parseFloat(job.duration_hours) || 2;
+            const endDate = new Date(m.year(), m.month(), m.date(), m.hour() + duration, m.minute(), m.second());
+            const timeStr = m.minute() === 0 ? m.format("h A") : m.format("h:mm A");
+            const displayName = getDisplayName(job, job.customer_name, "Customer");
+            const resourceId = userRole === "worker" ? "schedule" : "unassigned";
+            return {
+              id: jobId,
+              title: `${timeStr} ${displayName}`,
+              start: startDate,
+              end: endDate,
+              resourceId,
+              resource: { ...job, id: jobId },
+              type: "job",
+            };
           })
-          .flatMap((job) => {
+      : [];
+
+    // Expanded: one event per assignee for day view (job appears in each technician column).
+    const jobEvents = showJobs
+      ? jobs.flatMap((job) => {
+            if (!job.scheduled_at) return [];
+            const jobId = job.job_id ?? job.id;
             const m = moment.utc(job.scheduled_at);
             const startDate = new Date(m.year(), m.month(), m.date(), m.hour(), m.minute(), m.second());
             const duration = parseFloat(job.duration_hours) || 2;
@@ -1436,28 +1457,34 @@ appointmentsParams.search = filterParams.appointment_search;
 
             if (userRole === "worker") {
               return [{
-                id: job.job_id,
+                id: jobId,
                 title: `${timeStr} ${displayName}`,
                 start: startDate,
                 end: endDate,
                 resourceId: "schedule",
-                resource: { ...job, id: job.job_id },
+                resource: { ...job, id: jobId },
                 type: "job",
               }];
             }
 
             const assigneeIds = getJobAssigneeIds(job);
             const resourceIds = assigneeIds.length > 0
-              ? [...new Set(assigneeIds.map((rawId) => assigneeIdToResourceId.get(String(rawId)) ?? "unassigned").filter(Boolean))]
+              ? [...new Set(assigneeIds.map((rawId) => {
+                  const str = String(rawId);
+                  const rid = assigneeIdToResourceId.get(str);
+                  if (rid && rid !== "unassigned") return rid;
+                  if (calendarResourceIdsSet.has(str)) return str;
+                  return "unassigned";
+                }).filter(Boolean))]
               : ["unassigned"];
 
             return resourceIds.map((resourceId, index) => ({
-              id: resourceIds.length === 1 ? job.job_id : `${job.job_id}-${resourceId}-${index}`,
+              id: resourceIds.length === 1 ? jobId : `${jobId}-${resourceId}-${index}`,
               title: `${timeStr} ${displayName}`,
               start: startDate,
               end: endDate,
               resourceId,
-              resource: { ...job, id: job.job_id },
+              resource: { ...job, id: jobId },
               type: "job",
             }));
           })
@@ -1541,29 +1568,19 @@ appointmentsParams.search = filterParams.appointment_search;
       : [];
     const estimateEvents = userRole === "worker" ? estimateEventsRaw.filter((ev) => ev.resourceId === "schedule") : estimateEventsRaw;
 
-    // Merge all events
     const allEvents = [...jobEvents, ...appointmentEvents, ...estimateEvents];
-    
-    // Store original events for height calculation
-    setOriginalEvents(allEvents);
-    
-    // Show all events - no limiting, height will adjust dynamically
-    setEvents(allEvents);
-  }, [jobs, appointmentsList, estimatesList, accountTimezone, selectedCategories, assigneeIdToResourceId, jobIdToAssigneeIds, userRole]);
+    const allRawEvents = [...jobEventsRaw, ...appointmentEvents, ...estimateEvents];
 
-  // In month view: one event per job (deduplicate by job id). In day/week: one event per technician (keep duplicates).
-  const displayEvents = useMemo(() => {
-    if (view !== "month") return events;
-    const seenJobIds = new Set();
-    return events.filter((ev) => {
-      if (ev.type !== "job") return true;
-      const jobId = ev.resource?.id ?? ev.resource?.job_id;
-      if (jobId == null) return true;
-      if (seenJobIds.has(String(jobId))) return false;
-      seenJobIds.add(String(jobId));
-      return true;
-    });
-  }, [events, view]);
+    setOriginalEvents(allEvents);
+    setRawEvents(allRawEvents);
+    setEvents(allEvents);
+  }, [jobs, view, currentDate, appointmentsList, estimatesList, accountTimezone, selectedCategories, assigneeIdToResourceId, jobIdToAssigneeIds, calendarResourceIdsSet, userRole]);
+
+  // Day view: expanded events (one per technician). Month/week: raw events (one per job, API-shaped).
+  const displayEvents = useMemo(
+    () => (view === "day" ? events : rawEvents),
+    [view, events, rawEvents]
+  );
 
   // FullCalendar event format (id, title, start, end, extendedProps, editable)
   const fcEvents = useMemo(
@@ -1649,14 +1666,14 @@ appointmentsParams.search = filterParams.appointment_search;
     return bySunday;
   }, [jobs, showJobs]);
 
-  // Dynamically set month row height so all events fit (month view uses deduplicated job events)
+  // Dynamically set month row height so all events fit
   useEffect(() => {
     if (view !== "month") return;
 
     const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999);
 
-    // Count actual events per day; in month view use displayEvents (one job per event)
+    // Count actual events per day for row height
     const eventsToCount = displayEvents;
     const counts = {};
     eventsToCount.forEach((ev) => {
@@ -1793,7 +1810,7 @@ appointmentsParams.search = filterParams.appointment_search;
             label = `Week: ${formatPrice(weekTotal)}`;
           } else {
             const dayTotal = dailyTotals[dateKey] || 0;
-            const eventsForDay = view === "month" ? displayEvents : events;
+            const eventsForDay = (view === "month" || view === "week") ? displayEvents : events;
             const hasJobEvents = eventsForDay.some(event => {
               if (event.type !== 'job') return false;
               const eventDate = event.start;
@@ -3158,7 +3175,7 @@ appointmentsParams.search = filterParams.appointment_search;
                         label = `Week: ${formatPrice(weekTotal)}`;
                       } else {
                         const dayTotal = dailyTotals[dateKey] || 0;
-                        const eventsForDay = view === "month" ? displayEvents : events;
+                        const eventsForDay = (view === "month" || view === "week") ? displayEvents : events;
                         const hasJobEvents = eventsForDay.some((ev) => {
                           if (ev.type !== "job") return false;
                           const ed = new Date(ev.start);
@@ -3174,7 +3191,7 @@ appointmentsParams.search = filterParams.appointment_search;
                       }
                       if (!showJobs) return;
                       if (!isSunday && amount <= 0) return;
-                      const eventsForCell = view === "month" ? displayEvents : events;
+                      const eventsForCell = (view === "month" || view === "week") ? displayEvents : events;
                       const hasJobEventsInCell = !isSunday && eventsForCell.some((ev) => {
                         if (ev.type !== "job") return false;
                         const ed = new Date(ev.start);

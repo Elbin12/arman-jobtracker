@@ -727,20 +727,8 @@ export const AdminDashboard = () => {
                     contentStyle={{ fontSize: 13, padding: '10px 14px' }}
                     itemStyle={{ padding: '4px 0' }}
                   />
-                  <Legend
-                    layout="vertical"
-                    align="center"
-                    verticalAlign="bottom"
-                    wrapperStyle={{ fontSize: 13, paddingTop: 12 }}
-                    iconSize={14}
-                    iconType="circle"
-                    formatter={(value, entry) => (
-                      <span style={{ marginLeft: 6 }}>{value}</span>
-                    )}
-                  />
                 </PieChart>
               </ResponsiveContainer>
-              {/* Readable list: full names and values */}
               <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
                 <Typography variant="caption" color="text.secondary" fontWeight="600" display="block" sx={{ mb: 1 }}>
                   By status

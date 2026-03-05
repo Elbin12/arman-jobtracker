@@ -20,6 +20,7 @@ const JOB_STATUS_CHOICES = [
   { value: 'service_due', label: 'Service Due' },
   { value: 'on_the_way', label: 'On The Way' },
   { value: 'in_progress', label: 'In Progress' },
+  { value: 'onhold', label: 'On Hold' },
   { value: 'completed', label: 'Completed' },
   { value: 'cancelled', label: 'Cancelled' },
 ];
@@ -801,6 +802,10 @@ export function TimelineSidebar({
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: "#3b82f6" }}></div>
                     <span className="text-xs text-gray-600">In Progress</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: "#8b5cf6" }}></div>
+                    <span className="text-xs text-gray-600">On Hold</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: "#10b981" }}></div>

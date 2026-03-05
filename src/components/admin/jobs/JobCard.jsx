@@ -81,6 +81,7 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
       confirmed: "#06b6d4",
       on_the_way: "#f97316",
       in_progress: "#3b82f6",
+      onhold: "#8b5cf6",
       completed: "#10b981",
       cancelled: "#ef4444",
       service_due: "#a855f7",
@@ -119,26 +120,24 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
   // Normalize name to Title Case
   const toTitleCase = (str) => {
     if (!str) return ""
-    return str.toLowerCase().split(' ').map(word => 
+    return str.toLowerCase().split(' ').map(word =>
       word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' ')
+  }
+
+  // Treat N/A, n.a., empty as no business name so we don't show "Business Name N/a"
+  const hasValidCompanyName = (name) => {
+    if (name == null || typeof name !== "string") return false
+    const t = name.trim()
+    if (!t) return false
+    const lower = t.toLowerCase()
+    if (lower === "n/a" || lower === "na" || lower === "n.a." || lower === "n.a" || lower === "none") return false
+    return true
   }
 
   const handleStatusChange = (newStatus) => {
     // Don't proceed if status hasn't actually changed
     if (newStatus === job?.status) {
-      return
-    }
-
-    // Validation: Prevent changing from pending to confirmed if slot is reserved
-    if (job?.status === "pending" && newStatus === "confirmed" && job?.slot_reserved_info?.slot_reserved === true) {
-      toast({
-        title: "Cannot Change Status",
-        description: "This slot is reserved. You cannot change the status from Pending to Confirmed.",
-        variant: "destructive",
-      })
-      // Reset display status to current job status
-      setDisplayStatus(job?.status)
       return
     }
 
@@ -328,8 +327,8 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
               >
                 {job.title || "Untitled Job"}
               </Typography>
-              {/* Company Name - Highlighted if exists */}
-              {job.contact_details?.company_name ? (
+              {/* Company Name - Highlighted if exists (hide when value is N/A or empty) */}
+              {hasValidCompanyName(job.contact_details?.company_name) ? (
                 <>
                   <Box sx={{ mb: 0.5 }}>
                     <Typography 
@@ -409,7 +408,7 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                   )}
                 </>
               ) : (
-                /* Fallback to customer_name if no company_name */
+                /* Fallback to customer_name when no valid company_name */
                 job.customer_name && job.ghl_contact_id ? (
                   <Typography 
                     component="a"
@@ -531,8 +530,8 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                 Contact
               </Typography>
               
-              {/* Company Name - Highlighted if exists */}
-              {job.contact_details?.company_name ? (
+              {/* Company Name - only if valid (hide when N/A or empty) */}
+              {hasValidCompanyName(job.contact_details?.company_name) ? (
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     <User size={16} style={{ color: 'rgba(0, 0, 0, 0.54)', flexShrink: 0 }} />
@@ -609,7 +608,7 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                   )}
                 </Box>
               ) : (
-                /* Fallback to customer_name if no company_name */
+                /* Fallback to customer_name when no valid company_name */
                 job.customer_name && (
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     <User size={16} style={{ color: 'rgba(0, 0, 0, 0.54)', flexShrink: 0 }} />
@@ -1122,13 +1121,13 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem 
                   value="confirmed"
-                  disabled={job?.status === "pending" && job?.slot_reserved_info?.slot_reserved === true}
                 >
                   Confirmed
                 </SelectItem>
                 <SelectItem value="service_due">Service Due</SelectItem>
                 <SelectItem value="on_the_way">On The Way</SelectItem>
                 <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="onhold">On Hold</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>

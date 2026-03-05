@@ -4,9 +4,10 @@ import { Button } from "../../../ui/button";
 import { Input } from "../../../ui/input";
 import { Label } from "../../../ui/label";
 import { Alert, AlertDescription } from "../../../ui/alert";
-import { Check, X, Plus, Trash2, Edit3, Save } from 'lucide-react';
+import { Check, X, Plus, Trash2, Edit3, Save, GripVertical } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useCreatePackageMutation, useDeletePackageMutation, useUpdatePackageMutation } from '../../../../store/api/packagesApi';
-import { useCreateFeatureMutation, useDeleteFeatureMutation, useUpdateFeatureStatusMutation } from '../../../../store/api/featuresApi';
+import { useCreateFeatureMutation, useDeleteFeatureMutation, useUpdateFeatureMutation, useUpdateFeatureStatusMutation } from '../../../../store/api/featuresApi';
 import { useCreatePackageFeatureMutation, useUpdatePackageFeatureMutation } from '../../../../store/api/packageFeaturesApi';
 import { servicesApi, useGetServiceByIdQuery } from '../../../../store/api/servicesApi';
 import { useDispatch } from 'react-redux';
@@ -75,6 +76,7 @@ const PackageManagementForm = ({
   const [createPackage] = useCreatePackageMutation();
   const [createFeature] = useCreateFeatureMutation();
   const [deleteFeature] = useDeleteFeatureMutation();
+  const [updateFeature] = useUpdateFeatureMutation();
   const [updateFeatureStatus] = useUpdatePackageFeatureMutation();
   const [deletePackage] = useDeletePackageMutation();
   const [updatePackage] = useUpdatePackageMutation();
@@ -291,6 +293,48 @@ const PackageManagementForm = ({
     return pkg?.features?.find(f => f.feature === featureId)?.is_included
   };
 
+  const handleDragEnd = async (result) => {
+    if (!result.destination) return;
+    const sourceIndex = result.source.index;
+    const destinationIndex = result.destination.index;
+    if (sourceIndex === destinationIndex) return;
+
+    if (result.source.droppableId === 'packages') {
+      const reordered = Array.from(packages);
+      const [moved] = reordered.splice(sourceIndex, 1);
+      reordered.splice(destinationIndex, 0, moved);
+      setPackages(reordered);
+      onUpdate({ packages: reordered });
+      try {
+        const updatePromises = reordered.map((pkg, index) =>
+          updatePackage({ id: pkg.id, order: index + 1 }).unwrap().catch(() => null)
+        );
+        await Promise.all(updatePromises);
+      } catch {
+        setPackages(packages);
+        onUpdate({ packages });
+      }
+      return;
+    }
+
+    if (result.source.droppableId === 'features') {
+      const reordered = Array.from(features);
+      const [moved] = reordered.splice(sourceIndex, 1);
+      reordered.splice(destinationIndex, 0, moved);
+      setFeatures(reordered);
+      onUpdate({ features: reordered });
+      try {
+        const updatePromises = reordered.map((feat, index) =>
+          updateFeature({ id: feat.id, order: index + 1, service: feat.service }).unwrap().catch(() => null)
+        );
+        await Promise.all(updatePromises);
+      } catch {
+        setFeatures(features);
+        onUpdate({ features });
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -336,16 +380,41 @@ const PackageManagementForm = ({
         <Card>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
+              <DragDropContext onDragEnd={handleDragEnd}>
               <table className="w-full">
                 <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="text-left p-4 font-medium">
-                      {/* Empty header for features column */}
-                    </th>
-                    {packages.map((pkg, index) => (
-                      <th key={pkg.id} className="text-center p-4 min-w-[120px]">
-                        <div className="space-y-1">
-                          <div className="text-xs text-muted-foreground">Package {index + 1}</div>
+                  <Droppable droppableId="packages" direction="horizontal">
+                    {(provided) => (
+                      <tr
+                        className="border-b bg-muted/50"
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                      >
+                        <th className="text-left p-4 font-medium w-10">
+                          {/* Drag handle column */}
+                        </th>
+                        <th className="text-left p-4 font-medium">
+                          {/* Features column */}
+                        </th>
+                        {packages.map((pkg, index) => (
+                          <Draggable key={pkg.id} draggableId={`pkg-${pkg.id}`} index={index}>
+                            {(provided, snapshot) => (
+                              <th
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                className={`text-center p-4 min-w-[120px] ${snapshot.isDragging ? 'bg-muted' : ''}`}
+                              >
+                                <div className="space-y-1">
+                                  <div className="flex items-center justify-center gap-1">
+                                    <span
+                                      {...provided.dragHandleProps}
+                                      className="cursor-grab active:cursor-grabbing text-muted-foreground p-0.5"
+                                      aria-label="Drag to reorder"
+                                    >
+                                      <GripVertical className="h-4 w-4" />
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">Package {index + 1}</span>
+                                  </div>
                           
                           {/* Package Name with Edit */}
                           <div className="flex items-center justify-center gap-1">
@@ -453,16 +522,34 @@ const PackageManagementForm = ({
                             <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
-                      </th>
-                    ))}
-                    <th className="p-4 w-8">
-                      {/* Empty header for actions */}
-                    </th>
-                  </tr>
+                              </th>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                        <th className="p-4 w-8">
+                          {/* Empty header for actions */}
+                        </th>
+                      </tr>
+                    )}
+                  </Droppable>
                 </thead>
-                <tbody>
-                  {features.map((feature) => (
-                    <tr key={feature.id} className="border-b">
+                <Droppable droppableId="features" component="tbody">
+                  {(provided) => (
+                    <tbody ref={provided.innerRef} {...provided.droppableProps}>
+                  {features.map((feature, index) => (
+                    <Draggable key={feature.id} draggableId={`feat-${feature.id}`} index={index}>
+                      {(provided, snapshot) => (
+                    <tr
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      className={`border-b ${snapshot.isDragging ? 'bg-muted' : ''}`}
+                    >
+                      <td className="p-4 w-10" {...provided.dragHandleProps}>
+                        <span className="cursor-grab active:cursor-grabbing text-muted-foreground inline-flex" aria-label="Drag to reorder">
+                          <GripVertical className="h-4 w-4" />
+                        </span>
+                      </td>
                       <td className="p-4 flex items-center justify-between">
                         <span className="font-medium">{feature.name}</span>
                         <Button
@@ -506,10 +593,14 @@ const PackageManagementForm = ({
                       ))}
                       <td className="p-4"></td>
                     </tr>
+                      )}
+                    </Draggable>
                   ))}
+                  {provided.placeholder}
                   
                   {/* Add Feature Row */}
                   <tr className="border-b bg-muted/25">
+                    <td className="p-4 w-10"></td>
                     <td className="p-4">
                       <div className="flex items-center gap-2">
                         <Input
@@ -543,13 +634,16 @@ const PackageManagementForm = ({
                   
                   {features.length === 0 && (
                     <tr>
-                      <td colSpan={packages.length + 2} className="p-8 text-center text-muted-foreground">
+                      <td colSpan={packages.length + 3} className="p-8 text-center text-muted-foreground">
                         No features created yet. Add features using the input above.
                       </td>
                     </tr>
                   )}
                 </tbody>
+                  )}
+                </Droppable>
               </table>
+              </DragDropContext>
             </div>
           </CardContent>
         </Card>

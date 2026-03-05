@@ -27,6 +27,7 @@ const STATUS_CHOICES = [
   { value: 'service_due', label: 'Service Due' },
   { value: 'on_the_way', label: 'On The Way' },
   { value: 'in_progress', label: 'In Progress' },
+  { value: 'onhold', label: 'On Hold' },
   { value: 'completed', label: 'Completed' },
   { value: 'cancelled', label: 'Cancelled' },
 ]

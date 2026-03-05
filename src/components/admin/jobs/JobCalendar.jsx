@@ -96,6 +96,7 @@ export function JobCalendar({ jobs = [], statusFilter = "all", assigneeFilter = 
       confirmed: "#06b6d4",
       on_the_way: "#f97316",
       in_progress: "#3b82f6",
+      onhold: "#8b5cf6",
       completed: "#10b981",
       cancelled: "#ef4444",
       service_due: "#a855f7",

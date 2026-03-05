@@ -25,7 +25,7 @@ export const featuresApi = createApi({
     updateFeature: builder.mutation({
       query: ({ id, ...featureData }) => ({
         url: `${id}/`,
-        method: 'PUT',
+        method: 'PATCH',
         data: featureData,
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'Feature', id }],

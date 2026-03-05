@@ -860,6 +860,7 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
                   <MenuItem value="service_due">Service Due</MenuItem>
                   <MenuItem value="on_the_way">On The Way</MenuItem>
                   <MenuItem value="in_progress">In Progress</MenuItem>
+                  <MenuItem value="onhold">On Hold</MenuItem>
                   <MenuItem value="completed">Completed</MenuItem>
                   <MenuItem value="cancelled">Cancelled</MenuItem>
                 </Select>
