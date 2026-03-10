@@ -45,7 +45,7 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
   const [jobServices, setJobServices] = useState([]);
   const customServiceSectionRef = useRef(null);
 
-  const { data: employeesData, isLoading: employeesLoading } = useGetEmployeesQuery({ pay_scale_type: 'project', is_active: true });
+  const { data: employeesData, isLoading: employeesLoading } = useGetEmployeesQuery({ pay_scale_type: 'project' });
   const { data: servicesData, isLoading: servicesLoading } = useGetServicesQuery(1);
 
   const employees = employeesData?.results || [];
