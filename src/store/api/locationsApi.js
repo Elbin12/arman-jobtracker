@@ -28,7 +28,9 @@ export const locationsApi = createApi({
         method: 'PUT',
         data: locationData,
       }),
-      invalidatesTags: (result, error, { id }) => [{ type: 'Location', id }],
+      // invalidate the specific location and the general list tag so
+      // getLocations will refetch automatically when an item is edited
+      invalidatesTags: (result, error, { id }) => [{ type: 'Location', id }, 'Location'],
     }),
     deleteLocation: builder.mutation({
       query: (id) => ({

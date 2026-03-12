@@ -319,6 +319,32 @@
           )}
 
           <TextField
+            select
+            fullWidth
+            label="Select Location"
+            value={data.userInfo?.locationId || ""}
+            onChange={(e) =>
+              onUpdate({
+                userInfo: {
+                  ...data.userInfo,
+                  locationId: e.target.value || null,
+                },
+              })
+            }
+            disabled={isLoading || !locations?.length}
+            helperText={isLoading ? "Loading locations..." : !locations?.length ? "No locations available" : ""}
+          >
+            <MenuItem value="">
+              <em>Select a location</em>
+            </MenuItem>
+            {locations?.map((loc) => (
+              <MenuItem key={loc.id} value={loc.id}>
+                {loc.address || loc.name || loc.id}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <TextField
             fullWidth
             label="Select House Size"
             value={data.userInfo?.selectedHouseSize || ''}

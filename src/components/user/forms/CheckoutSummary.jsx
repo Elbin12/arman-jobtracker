@@ -163,11 +163,9 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
 
     const totalSelectedPrice = calculateTotalSelectedPrice(selectedPackages, quoteData);
     const customProductsTotal = calculateCustomProductsTotal(customProducts.filter((p)=>p.is_active===true));
-    const surchargeAmount = quoteData.quote_surcharge_applicable
-      ? parseFloat(quoteData.location_details?.trip_surcharge || 0)
-      : 0;
+    const surcharge = quoteData.total_surcharges ? parseFloat(quoteData.total_surcharges) : 0;
 
-    const total = totalSelectedPrice + customProductsTotal + surchargeAmount;
+    const total = totalSelectedPrice + customProductsTotal + surcharge;
     const globalBase = parseFloat(globalPriceData?.base_price || 0);
 
     // ✅ Check if all services have a package selected
@@ -191,11 +189,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
     }
   }, [selectedPackages, customProducts, quoteData, globalPriceData]);
 
-  const surchargeAmount = quoteData
-    ? (quoteData.quote_surcharge_applicable
-        ? parseFloat(quoteData.location_details?.trip_surcharge || 0)
-        : 0)
-    : 0;
+  const surchargeAmount = quoteData?.total_surcharges
 
 
   // Expand all services by default

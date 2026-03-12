@@ -24,6 +24,7 @@ import HouseSizeInfo from './components/admin/HouseSizeInfo.jsx';
 import { PersistGate } from 'redux-persist/integration/react';
 import TermsAndConditions from './pages/user/TermsAndConditions.jsx';
 import Jobs from './pages/admin/Jobs.jsx';
+import JobsMap from './pages/admin/JobsMap.jsx';
 import AdminCalendar from './pages/admin/AdminCalendar.jsx';
 import TeamManagement from './pages/admin/TeamManagement.jsx';
 import AcceptedQuotes from './pages/admin/AcceptedQuotes.jsx';
@@ -115,6 +116,11 @@ function App() {
                       </RoleProtectedRoute>
                     } />
                     <Route path="jobs" element={<Jobs />} />
+                    <Route path="map" element={
+                        <RoleProtectedRoute allowedRoles={['admin', 'manager', 'supervisor']}>
+                          <JobsMap />
+                        </RoleProtectedRoute>
+                    } />
                     {/* <Route path="jobs/:id" element={<JobDetails />} /> */}
                     <Route path="accepted-quotes" element={
                         <RoleProtectedRoute allowedRoles={['manager', 'supervisor']}>

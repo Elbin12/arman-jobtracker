@@ -32,6 +32,7 @@ import {
   WorkOutline,
   Event,
   Group,
+  Map as MapIcon,
   ReceiptLong,
   PauseCircleOutline,
   AddCircleOutline,
@@ -59,6 +60,7 @@ const getNavItemsByRole = (role, fullAccessRoles, user_profile) => {
   const adminItems = [
     // { text: "Dashboard", path: "/admin/dashboard", icon: DashboardIcon, roles: ["admin", "supervisor"] },
     { text: "Jobs", path: "/admin/jobs", icon: WorkOutline, roles: ["admin", "supervisor"] },
+    { text: "Map", path: "/admin/map", icon: MapIcon, roles: ["admin", "supervisor"] },
     { text: "Quotes", path: "/admin/accepted-quotes", icon: ReceiptLong, roles: ["admin", "supervisor"] },
     { text: "On Hold Jobs", path: "/admin/on-hold-jobs", icon: PauseCircleOutline, roles: ["admin", "supervisor"] },
     { text: "Team", path: "/admin/team", icon: Group, roles: ["admin", "supervisor"] },

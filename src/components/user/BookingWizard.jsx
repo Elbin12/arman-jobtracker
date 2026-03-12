@@ -41,7 +41,8 @@ const initialBookingData = {
     googlePlaceId: "",
     contactId: null,
     selectedLocation: null,
-    selectedHouseSize: null
+    selectedHouseSize: null,
+    locationId: null
   },
   selectedServices: [],
   selectedService: null,
@@ -79,7 +80,7 @@ export const BookingWizard = () => {
     const saved = '';
     return saved ? JSON.parse(saved) : {
       submission_id: null,
-      userInfo: { firstName: "", phone: "", email: "", address: "", latitude: "", longitude: "", googlePlaceId: "", contactId: null, selectedLocation: null, selectedHouseSize: null },
+      userInfo: { firstName: "", phone: "", email: "", address: "", latitude: "", longitude: "", googlePlaceId: "", contactId: null, selectedLocation: null, selectedHouseSize: null, locationId: null },
       selectedServices: [],
       selectedService: null,
       selectedPackage: null,
@@ -108,6 +109,7 @@ export const BookingWizard = () => {
         googlePlaceId: submissionData.google_place_id || "",
         contactId: submissionData?.contact?.id,
         selectedLocation: submissionData.location || null,
+        locationId: submissionData.location?.id ?? submissionData.location ?? null,
         selectedHouseSize: submissionData.house_sqft || null,
         contact: submissionData?.contact,
         addressId: submissionData?.address?.id,
@@ -361,6 +363,7 @@ export const BookingWizard = () => {
         contact:contactId,
         address:addressId,
         house_sqft: bookingData.userInfo?.selectedHouseSize,
+        location: bookingData.userInfo?.locationId || undefined,
         first_time: bookingData.userInfo?.first_time? bookingData.userInfo?.first_time: false,
         quoted_by: (() => {
           // Ensure quoted_by is always sent as a number (employee ID)
@@ -536,7 +539,8 @@ export const BookingWizard = () => {
         googlePlaceId: "",
         contactId: null,
         selectedLocation: null,
-        selectedHouseSize: null
+        selectedHouseSize: null,
+        locationId: null
       },
       selectedServices: [],
       selectedService: null,

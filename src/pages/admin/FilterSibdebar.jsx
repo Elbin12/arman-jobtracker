@@ -13,7 +13,8 @@ import {
   Divider,
   Chip,
   InputAdornment,
-  OutlinedInput,
+  Checkbox,
+  FormControlLabel,
 } from "@mui/material"
 import {
   Close as CloseIcon,
@@ -37,47 +38,93 @@ const JOB_TYPE_CHOICES = [
   { value: 'recurring', label: 'Recurring' },
 ]
 
+const ESTIMATE_STATUS_CHOICES = [
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'on_my_way', label: 'On My Way' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'quoted', label: 'Quoted' },
+  { value: 'canceled', label: 'Canceled' },
+  { value: 'accepted', label: 'Accepted' },
+  { value: 'declined', label: 'Declined' },
+  { value: 'expired', label: 'Expired' },
+]
+
 export function FilterSidebar({ 
   open, 
   onClose, 
   onApplyFilters,
   assignees = [],
   initialFilters = {},
-  userRole = "worker"
+  userRole = "worker",
+  mode = "jobs", // "jobs" = Jobs page only, "map" = Jobs + Estimates like calendar
+  selectedCategories = {},
+  onCategoryToggle,
 }) {
-  // Helper function to parse assignee_ids from string format "[1,2,3]" to array
+  // Parse assignee_ids from API format "[34,56]" or array -> array of user_id (number).
+  // API expects user_id (integer), not UUID id.
   const parseAssigneeIds = (assigneeIds) => {
     if (Array.isArray(assigneeIds)) {
-      return assigneeIds;
+      return assigneeIds.map((id) => (typeof id === 'number' ? id : parseInt(String(id), 10))).filter((id) => !isNaN(id));
     }
     if (typeof assigneeIds === 'string') {
       const cleaned = assigneeIds.replace(/[\[\]]/g, '');
-      return cleaned 
-        ? cleaned.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id))
+      return cleaned
+        ? cleaned.split(',').map((id) => parseInt(id.trim(), 10)).filter((id) => !isNaN(id))
         : [];
     }
     return [];
   };
 
-  const [filters, setFilters] = useState({
-    search: '',
-    status: '',
-    job_type: '',
-    assignee_ids: parseAssigneeIds(initialFilters.assignee_ids || []),
-    ...initialFilters,
-    assignee_ids: parseAssigneeIds(initialFilters.assignee_ids || [])
+  const isMapMode = mode === "map";
+
+  const [filters, setFilters] = useState(() => {
+    const base = {
+      search: '',
+      status: '',
+      job_status: initialFilters.job_status || '',
+      estimate_status: initialFilters.estimate_status || '',
+      job_type: '',
+      assignee_ids: parseAssigneeIds(initialFilters.assignee_ids || []),
+    };
+    if (isMapMode) {
+      return {
+        ...base,
+        job_search: initialFilters.job_search || initialFilters.search || '',
+        estimate_search: initialFilters.estimate_search || '',
+      };
+    }
+    return {
+      ...base,
+      search: initialFilters.search || '',
+    };
   })
 
   useEffect(() => {
     if (open && initialFilters) {
-      setFilters({
-        search: initialFilters.search || '',
+      const base = {
         status: initialFilters.status || '',
+        job_status: initialFilters.job_status || '',
+        estimate_status: initialFilters.estimate_status || '',
         job_type: initialFilters.job_type || '',
-        assignee_ids: parseAssigneeIds(initialFilters.assignee_ids || [])
-      })
+        assignee_ids: parseAssigneeIds(initialFilters.assignee_ids || []),
+      };
+      if (isMapMode) {
+        setFilters({
+          ...base,
+          search: '',
+          job_search: initialFilters.job_search || initialFilters.search || '',
+          estimate_search: initialFilters.estimate_search || '',
+        });
+      } else {
+        setFilters({
+          ...base,
+          search: initialFilters.search || '',
+          job_search: '',
+          estimate_search: '',
+        });
+      }
     }
-  }, [open, initialFilters])
+  }, [open, initialFilters, isMapMode])
 
   const handleFilterChange = (field, value) => {
     setFilters(prev => ({
@@ -87,37 +134,55 @@ export function FilterSidebar({
   }
 
   const handleApply = () => {
-    // Build query params object
-    const params = {}
-    
-    if (filters.search) params.search = filters.search
-    if (filters.status) params.status = filters.status
-    if (filters.job_type) params.job_type = filters.job_type
-    // Only include assignee_ids for non-worker roles
-    if (userRole !== "worker" && filters.assignee_ids.length > 0) {
-        params.assignee_ids = `[${filters.assignee_ids.join(',')}]`;
+    const params = {};
+    if (isMapMode) {
+      if (filters.job_search) params.job_search = filters.job_search;
+      if (filters.job_status) params.job_status = filters.job_status;
+      if (filters.estimate_search) params.estimate_search = filters.estimate_search;
+      if (filters.estimate_status) params.estimate_status = filters.estimate_status;
+      if (filters.job_type) params.job_type = filters.job_type;
+    } else {
+      if (filters.search) params.search = filters.search;
+      if (filters.status) params.status = filters.status;
+      if (filters.job_type) params.job_type = filters.job_type;
     }
-    
-    onApplyFilters(params)
-    onClose()
-  }
+    if (userRole !== "worker" && filters.assignee_ids.length > 0) {
+      params.assignee_ids = `[${filters.assignee_ids.join(",")}]`;
+    }
+    onApplyFilters(params);
+    onClose();
+  };
 
   const handleClear = () => {
     const clearedFilters = {
-      search: '',
-      status: '',
-      job_type: '',
-      assignee_ids: []
+      search: "",
+      status: "",
+      job_status: "",
+      estimate_status: "",
+      job_type: "",
+      job_search: "",
+      estimate_search: "",
+      assignee_ids: [],
+    };
+    setFilters(clearedFilters);
+    onApplyFilters({});
+    if (isMapMode && onCategoryToggle) {
+      onCategoryToggle("jobs", true);
+      onCategoryToggle("estimates", true);
     }
-    setFilters(clearedFilters)
-    onApplyFilters({})
-  }
+  };
 
-  const activeFilterCount = 
-    (filters.search ? 1 : 0) +
-    (filters.status ? 1 : 0) +
-    (filters.job_type ? 1 : 0) +
-    (userRole !== "worker" && filters.assignee_ids.length > 0 ? 1 : 0)
+  const activeFilterCount = isMapMode
+    ? (filters.job_search ? 1 : 0) +
+      (filters.estimate_search ? 1 : 0) +
+      (filters.job_status ? 1 : 0) +
+      (filters.estimate_status ? 1 : 0) +
+      (filters.job_type ? 1 : 0) +
+      (userRole !== "worker" && filters.assignee_ids.length > 0 ? 1 : 0)
+    : (filters.search ? 1 : 0) +
+      (filters.status ? 1 : 0) +
+      (filters.job_type ? 1 : 0) +
+      (userRole !== "worker" && filters.assignee_ids.length > 0 ? 1 : 0);
 
   return (
     <Drawer
@@ -164,37 +229,110 @@ export function FilterSidebar({
         {/* Filters Content */}
         <Box sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {/* Search */}
-            <Box>
-              <Typography variant="subtitle2" gutterBottom fontWeight="medium">
-                Search
-              </Typography>
-              <TextField
-                fullWidth
-                placeholder="Search jobs, customers..."
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  ),
-                }}
-              />
-            </Box>
+            {/* Map mode: Categories (Jobs / Estimates) */}
+            {isMapMode && onCategoryToggle && (
+              <>
+                <Box>
+                  <Typography variant="subtitle2" gutterBottom fontWeight="medium">
+                    Show on map
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={selectedCategories?.jobs !== false}
+                          onChange={(e) => onCategoryToggle('jobs', e.target.checked)}
+                        />
+                      }
+                      label="Jobs"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={selectedCategories?.estimates !== false}
+                          onChange={(e) => onCategoryToggle('estimates', e.target.checked)}
+                        />
+                      }
+                      label="Estimates"
+                    />
+                  </Box>
+                </Box>
+                <Divider />
+              </>
+            )}
+
+            {/* Search - single for jobs mode, split for map mode */}
+            {isMapMode ? (
+              <>
+                <Box>
+                  <Typography variant="subtitle2" gutterBottom fontWeight="medium">
+                    Search Jobs
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    placeholder="Title, customer, address..."
+                    value={filters.job_search}
+                    onChange={(e) => handleFilterChange('job_search', e.target.value)}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2" gutterBottom fontWeight="medium">
+                    Search Estimates
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    placeholder="Title, notes..."
+                    value={filters.estimate_search}
+                    onChange={(e) => handleFilterChange('estimate_search', e.target.value)}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Box>
+              </>
+            ) : (
+              <Box>
+                <Typography variant="subtitle2" gutterBottom fontWeight="medium">
+                  Search
+                </Typography>
+                <TextField
+                  fullWidth
+                  placeholder="Search jobs, customers..."
+                  value={filters.search}
+                  onChange={(e) => handleFilterChange('search', e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Box>
+            )}
 
             <Divider />
 
-            {/* Status Filter */}
+            {/* Status Filter - Job Status for map mode, single Status for jobs mode */}
             <Box>
               <Typography variant="subtitle2" gutterBottom fontWeight="medium">
-                Status
+                {isMapMode ? 'Job Status' : 'Status'}
               </Typography>
               <FormControl fullWidth>
                 <Select
-                  value={filters.status}
-                  onChange={(e) => handleFilterChange('status', e.target.value)}
+                  value={isMapMode ? filters.job_status : filters.status}
+                  onChange={(e) => handleFilterChange(isMapMode ? 'job_status' : 'status', e.target.value)}
                   displayEmpty
                 >
                   <MenuItem value="">
@@ -208,6 +346,31 @@ export function FilterSidebar({
                 </Select>
               </FormControl>
             </Box>
+
+            {/* Estimate Status - map mode only */}
+            {isMapMode && (
+              <Box>
+                <Typography variant="subtitle2" gutterBottom fontWeight="medium">
+                  Estimate Status
+                </Typography>
+                <FormControl fullWidth>
+                  <Select
+                    value={filters.estimate_status}
+                    onChange={(e) => handleFilterChange('estimate_status', e.target.value)}
+                    displayEmpty
+                  >
+                    <MenuItem value="">
+                      <em>All Statuses</em>
+                    </MenuItem>
+                    {ESTIMATE_STATUS_CHOICES.map((status) => (
+                      <MenuItem key={status.value} value={status.value}>
+                        {status.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+            )}
 
             {/* Job Type Filter */}
             <Box>
@@ -256,13 +419,13 @@ export function FilterSidebar({
                         }
                         return (
                           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                            {selected.map((id) => {
-                              const assignee = assignees.find(a => a.id === id)
+                            {selected.map((userId) => {
+                              const assignee = assignees.find(a => a.user_id === userId || a.id === userId)
                               return (
-                                <Chip 
-                                  key={id} 
-                                  label={assignee?.first_name + assignee.last_name} 
-                                  size="small" 
+                                <Chip
+                                  key={userId}
+                                  label={assignee ? `${assignee.first_name || ''} ${assignee.last_name || ''}`.trim() || 'Unknown' : userId}
+                                  size="small"
                                 />
                               )
                             })}
@@ -271,7 +434,7 @@ export function FilterSidebar({
                       }}
                     >
                       {assignees.map((assignee) => (
-                        <MenuItem key={assignee.id} value={assignee.id}>
+                        <MenuItem key={assignee.id} value={assignee.user_id ?? assignee.id}>
                           {assignee.first_name} {assignee?.last_name}
                         </MenuItem>
                       ))}

@@ -1574,6 +1574,16 @@ const QuoteDetailsPage = () => {
                       </Box>
                     )}
 
+                    {
+                      /* Surcharge display (if needed in the future) */
+                      total_surcharges > 0 && (
+                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <Typography variant="body2">Trip Surcharge</Typography>
+                          <Typography variant="subtitle2">${formatPrice(total_surcharges)}</Typography>
+                        </Box>
+                      )
+                    }
+
                     {/* Calculate totals */}
                     {(() => {
                       const totalServicePrice =

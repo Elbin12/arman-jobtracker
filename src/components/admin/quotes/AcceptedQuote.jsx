@@ -306,6 +306,11 @@ const AcceptedQuote = ({ quote, handleEdit, handleDelete }) => {
               </Typography>
               <Typography variant="h6" color="primary.main" fontWeight={600}>
                 {quote?.total_price ? formatPrice(quote.total_price) : 'N/A'}
+                {quote?.total_surcharge > 0 && (
+                  <Typography variant="subtitle2" color="text.secondary">
+                    (Includes {formatPrice(quote.total_surcharge)} surcharge)
+                  </Typography>
+                )}
               </Typography>
             </Box>
           </Box>

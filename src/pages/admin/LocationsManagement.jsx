@@ -303,9 +303,12 @@ const LocationsManagement = () => {
 
         dispatch(
           locationsApi.util.updateQueryData("getLocations", undefined, (draft) => {
-            const index = draft.findIndex((loc) => loc.id === updatedLocation.id)
-            if (index !== -1) {
-              draft[index] = updatedLocation
+            // the API response wraps the list in a `results` field, so update that
+            if (draft && Array.isArray(draft.results)) {
+              const index = draft.results.findIndex((loc) => loc.id === updatedLocation.id)
+              if (index !== -1) {
+                draft.results[index] = updatedLocation
+              }
             }
           }),
         )

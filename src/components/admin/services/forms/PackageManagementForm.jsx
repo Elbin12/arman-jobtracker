@@ -321,8 +321,18 @@ const PackageManagementForm = ({
       const reordered = Array.from(features);
       const [moved] = reordered.splice(sourceIndex, 1);
       reordered.splice(destinationIndex, 0, moved);
+
       setFeatures(reordered);
-      onUpdate({ features: reordered });
+
+      // rebuild packages so React refreshes mapping
+      const refreshedPackages = packages.map(pkg => ({
+        ...pkg,
+        features: [...pkg.features]
+      }));
+
+      setPackages(refreshedPackages);
+
+      onUpdate({ features: reordered, packages: refreshedPackages });
       try {
         const updatePromises = reordered.map((feat, index) =>
           updateFeature({ id: feat.id, order: index + 1, service: feat.service }).unwrap().catch(() => null)

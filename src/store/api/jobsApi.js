@@ -47,6 +47,7 @@ export const jobsApi = createApi({
         if (params.end) queryParams.end = params.end;
         if (params.status) queryParams.status = params.status;
         if (params.job_ids) queryParams.job_ids = params.job_ids;
+        if (params.job_type) queryParams.job_type = params.job_type;
         if (params.assignee_ids) queryParams.assignee_ids = params.assignee_ids;
         if (params.search) queryParams.search = params.search;
         return { url: 'occurrences/', params: queryParams };
