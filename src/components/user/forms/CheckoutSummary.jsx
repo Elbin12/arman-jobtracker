@@ -134,6 +134,10 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
   const notesTextareaRef = useRef(null);
 
   const quoteData = useMemo(() => response, [response]);
+  const quoteImages = useMemo(() => {
+    if (!Array.isArray(response?.images)) return [];
+    return response.images.filter((img) => img?.image_url || img?.ghl_file_url || img?.image);
+  }, [response?.images]);
 
   const [finalTotal, setFinalTotal] = useState();
   const { data: globalPriceData } = useGetGlobalPriceQuery();
@@ -1070,6 +1074,67 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
             </Button>
           </CardContent>
         </Card>
+
+        {/* Uploaded Images */}
+        {quoteImages.length > 0 && (
+          <Card sx={{ mb: 3 }}>
+            <CardContent sx={{ px: { xs: 2, md: 3 }, py: 2 }}>
+              <Typography
+                variant="h6"
+                gutterBottom
+                fontWeight={600}
+                sx={{ color: '#023c8f', fontSize: { xs: "1rem", sm: "1.2rem", md: "1.4rem" } }}
+              >
+                Uploaded Images
+              </Typography>
+              <Grid container spacing={1.5}>
+                {quoteImages.map((img) => {
+                  const imageSrc = img.image_url || img.ghl_file_url || img.image;
+                  return (
+                    <Grid item xs={6} sm={4} md={3} key={img.id}>
+                      <Box
+                        sx={{
+                          border: '1px solid #e0e0e0',
+                          borderRadius: 1,
+                          overflow: 'hidden',
+                          bgcolor: '#f8f9fa',
+                        }}
+                      >
+                        <Box
+                          component="img"
+                          src={imageSrc}
+                          alt={img.caption || 'Uploaded image'}
+                          sx={{
+                            width: '100%',
+                            height: { xs: 120, sm: 140, md: 160 },
+                            objectFit: 'cover',
+                            display: 'block',
+                          }}
+                        />
+                        {img.caption && (
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              display: 'block',
+                              p: 1,
+                              color: 'text.secondary',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                            title={img.caption}
+                          >
+                            {img.caption}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Grid>
+                  );
+                })}
+              </Grid>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Additional Notes */}
         <Card sx={{ mb: 3 }}>

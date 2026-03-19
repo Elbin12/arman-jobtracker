@@ -31,17 +31,22 @@ import { servicesApi } from "../../../../store/api/servicesApi"
 import { useDispatch } from "react-redux"
 import { useCreateSubQuestionPricingMutation } from "../../../../store/api/questionSubQuestionsApi"
 
+// Returns { priceType, amountType }. amountType: "dollar" | "percent" (percent only for percent-of-total types)
 const mapFromApiPricingType = (apiType) => {
   switch (apiType) {
+    case "upcharge_percent_of_total":
+      return { priceType: "upcharge", amountType: "percent" }
+    case "discount_percent_of_total":
+      return { priceType: "discount", amountType: "percent" }
     case "upcharge_percent":
-      return "upcharge"
+      return { priceType: "upcharge", amountType: "dollar" }
     case "discount_percent":
-      return "discount"
+      return { priceType: "discount", amountType: "dollar" }
     case "fixed_price":
-      return "bid_in_person"
+      return { priceType: "bid_in_person", amountType: "dollar" }
     case "ignore":
     default:
-      return "ignore"
+      return { priceType: "ignore", amountType: "dollar" }
   }
 }
 
@@ -73,11 +78,13 @@ const PriceSetupForm = ({ data, onUpdate }) => {
       if (question.question_type === "multiple_yes_no") {
         question.sub_questions?.forEach((subQ) => {
           subQ.pricing_rules?.forEach((rule) => {
+            const { priceType, amountType } = mapFromApiPricingType(rule.yes_pricing_type)
             allRules.push({
               questionId: subQ.id, // Use sub_question ID for multiple_yes_no sub-questions
               packageId: rule.package,
               answer: "yes", // Assuming sub-questions are always yes/no
-              priceType: mapFromApiPricingType(rule.yes_pricing_type),
+              priceType,
+              amountType: amountType || "dollar",
               value: Number.parseFloat(rule.yes_value) || 0,
             })
           })
@@ -85,21 +92,25 @@ const PriceSetupForm = ({ data, onUpdate }) => {
       } else {
         question.pricing_rules?.forEach((rule) => {
           if (question.question_type === "yes_no") {
+            const { priceType, amountType } = mapFromApiPricingType(rule.yes_pricing_type)
             allRules.push({
               questionId: question.id,
               packageId: rule.package,
               answer: "yes",
-              priceType: mapFromApiPricingType(rule.yes_pricing_type),
+              priceType,
+              amountType: amountType || "dollar",
               value: Number.parseFloat(rule.yes_value) || 0,
             })
           } else if (question.options && question.options.length > 0) {
             const matchedOption = question.options.find((opt) => opt.id === rule.option)
             if (matchedOption) {
+              const { priceType, amountType } = mapFromApiPricingType(rule.pricing_type)
               allRules.push({
                 questionId: question.id,
                 packageId: rule.package,
                 optionId: matchedOption.id,
-                priceType: mapFromApiPricingType(rule.pricing_type),
+                priceType,
+                amountType: amountType || "dollar",
                 value: Number.parseFloat(rule.value) || 0,
               })
             }
@@ -142,6 +153,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
               packageId: pkg.id,
               answer: "yes",
               priceType: "ignore",
+              amountType: "dollar",
               value: 0,
             },
           )
@@ -157,6 +169,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
                 packageId: pkg.id,
                 answer: "yes",
                 priceType: "ignore",
+                amountType: "dollar",
                 value: 0,
               },
             )
@@ -173,6 +186,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
                 packageId: pkg.id,
                 optionId: option.id,
                 priceType: "ignore",
+                amountType: "dollar",
                 value: 0,
               },
             )
@@ -374,7 +388,12 @@ const PriceSetupForm = ({ data, onUpdate }) => {
     }
   }
 
-  const mapToApiPricingType = (type) => {
+  // amountType "percent" + upcharge/discount → percent-of-total; otherwise current API (dollar/fixed/ignore)
+  const mapToApiPricingType = (type, amountType = "dollar") => {
+    if (amountType === "percent") {
+      if (type === "upcharge") return "upcharge_percent_of_total"
+      if (type === "discount") return "discount_percent_of_total"
+    }
     switch (type) {
       case "upcharge":
         return "upcharge_percent"
@@ -394,7 +413,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
     const rawValue = isZeroed ? 0 : rule.value || 0
     return {
       package_id: rule.packageId,
-      pricing_type: mapToApiPricingType(rule.priceType),
+      pricing_type: mapToApiPricingType(rule.priceType, rule.amountType || "dollar"),
       value: rawValue.toFixed(2),
     }
   }
@@ -547,6 +566,28 @@ const PriceSetupForm = ({ data, onUpdate }) => {
                               return (
                                 <TableCell key={pkg.id} align="center" sx={{ verticalAlign: "middle", width: 180, minWidth: 180 }}>
                                   <Box display="flex" alignItems="center" justifyContent="center" gap={1}>
+                                    {isValueEditable(rule?.priceType) && (
+                                      <FormControl size="small" sx={{ minWidth: 48 }} variant="outlined">
+                                        <Select
+                                          value={rule?.amountType ?? "dollar"}
+                                          onChange={(e) =>
+                                            updatePriceRule(
+                                              currentQuestionId,
+                                              pkg.id,
+                                              "amountType",
+                                              e.target.value,
+                                              "yes",
+                                              undefined,
+                                            )
+                                          }
+                                          sx={{ fontSize: "0.8rem", height: 32 }}
+                                          label={null}
+                                        >
+                                          <MenuItem value="dollar" sx={{ fontSize: "0.8rem" }}>$</MenuItem>
+                                          <MenuItem value="percent" sx={{ fontSize: "0.8rem" }}>%</MenuItem>
+                                        </Select>
+                                      </FormControl>
+                                    )}
                                     <TextField
                                       size="small"
                                       type="number"
@@ -583,7 +624,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
                               )
                             })}
                           </TableRow>
-                          <TableRow sx={{ bgcolor: "grey.50" }}>
+                          {/* <TableRow sx={{ bgcolor: "grey.50" }}>
                             <TableCell component="th" scope="row" sx={{ fontWeight: 500, fontSize: "0.75rem", py: 0.75, verticalAlign: "middle" }}>
                               Add to price
                             </TableCell>
@@ -626,7 +667,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
                                 </TableCell>
                               )
                             })}
-                          </TableRow>
+                          </TableRow> */}
                         </React.Fragment>
                       )
                     })
@@ -643,6 +684,28 @@ const PriceSetupForm = ({ data, onUpdate }) => {
                               return (
                                 <TableCell key={pkg.id} align="center" sx={{ verticalAlign: "middle", width: 180, minWidth: 180 }}>
                                   <Box display="flex" alignItems="center" justifyContent="center" gap={1}>
+                                    {isValueEditable(rule?.priceType) && (
+                                      <FormControl size="small" sx={{ minWidth: 48 }} variant="outlined">
+                                        <Select
+                                          value={rule?.amountType ?? "dollar"}
+                                          onChange={(e) =>
+                                            updatePriceRule(
+                                              question.id,
+                                              pkg.id,
+                                              "amountType",
+                                              e.target.value,
+                                              undefined,
+                                              option.id,
+                                            )
+                                          }
+                                          sx={{ fontSize: "0.8rem", height: 32 }}
+                                          label={null}
+                                        >
+                                          <MenuItem value="dollar" sx={{ fontSize: "0.8rem" }}>$</MenuItem>
+                                          <MenuItem value="percent" sx={{ fontSize: "0.8rem" }}>%</MenuItem>
+                                        </Select>
+                                      </FormControl>
+                                    )}
                                     <TextField
                                       size="small"
                                       type="number"
@@ -679,7 +742,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
                               )
                             })}
                           </TableRow>
-                          <TableRow sx={{ bgcolor: "grey.50" }}>
+                          {/* <TableRow sx={{ bgcolor: "grey.50" }}>
                             <TableCell component="th" scope="row" sx={{ fontWeight: 500, fontSize: "0.75rem", py: 0.75, verticalAlign: "middle" }}>
                               Add to price
                             </TableCell>
@@ -722,7 +785,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
                                 </TableCell>
                               )
                             })}
-                          </TableRow>
+                          </TableRow> */}
                         </React.Fragment>
                       )
                     })
@@ -774,7 +837,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
         Price Setup
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Set values per option and package. Under &quot;Add to price&quot;: choose $ or %, enter the amount, then Apply. Current price is shown so you add to the right base. Save to update the backend.
+        Set values per option and package. Use the $/% selector to the left of each price input (default $). For $, the value is a fixed amount; for %, it is a percentage of total (upcharge or discount). Under &quot;Add to price&quot;: choose $ or %, enter the amount, then Apply. Save to update the backend.
       </Typography>
       {topLevelQuestions.map((question) => renderQuestionTable(question))}
       <Popover
