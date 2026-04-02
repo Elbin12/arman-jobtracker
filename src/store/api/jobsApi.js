@@ -50,6 +50,7 @@ export const jobsApi = createApi({
         if (params.job_type) queryParams.job_type = params.job_type;
         if (params.assignee_ids) queryParams.assignee_ids = params.assignee_ids;
         if (params.search) queryParams.search = params.search;
+        if (params.unassigned === true || params.unassigned === 'true') queryParams.unassigned = true;
         return { url: 'occurrences/', params: queryParams };
       },
       providesTags: ['Job'],
@@ -71,6 +72,7 @@ export const jobsApi = createApi({
         if (params.status) queryParams.status = params.status;
         if (params.assigned_user_ids) queryParams.assigned_user_ids = params.assigned_user_ids;
         if (params.search) queryParams.search = params.search;
+        if (params.unassigned === true || params.unassigned === 'true') queryParams.unassigned = true;
         return { url: 'appointments-calendar/', params: queryParams };
       },
       providesTags: ['Appointment'],

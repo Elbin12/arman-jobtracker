@@ -1186,6 +1186,9 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
   } else if (filterParams.search && filterParams.search.trim()) {
     calendarJobsParams.search = filterParams.search;
   }
+  if (filterParams.unassigned === true || filterParams.unassigned === 'true') {
+    calendarJobsParams.unassigned = true;
+  }
   
   // Build filter params for appointments API
   // API expects: start, end, status (comma-separated), assigned_user_ids (comma-separated), search
@@ -1217,6 +1220,9 @@ appointmentsParams.search = filterParams.appointment_search;
   } else if (filterParams.search && filterParams.search.trim()) {
     // Only use general search for appointments if no appointment_search is set
     appointmentsParams.search = filterParams.search;
+  }
+  if (filterParams.unassigned === true || filterParams.unassigned === 'true') {
+    appointmentsParams.unassigned = true;
   }
   
   // Build filter params for estimates API

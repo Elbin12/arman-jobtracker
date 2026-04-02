@@ -84,6 +84,7 @@ export function FilterSidebar({
       job_status: initialFilters.job_status || '',
       estimate_status: initialFilters.estimate_status || '',
       job_type: '',
+      unassigned: initialFilters.unassigned === true || initialFilters.unassigned === 'true',
       assignee_ids: parseAssigneeIds(initialFilters.assignee_ids || []),
     };
     if (isMapMode) {
@@ -106,6 +107,7 @@ export function FilterSidebar({
         job_status: initialFilters.job_status || '',
         estimate_status: initialFilters.estimate_status || '',
         job_type: initialFilters.job_type || '',
+        unassigned: initialFilters.unassigned === true || initialFilters.unassigned === 'true',
         assignee_ids: parseAssigneeIds(initialFilters.assignee_ids || []),
       };
       if (isMapMode) {
@@ -146,6 +148,7 @@ export function FilterSidebar({
       if (filters.status) params.status = filters.status;
       if (filters.job_type) params.job_type = filters.job_type;
     }
+    if (filters.unassigned) params.unassigned = true;
     if (userRole !== "worker" && filters.assignee_ids.length > 0) {
       params.assignee_ids = `[${filters.assignee_ids.join(",")}]`;
     }
@@ -160,6 +163,7 @@ export function FilterSidebar({
       job_status: "",
       estimate_status: "",
       job_type: "",
+      unassigned: false,
       job_search: "",
       estimate_search: "",
       assignee_ids: [],
@@ -178,11 +182,25 @@ export function FilterSidebar({
       (filters.job_status ? 1 : 0) +
       (filters.estimate_status ? 1 : 0) +
       (filters.job_type ? 1 : 0) +
+      (filters.unassigned ? 1 : 0) +
       (userRole !== "worker" && filters.assignee_ids.length > 0 ? 1 : 0)
     : (filters.search ? 1 : 0) +
       (filters.status ? 1 : 0) +
       (filters.job_type ? 1 : 0) +
+      (filters.unassigned ? 1 : 0) +
       (userRole !== "worker" && filters.assignee_ids.length > 0 ? 1 : 0);
+
+  const allAssigneeIds = assignees.map((assignee) => assignee.user_id ?? assignee.id).filter(Boolean);
+  const allAssigneesSelected = allAssigneeIds.length > 0 && allAssigneeIds.every((id) => filters.assignee_ids.includes(id));
+  const someAssigneesSelected = filters.assignee_ids.length > 0 && !allAssigneesSelected;
+
+  const handleToggleSelectAllAssignees = (checked) => {
+    if (checked) {
+      handleFilterChange('assignee_ids', allAssigneeIds);
+      return;
+    }
+    handleFilterChange('assignee_ids', []);
+  };
 
   return (
     <Drawer
@@ -399,6 +417,18 @@ export function FilterSidebar({
               </FormControl>
             </Box>
 
+            <Box>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={Boolean(filters.unassigned)}
+                    onChange={(e) => handleFilterChange('unassigned', e.target.checked)}
+                  />
+                }
+                label="Show only unassigned jobs"
+              />
+            </Box>
+
             {/* Assignee Filter - Only visible for non-worker roles */}
             {userRole !== "worker" && (
               <>
@@ -407,6 +437,16 @@ export function FilterSidebar({
                   <Typography variant="subtitle2" gutterBottom fontWeight="medium">
                     Assignees
                   </Typography>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={allAssigneesSelected}
+                        indeterminate={someAssigneesSelected}
+                        onChange={(e) => handleToggleSelectAllAssignees(e.target.checked)}
+                      />
+                    }
+                    label={allAssigneesSelected ? "Deselect All" : "Select All"}
+                  />
                   <FormControl fullWidth>
                     <Select
                       multiple

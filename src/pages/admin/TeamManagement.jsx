@@ -1,27 +1,33 @@
 import React, { useEffect, useState } from 'react';
 import { 
-  User, 
   Mail, 
   Phone, 
-  Briefcase, 
   Edit2, 
   Trash2, 
   Plus,
-  X,
-  ChevronLeft,
-  ChevronRight
+  X
 } from 'lucide-react';
-import { assigneesApi, useCreateAssigneeMutation, useDeleteAssigneeMutation, useGetAssigneesQuery, useUpdateAssigneeMutation } from '../../store/api/assigneesApi';
+import {
+  assigneesApi,
+  useCreateAssigneeMutation,
+  useDeleteAssigneeMutation,
+  useGetAssigneesQuery,
+  useUnassignFutureJobsMutation,
+  useUpdateAssigneeMutation,
+} from '../../store/api/assigneesApi';
 import { Pagination } from '@mui/material';
 import { useDispatch } from 'react-redux';
 import { USER_PASSWORD } from '../../store/axios/axios';
 import { TeamMemberCardSkeleton } from '../../components/ui/skeletons';
+import { useToast } from '@/hooks/use-toast';
 
 const TeamManagement = () => {
   const [page, setPage] = useState(1);
   const [showDialog, setShowDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showUnassignDialog, setShowUnassignDialog] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
+  const [unassignTargetMember, setUnassignTargetMember] = useState(null);
   const [formData, setFormData] = useState({
     full_name: '',
     first_name: '',
@@ -32,6 +38,7 @@ const TeamManagement = () => {
   });
 
   const dispatch = useDispatch();
+  const { toast } = useToast();
 
   const itemsPerPage = 20;
 
@@ -42,6 +49,7 @@ const TeamManagement = () => {
   const [createAssignee] = useCreateAssigneeMutation();
   const [updateAssignee] = useUpdateAssigneeMutation();
   const [deleteAssignee] = useDeleteAssigneeMutation();
+  const [unassignFutureJobs, { isLoading: isUnassigningJobs }] = useUnassignFutureJobsMutation();
 
   const handleAddMember = () => {
     setSelectedMember(null);
@@ -134,8 +142,37 @@ const TeamManagement = () => {
           }
         })
       );
+      if (!newActiveStatus) {
+        setUnassignTargetMember(member);
+        setShowUnassignDialog(true);
+      }
     } catch (error) {
       // Error handled by toast notification
+    }
+  };
+
+  const handleOpenUnassignDialog = (member) => {
+    setUnassignTargetMember(member);
+    setShowUnassignDialog(true);
+  };
+
+  const handleClearFutureJobs = async () => {
+    if (!unassignTargetMember?.id) return;
+    try {
+      const response = await unassignFutureJobs(unassignTargetMember.id).unwrap();
+      const jobsAffected = response?.future_jobs_affected ?? response?.assignments_removed ?? 0;
+      toast({
+        title: 'Future jobs unassigned',
+        description: response?.detail || `${jobsAffected} future jobs were unassigned successfully.`,
+      });
+      setShowUnassignDialog(false);
+      setUnassignTargetMember(null);
+    } catch (error) {
+      toast({
+        title: 'Failed to clear jobs',
+        description: error?.data?.detail || 'Could not unassign future jobs. Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -238,6 +275,17 @@ const TeamManagement = () => {
                 <span>{member.total_assignments} total assignments</span>
               </div> */}
             </div>
+
+            {!member.is_active && (
+              <div className="pt-3 border-t border-gray-100">
+                <button
+                  onClick={() => handleOpenUnassignDialog(member)}
+                  className="w-full px-3 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                >
+                  Clear All Jobs
+                </button>
+              </div>
+            )}
 
             {/* Active Jobs */}
             {/* <div className="flex justify-between items-center pt-4 border-t border-gray-100">
@@ -374,6 +422,48 @@ const TeamManagement = () => {
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unassign Future Jobs Dialog */}
+      {showUnassignDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Clear Future Jobs</h2>
+              <button
+                onClick={() => {
+                  setShowUnassignDialog(false);
+                  setUnassignTargetMember(null);
+                }}
+                className="p-1 hover:bg-gray-100 rounded-lg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-gray-600 mb-6">
+              {unassignTargetMember?.first_name} {unassignTargetMember?.last_name} is inactive.
+              Do you want to unassign all future jobs from this team member?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowUnassignDialog(false);
+                  setUnassignTargetMember(null);
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleClearFutureJobs}
+                disabled={isUnassigningJobs}
+                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isUnassigningJobs ? 'Clearing...' : 'Clear All Jobs'}
               </button>
             </div>
           </div>

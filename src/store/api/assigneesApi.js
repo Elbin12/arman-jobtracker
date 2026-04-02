@@ -19,9 +19,18 @@ export const assigneesApi = createApi({
     deleteAssignee: builder.mutation({
       query: (id) => ({ url: `${id}/`, method: 'DELETE' }),
     }),
+    unassignFutureJobs: builder.mutation({
+      query: (id) => ({ url: `${id}/unassign-future-jobs/`, method: 'POST' }),
+    }),
   }),
 });
 
-export const { useGetAssigneesQuery, useCreateAssigneeMutation, useUpdateAssigneeMutation, useDeleteAssigneeMutation } = assigneesApi;
+export const {
+  useGetAssigneesQuery,
+  useCreateAssigneeMutation,
+  useUpdateAssigneeMutation,
+  useDeleteAssigneeMutation,
+  useUnassignFutureJobsMutation,
+} = assigneesApi;
 
 

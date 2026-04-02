@@ -119,6 +119,7 @@ export function TimelineSidebar({
     job_status: jobStatuses,
     appointment_status: appointmentStatuses,
     estimate_status: estimateStatuses,
+    unassigned: filterParams.unassigned === true || filterParams.unassigned === 'true',
   });
 
   // Update local filters when filterParams change
@@ -130,6 +131,7 @@ export function TimelineSidebar({
       job_status: parseStatuses(filterParams.job_status || filterParams.status || ''),
       appointment_status: parseStatuses(filterParams.appointment_status || ''),
       estimate_status: parseStatuses(filterParams.estimate_status || ''),
+      unassigned: filterParams.unassigned === true || filterParams.unassigned === 'true',
     });
   }, [filterParams]);
 
@@ -179,6 +181,8 @@ export function TimelineSidebar({
       } else {
         onFilterChange?.('estimate_status', '');
       }
+    } else if (field === 'unassigned') {
+      onFilterChange?.('unassigned', Boolean(value));
     }
   };
 
@@ -186,12 +190,14 @@ export function TimelineSidebar({
   const jobFilterCount = [
     localFilters.job_search,
     localFilters.job_status.length,
+    localFilters.unassigned,
     parseIds(filterParams.assignee_ids || []).length
   ].filter(Boolean).length;
 
   const appointmentFilterCount = [
     localFilters.appointment_search,
     localFilters.appointment_status.length,
+    localFilters.unassigned,
     parseIds(filterParams.assigned_user_ids || []).length
   ].filter(Boolean).length;
 
@@ -345,6 +351,23 @@ export function TimelineSidebar({
 
         </CollapsibleContent>
       </Collapsible>
+
+      {/* Quick Filter: Unassigned */}
+      <div className="px-5 py-3 border-t border-gray-200">
+        <div className="flex items-center gap-2">
+          <Checkbox
+            checked={Boolean(localFilters.unassigned)}
+            onCheckedChange={(checked) => handleFilterChange('unassigned', checked === true)}
+            className="h-3.5 w-3.5"
+          />
+          <Label
+            className="text-sm cursor-pointer text-gray-700"
+            onClick={() => handleFilterChange('unassigned', !localFilters.unassigned)}
+          >
+            Show only unassigned jobs
+          </Label>
+        </div>
+      </div>
 
       {/* Team Members Section - Only show for admin, manager, or supervisor */}
       {canViewStaff && (
@@ -530,6 +553,7 @@ export function TimelineSidebar({
                   </div>
                 )}
               </div>
+
             </CollapsibleContent>
           </Collapsible>
 
@@ -747,6 +771,7 @@ export function TimelineSidebar({
                 handleFilterChange('job_status', []);
                 handleFilterChange('appointment_status', []);
                 handleFilterChange('estimate_status', []);
+                handleFilterChange('unassigned', false);
                 // Clear assignee filters
                 onFilterChange?.('assignee_ids', '');
                 onFilterChange?.('assigned_user_ids', '');
