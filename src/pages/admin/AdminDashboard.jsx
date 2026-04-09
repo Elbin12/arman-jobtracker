@@ -28,12 +28,14 @@ import {
   CardHeader,
   styled,
   LinearProgress,
+  Popover,
 } from '@mui/material';
 import {
   Description,
   Warning,
   Error as ErrorIcon,
   Refresh,
+  InfoOutlined,
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -44,12 +46,15 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   Legend,
   ResponsiveContainer,
   PieChart,
   Pie,
   Cell,
+  ComposedChart,
+  Line,
+  ReferenceArea,
 } from 'recharts';
 import { format } from 'date-fns';
 import { useGetAnalyticsQuery, useGetHeatMapQuery, useGetLeadFunnelReportQuery, useGetSalesForecastingQuery } from '../../store/api/dashboardApi';
@@ -152,23 +157,114 @@ export const AdminDashboard = () => {
   const { data: salesForecastData, isLoading: forecastLoading } = useGetSalesForecastingQuery(salesForecastParams);
   const { data: leadFunnelData, isLoading: leadFunnelLoading } = useGetLeadFunnelReportQuery(leadFunnelFilters);
 
-  const formatForecastChartData = () => {
+  const [forecastFormulaAnchor, setForecastFormulaAnchor] = useState(null);
+
+  const forecastChartRows = useMemo(() => {
     if (!salesForecastData?.months) return [];
     return salesForecastData.months.map((month) => ({
       month: month.month_label,
       forecast: month.forecast,
-      actual: month.actual || 0,
-      scheduled_revenue: month.scheduled_revenue,
-      historical_average: month.historical_average,
-      type: month.type,
+      actual: month.actual != null ? month.actual : null,
+      raw: month,
     }));
-  };
+  }, [salesForecastData?.months]);
+
+  const forecastHistoryPlanningSplit = useMemo(() => {
+    const months = salesForecastData?.months;
+    if (!months?.length) return { historyEndLabel: null, planningStartLabel: null };
+    return {
+      historyEndLabel: months[2]?.month_label ?? null,
+      planningStartLabel: months[3]?.month_label ?? null,
+    };
+  }, [salesForecastData?.months]);
+
+  const activeAssigneeCount = assigneesData?.results?.length ?? 0;
 
   const formatCurrency = (amount) =>
     new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
     }).format(amount);
+
+  const formatSignedCurrency = (value) => {
+    if (value == null || Number.isNaN(Number(value))) return '—';
+    const n = Number(value);
+    const sign = n > 0 ? '+' : n < 0 ? '−' : '';
+    const abs = Math.abs(n);
+    return `${sign}${formatCurrency(abs)}`;
+  };
+
+  const formatVariancePercentOnly = (pct, forecastValue) => {
+    if (pct == null || forecastValue === 0) return null;
+    const n = Number(pct);
+    const sign = n > 0 ? '+' : '';
+    return `${sign}${n.toFixed(1)}%`;
+  };
+
+  const renderSalesForecastTooltip = ({ active, payload }) => {
+    if (!active || !payload?.length) return null;
+    const m = payload[0]?.payload?.raw;
+    if (!m) return null;
+    const targetLabel = m.forecast_is_locked ? 'Locked' : 'Projected';
+    const targetSub =
+      m.forecast_is_locked === false ? 'Projected until month starts; then target locks.' : null;
+    const pctStr = formatVariancePercentOnly(m.variance_percent, m.forecast);
+
+    return (
+      <Paper elevation={3} sx={{ p: 1.5, maxWidth: 320, border: 1, borderColor: 'divider' }}>
+        <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+          {m.month_label}
+        </Typography>
+        <Chip size="small" label={targetLabel} sx={{ mb: 1 }} color={m.forecast_is_locked ? 'default' : 'primary'} variant="outlined" />
+        {targetSub && (
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+            {targetSub}
+          </Typography>
+        )}
+        <Typography variant="caption" color="text.secondary" display="block">
+          Target (forecast) = {formatCurrency(m.historical_average)} (historical average) + {formatCurrency(m.baseline_scheduled_revenue)} (baseline
+          schedule)
+        </Typography>
+        <Typography variant="body2" fontWeight={600} sx={{ mt: 0.5 }}>
+          = {formatCurrency(m.forecast)}
+        </Typography>
+        {m.actual != null && (
+          <>
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+              Actual (completed)
+            </Typography>
+            <Typography variant="body2" fontWeight={600}>
+              {formatCurrency(m.actual)} ({m.actual_job_count ?? '—'} jobs)
+            </Typography>
+            {m.variance != null && (
+              <Typography
+                variant="caption"
+                display="block"
+                sx={{ mt: 0.5, color: m.variance > 0 ? 'success.dark' : m.variance < 0 ? 'error.dark' : 'text.secondary' }}
+              >
+                {formatSignedCurrency(m.variance)} vs target
+                {pctStr != null && ` (${pctStr} vs target)`}
+              </Typography>
+            )}
+            {m.actual_vs_historical_average != null && m.historical_average > 0 && (
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                {formatSignedCurrency(m.actual_vs_historical_average)} vs historical average (same month)
+              </Typography>
+            )}
+          </>
+        )}
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+          Pipeline today: {formatCurrency(m.scheduled_revenue_total ?? m.scheduled_revenue)} ({m.scheduled_job_count_total ?? '—'} jobs)
+        </Typography>
+        {m.forecast_is_locked && m.additional_scheduled_revenue > 0 && (
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.75 }}>
+            Added after month started: {formatCurrency(m.additional_scheduled_revenue)} ({m.additional_scheduled_job_count} jobs) — counts toward
+            actual when completed, not toward target.
+          </Typography>
+        )}
+      </Paper>
+    );
+  };
 
   const handleFilterChange = (field, value) => {
     setFilters((prev) => ({ ...prev, [field]: value }));
@@ -687,7 +783,7 @@ export const AdminDashboard = () => {
                     height={isMobile ? 60 : 30}
                   />
                   <YAxis tick={{ fontSize: isMobile ? 10 : 12 }} />
-                  <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                  <RechartsTooltip formatter={(value) => formatCurrency(Number(value))} />
                   <Legend wrapperStyle={{ fontSize: isMobile ? 10 : 12 }} />
                   <Bar dataKey="Paid" fill="#22c55e" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="Unpaid" fill="#f97316" radius={[4, 4, 0, 0]} />
@@ -719,7 +815,7 @@ export const AdminDashboard = () => {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip
+                  <RechartsTooltip
                     formatter={(value, name, props) => [
                       `${value} (${((value / formatStatusData().reduce((s, d) => s + d.value, 0)) * 100).toFixed(1)}%)`,
                       props.payload.name,
@@ -1352,18 +1448,52 @@ export const AdminDashboard = () => {
           {/* Sales Forecasting */}
           <Card sx={{ mb: 3, boxShadow: 1 }}>
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="subtitle1" fontWeight="600" gutterBottom>
-                  Sales Forecasting
-                </Typography>
-                {salesForecastData && (
+              <Box sx={{ mb: 2, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="subtitle1" fontWeight="600" gutterBottom>
+                    Sales Forecasting
+                  </Typography>
+                  {salesForecastData && (
+                    <>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Data as of {format(new Date(salesForecastData.forecast_generated_at), 'MMM d, yyyy h:mm a')}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.25 }}>
+                        {salesForecastData.data_source}
+                      </Typography>
+                      {activeAssigneeCount > 0 && (
+                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                          Filtered: {activeAssigneeCount} active technician{activeAssigneeCount === 1 ? '' : 's'} (job totals)
+                        </Typography>
+                      )}
+                    </>
+                  )}
+                </Box>
+                {salesForecastData?.forecast_formula && (
                   <>
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      Forecast generated at: {format(new Date(salesForecastData.forecast_generated_at), 'MMM dd, yyyy HH:mm')}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-                      Data source: {salesForecastData.data_source}
-                    </Typography>
+                    <IconButton
+                      size="small"
+                      aria-label="How sales forecast works"
+                      onClick={(e) => setForecastFormulaAnchor(e.currentTarget)}
+                    >
+                      <InfoOutlined fontSize="small" />
+                    </IconButton>
+                    <Popover
+                      open={Boolean(forecastFormulaAnchor)}
+                      anchorEl={forecastFormulaAnchor}
+                      onClose={() => setForecastFormulaAnchor(null)}
+                      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                      transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                    >
+                      <Box sx={{ p: 2, maxWidth: 420 }}>
+                        <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+                          How this works
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-wrap' }}>
+                          {salesForecastData.forecast_formula}
+                        </Typography>
+                      </Box>
+                    </Popover>
                   </>
                 )}
               </Box>
@@ -1372,105 +1502,167 @@ export const AdminDashboard = () => {
                 <Skeleton variant="rectangular" height={300} />
               ) : salesForecastData ? (
                 <>
-                  {/* Forecast Formula Info */}
-                  {/* <Box sx={{ mb: 3, p: 2, bgcolor: '#f0f9ff', borderRadius: 1 }}>
-                    <Typography variant="caption" fontWeight="600" display="block" sx={{ mb: 1 }}>
-                      Forecast Formula:
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" fontSize="0.75rem">
-                      {salesForecastData.forecast_formula}
-                    </Typography>
-                  </Box> */}
-
-                  {/* Forecast Chart */}
-                  <ResponsiveContainer width="100%" height={isMobile ? 250 : 350}>
-                    <BarChart data={formatForecastChartData()}>
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                    Solid bars: completed revenue where the month has started. Dashed line: target (forecast). Shaded: prior 3 months vs
+                    forward 6.
+                  </Typography>
+                  <ResponsiveContainer width="100%" height={isMobile ? 280 : 360}>
+                    <ComposedChart data={forecastChartRows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis 
-                        dataKey="month" 
+                      {forecastHistoryPlanningSplit.historyEndLabel &&
+                        forecastHistoryPlanningSplit.planningStartLabel &&
+                        forecastChartRows[0] && (
+                          <>
+                            <ReferenceArea
+                              x1={forecastChartRows[0].month}
+                              x2={forecastHistoryPlanningSplit.historyEndLabel}
+                              fill={theme.palette.mode === 'dark' ? 'rgba(148,163,184,0.12)' : '#f1f5f9'}
+                              fillOpacity={1}
+                            />
+                            <ReferenceArea
+                              x1={forecastHistoryPlanningSplit.planningStartLabel}
+                              x2={forecastChartRows[forecastChartRows.length - 1]?.month}
+                              fill={theme.palette.mode === 'dark' ? 'rgba(59,130,246,0.08)' : '#eff6ff'}
+                              fillOpacity={1}
+                            />
+                          </>
+                        )}
+                      <XAxis
+                        dataKey="month"
                         tick={{ fontSize: isMobile ? 9 : 11 }}
                         angle={isMobile ? -45 : -30}
-                        textAnchor={isMobile ? 'end' : 'end'}
-                        height={isMobile ? 80 : 60}
+                        textAnchor="end"
+                        height={isMobile ? 88 : 68}
                       />
-                      <YAxis tick={{ fontSize: isMobile ? 10 : 12 }} />
-                      <Tooltip 
-                        formatter={(value, name) => {
-                          const labels = {
-                            forecast: 'Forecast',
-                            actual: 'Actual',
-                            scheduled_revenue: 'Scheduled Revenue',
-                            historical_average: 'Historical Average'
-                          };
-                          return [formatCurrency(Number(value)), labels[name] || name];
-                        }}
-                        contentStyle={{ fontSize: isMobile ? '11px' : '12px' }}
+                      <YAxis tick={{ fontSize: isMobile ? 10 : 12 }} tickFormatter={(v) => formatCurrency(v)} width={isMobile ? 56 : 72} />
+                      <RechartsTooltip content={renderSalesForecastTooltip} />
+                      <Legend wrapperStyle={{ fontSize: isMobile ? 10 : 12 }} iconSize={isMobile ? 12 : 14} />
+                      <Bar dataKey="actual" name="Actual (completed)" fill="#22c55e" radius={[4, 4, 0, 0]} maxBarSize={48} />
+                      <Line
+                        type="monotone"
+                        dataKey="forecast"
+                        name="Target (forecast)"
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                        strokeDasharray="6 4"
+                        dot={{ r: 3, fill: '#3b82f6' }}
+                        connectNulls
                       />
-                      <Legend 
-                        wrapperStyle={{ fontSize: isMobile ? 10 : 12 }}
-                        iconSize={isMobile ? 12 : 14}
-                      />
-                      <Bar dataKey="forecast" fill="#3b82f6" name="Forecast" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="actual" fill="#22c55e" name="Actual" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="scheduled_revenue" fill="#f59e0b" name="Scheduled Revenue" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="historical_average" fill="#8b5cf6" name="Historical Average" radius={[4, 4, 0, 0]} />
-                    </BarChart>
+                    </ComposedChart>
                   </ResponsiveContainer>
 
-                  {/* Summary Table */}
                   <Box sx={{ mt: 3 }}>
                     <Typography variant="subtitle2" fontWeight="600" gutterBottom>
-                      Monthly Breakdown
+                      Monthly breakdown (same data as chart)
                     </Typography>
-                    <TableContainer component={Paper} variant="outlined" sx={{ mt: 1 }}>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                      Screen reader summary: month, target, actual, variance vs target. Colors are supplemented with signed amounts.
+                    </Typography>
+                    <TableContainer component={Paper} variant="outlined" sx={{ mt: 1, overflowX: 'auto' }}>
                       <Table size="small">
                         <TableHead>
                           <TableRow sx={{ bgcolor: '#f9fafb' }}>
                             <TableCell sx={{ fontWeight: 600, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>Month</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 600, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>Type</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 600, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>Historical Avg</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 600, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>Scheduled</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 600, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>Forecast</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 600, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>Actual</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 600, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+                              Segment
+                            </TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 600, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+                              Target
+                            </TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 600, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+                              Lock
+                            </TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 600, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+                              Pipeline
+                            </TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 600, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+                              Actual
+                            </TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 600, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+                              vs target
+                            </TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 600, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+                              % vs target
+                            </TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {salesForecastData.months.map((month, index) => (
-                            <TableRow key={index} hover>
-                              <TableCell sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
-                                {month.month_label}
-                              </TableCell>
-                              <TableCell align="right">
-                                <Chip 
-                                  label={month.type} 
-                                  size="small"
-                                  color={month.type === 'actual' ? 'success' : 'primary'}
-                                  sx={{ 
-                                    height: isMobile ? 18 : 20,
-                                    fontSize: isMobile ? '0.6rem' : '0.65rem'
+                          {salesForecastData.months.map((month, index) => {
+                            const pct = formatVariancePercentOnly(month.variance_percent, month.forecast);
+                            const varTone =
+                              month.variance == null
+                                ? 'text.secondary'
+                                : month.variance > 0
+                                  ? 'success.main'
+                                  : month.variance < 0
+                                    ? 'error.main'
+                                    : 'text.secondary';
+                            return (
+                              <TableRow key={`${month.year}-${month.month}-${index}`} hover>
+                                <TableCell sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>{month.month_label}</TableCell>
+                                <TableCell align="right">
+                                  <Chip
+                                    label={month.type === 'actual' ? 'History' : 'Plan'}
+                                    size="small"
+                                    color={month.type === 'actual' ? 'success' : 'primary'}
+                                    variant="outlined"
+                                    sx={{
+                                      height: isMobile ? 18 : 20,
+                                      fontSize: isMobile ? '0.6rem' : '0.65rem',
+                                    }}
+                                  />
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, fontWeight: 600 }}>
+                                  {formatCurrency(month.forecast)}
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+                                  <Chip
+                                    label={month.forecast_is_locked ? 'Locked' : 'Projected'}
+                                    size="small"
+                                    sx={{ height: isMobile ? 18 : 20, fontSize: isMobile ? '0.6rem' : '0.65rem' }}
+                                  />
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+                                  {formatCurrency(month.scheduled_revenue_total ?? month.scheduled_revenue)}
+                                  <Typography variant="caption" color="text.secondary" display="block">
+                                    {month.scheduled_job_count_total ?? '—'} jobs
+                                  </Typography>
+                                </TableCell>
+                                <TableCell
+                                  align="right"
+                                  sx={{
+                                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                    fontWeight: 600,
+                                    color: month.actual != null ? 'text.primary' : 'text.secondary',
                                   }}
-                                />
-                              </TableCell>
-                              <TableCell align="right" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
-                                {formatCurrency(month.historical_average)}
-                              </TableCell>
-                              <TableCell align="right" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
-                                {formatCurrency(month.scheduled_revenue)}
-                              </TableCell>
-                              <TableCell align="right" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, fontWeight: 600 }}>
-                                {formatCurrency(month.forecast)}
-                              </TableCell>
-                              <TableCell align="right" sx={{ 
-                                fontSize: { xs: '0.7rem', sm: '0.75rem' },
-                                fontWeight: 600,
-                                color: month.actual !== null && month.actual !== undefined
-                                  ? (month.actual < month.forecast ? 'error.main' : month.actual > month.forecast ? 'success.main' : 'text.secondary')
-                                  : 'text.secondary'
-                              }}>
-                                {month.actual !== null ? formatCurrency(month.actual) : 'N/A'}
-                              </TableCell>
-                            </TableRow>
-                          ))}
+                                >
+                                  {month.actual != null ? (
+                                    <>
+                                      {formatCurrency(month.actual)}
+                                      <Typography variant="caption" color="text.secondary" display="block">
+                                        {month.actual_job_count ?? '—'} jobs
+                                      </Typography>
+                                    </>
+                                  ) : (
+                                    '—'
+                                  )}
+                                </TableCell>
+                                <TableCell
+                                  align="right"
+                                  sx={{
+                                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                    fontWeight: 600,
+                                    color: varTone,
+                                  }}
+                                >
+                                  {month.variance != null ? `${formatSignedCurrency(month.variance)} vs target` : '—'}
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, color: varTone }}>
+                                  {pct != null ? `${pct} vs target` : month.forecast === 0 ? 'N/A' : '—'}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
                         </TableBody>
                       </Table>
                     </TableContainer>
