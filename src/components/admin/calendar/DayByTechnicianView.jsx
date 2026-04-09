@@ -27,16 +27,33 @@ function getEventColor(event, eventStyleGetter) {
   return style["--event-bg-color"] || style.backgroundColor || "#9ca3ef";
 }
 
+function isAllDayOrTimeOff(e) {
+  return e?.type === "time_off" || e?.allDay === true;
+}
+
+/** [start, end) overlaps calendar day in local time */
+function rangeOverlapsDay(evStart, evEndExclusive, dayDate) {
+  const dayStart = new Date(dayDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayNext = new Date(dayStart);
+  dayNext.setDate(dayNext.getDate() + 1);
+  const s = new Date(evStart);
+  const e = new Date(evEndExclusive);
+  return s < dayNext && e > dayStart;
+}
+
 function EventBlock({ event, style, isMobile, onSelectEvent, onStaffDrop, isAppointment, eventStyleGetter }) {
   const [{ isOver }, drop] = useDrop({
     accept: "staff",
     drop: (item) => {
-      if (onStaffDrop && event?.resource && !isAppointment) {
+      if (onStaffDrop && event?.resource && !isAppointment && event?.type !== "time_off") {
         onStaffDrop(event.resource, item.user);
       }
     },
-    canDrop: () => !isAppointment,
-    collect: (monitor) => ({ isOver: monitor.isOver() && !isAppointment }),
+    canDrop: () => !isAppointment && event?.type !== "time_off",
+    collect: (monitor) => ({
+      isOver: monitor.isOver() && !isAppointment && event?.type !== "time_off",
+    }),
   });
 
   const start = new Date(event.start);
@@ -109,7 +126,17 @@ export function DayByTechnicianView({
   const dayEnd = new Date(date);
   dayEnd.setHours(maxHour, 0, 0, 0);
 
+  const allDayStripEvents = events.filter(
+    (e) =>
+      isAllDayOrTimeOff(e) &&
+      e.resourceId != null &&
+      e.start &&
+      e.end &&
+      rangeOverlapsDay(e.start, e.end, date)
+  );
+
   const dayEvents = events.filter((e) => {
+    if (isAllDayOrTimeOff(e)) return false;
     const start = new Date(e.start);
     return start >= dayStart && start < dayEnd && e.resourceId != null;
   });
@@ -171,6 +198,49 @@ export function DayByTechnicianView({
           {formatDayLabel(date)}
         </h2>
       </div>
+
+      {allDayStripEvents.length > 0 && (
+        <div
+          className="flex-shrink-0 mb-2 border border-border/60 rounded-md bg-muted/30 px-2 py-2"
+          style={{
+            display: "grid",
+            gridTemplateColumns: gridTemplateCols,
+            gap: "6px 4px",
+            alignItems: "start",
+          }}
+        >
+          <div className="text-[11px] font-semibold text-muted-foreground pt-1 pl-0.5">
+            Off
+          </div>
+          {resources.map((res) => {
+            const items = allDayStripEvents.filter(
+              (e) => String(e.resourceId) === String(res.id)
+            );
+            return (
+              <div key={`off-${res.id}`} className="flex flex-wrap gap-1 min-h-[28px]">
+                {items.map((ev) => {
+                  const bg = getEventColor(ev, eventStyleGetter);
+                  return (
+                    <button
+                      key={ev.id}
+                      type="button"
+                      className="text-left text-[11px] leading-tight px-2 py-1 rounded-md text-white max-w-full truncate shadow-sm hover:opacity-95 transition-opacity"
+                      style={{ backgroundColor: bg }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectEvent?.(ev);
+                      }}
+                      title={ev.title}
+                    >
+                      {ev.title}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Scrollable grid: sticky header row + sticky time column */}
       <div

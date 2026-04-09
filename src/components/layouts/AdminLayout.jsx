@@ -41,6 +41,7 @@ import {
   ExpandMore,
   AttachMoney,
   AccessTime,
+  EventBusy,
   Calculate,
   Assessment,
   Settings,
@@ -114,9 +115,17 @@ const getPayrollSubNavByRole = (role, fullAccessRoles, user_profile) => {
     fullAccessRoles.includes(role) || // Always show for admins
     (role === "worker" && user_profile?.pay_scale_type === "hourly") // Show for workers only if hourly
 
+  const timeOffItem = {
+    text: "Time Off",
+    path: "/admin/payroll/time-off",
+    icon: EventBusy,
+    roles: ["admin", "worker"],
+  }
+
   const commonPayrollItems = [
     // { text: "Payroll Home", path: "/admin/payroll", icon: AttachMoney, roles: ["admin", "worker"] },
     ...(shouldShowTimeClock ? [timeClockItem] : []),
+    timeOffItem,
     { text: "Reports", path: "/admin/payroll/reports", icon: Assessment, roles: ["admin", "worker"] },
   ]
 

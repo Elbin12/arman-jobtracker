@@ -27,6 +27,7 @@ import { Users, RotateCcw, Plus, XSquare } from "lucide-react";
 import moment from "moment-timezone";
 import { jobsApi, useUpdateJobMutation, useSearchContactsQuery, useGetAddressesByContactQuery } from "../../../store/api/jobsApi";
 import { useGetEmployeesQuery } from "../../../store/api/payrollApi";
+import { JobTeamAssignmentField } from "./JobTeamAssignmentField";
 import { useGetServicesQuery } from "../../../store/api/servicesApi";
 import { useDispatch } from "react-redux";
 import ContactSearchableSelect from "./ContactSearchableSelect";
@@ -336,22 +337,29 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
     }));
   };
 
+  const sameAssignmentUser = (a, b) => {
+    const na = Number(a);
+    const nb = Number(b);
+    if (Number.isFinite(na) && Number.isFinite(nb)) return na === nb;
+    return a === b;
+  };
+
   const handleUserAssignment = (userId, checked) => {
     if (checked) {
       setFormData(prev => ({
         ...prev,
-        assignments: [...prev.assignments, { user: userId }]
+        assignments: [...prev.assignments, { user: userId }],
       }));
     } else {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        assignments: prev.assignments.filter(a => a.user !== userId)
+        assignments: prev.assignments.filter((a) => !sameAssignmentUser(a.user, userId)),
       }));
     }
   };
 
   const isUserAssigned = (userId) => {
-    return formData.assignments.some(a => a.user === userId);
+    return formData.assignments.some((a) => sameAssignmentUser(a.user, userId));
   };
 
   // Handle contact selection
@@ -1140,29 +1148,13 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
 
               <div className="space-y-2">
                 <Label>Assign Team Members *</Label>
-                {employeesLoading ? (
-                  <div className="flex items-center justify-center py-4">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                      <span className="text-sm text-muted-foreground">Loading employees...</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {employees.map(employee => (
-                      <div key={employee.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`employee-${employee.id}`}
-                          checked={isUserAssigned(employee.user_id || employee.id)}
-                          onCheckedChange={(checked) => handleUserAssignment(employee.user_id || employee.id, checked)}
-                        />
-                        <Label htmlFor={`employee-${employee.id}`} className="flex-1 cursor-pointer">
-                          {employee.full_name}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <JobTeamAssignmentField
+                  employees={employees}
+                  employeesLoading={employeesLoading}
+                  jobDateYmd={timeData.date?.trim() || null}
+                  isUserAssigned={isUserAssigned}
+                  onToggleUser={handleUserAssignment}
+                />
               </div>
             </CardContent>
           </Card>

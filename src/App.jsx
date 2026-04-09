@@ -33,6 +33,7 @@ import CreateJob from './pages/admin/CreateJob.jsx';
 import CalendarCreateJob from './pages/admin/CalendarCreateJob.jsx';
 import RoleProtectedRoute from './pages/RoleProtectedRoute.jsx';
 import TimeClock from './pages/admin/payroll/TimeClock.jsx';
+import PayrollTimeOff from './pages/admin/payroll/PayrollTimeOff.jsx';
 import PayrollCalculator from './pages/admin/payroll/PayrollCalculator.jsx';
 import PayrollReports from './pages/admin/payroll/PayrollReports.jsx';
 import PayrollSettings from './pages/admin/payroll/PayrollSettings.jsx';
@@ -167,6 +168,7 @@ function App() {
                     
                     {/* Payroll Routes */}
                     <Route path="payroll" element={<TimeClock />} />
+                    <Route path="payroll/time-off" element={<PayrollTimeOff />} />
                     <Route path="payroll/calculator" element={<PayrollCalculator />} />
                     <Route path="payroll/reports" element={<PayrollReports />} />
                     <Route path="payroll/settings" element={

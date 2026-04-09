@@ -575,11 +575,43 @@ const calendarStyles = `
 `;
 import { JobCard } from "../jobs/JobCard";
 import { jobsApi, useGetCalendarJobsQuery, useGetAppointmentsCalendarQuery, useGetEstimateAppointmentsCalendarQuery, useGetJobDetailsQuery, useUpdateAppointmentMutation, useDeleteAppointmentMutation, useUpdateEstimateStatusMutation, useDeleteEstimateMutation } from "../../../store/api/jobsApi";
+import { useGetTimeOffListQuery, useGetEmployeesQuery } from "../../../store/api/payrollApi";
 import { useSelector, useDispatch } from "react-redux";
 import { EditJobDialog } from "../jobs/EditJobDialog";
 import { TimelineSidebar } from "./TimelineSidebar";
 import { useUpdateJobMutation } from "../../../store/api/jobsApi";
 import { Typography } from "@mui/material";
+
+const TIME_OFF_KIND_LABELS = {
+  day_off: "Day off",
+  vacation: "Vacation",
+  sick: "Sick",
+  personal: "Personal",
+  other: "Time off",
+};
+
+function parseYmdToLocalDate(ymd) {
+  const [y, m, d] = String(ymd || "").split("-").map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
+}
+
+function addDaysLocal(d, n) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+
+/** Event range [start, endExclusive) overlaps a calendar day (local). */
+function timeOffRangeOverlapsDay(evStart, evEndExclusive, dayDate) {
+  const dayStart = new Date(dayDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayNext = new Date(dayStart);
+  dayNext.setDate(dayNext.getDate() + 1);
+  const s = new Date(evStart);
+  const e = new Date(evEndExclusive);
+  return s < dayNext && e > dayStart;
+}
 
 // Custom Event Content for FullCalendar – same design, accepts staff drops
 function FullCalendarEventContent({ arg, onStaffDrop, onSelectEvent, eventStyleGetter }) {
@@ -612,14 +644,15 @@ function FullCalendarEventContent({ arg, onStaffDrop, onSelectEvent, eventStyleG
 
   const displayTitle = getDisplayTitle();
   const isAppointment = type === "appointment";
+  const blockStaffDrop = isAppointment || type === "time_off";
 
   const [{ isOver }, drop] = useDrop({
     accept: "staff",
     drop: (item) => {
-      if (onStaffDrop && resource && !isAppointment) onStaffDrop(resource, item.user);
+      if (onStaffDrop && resource && !blockStaffDrop) onStaffDrop(resource, item.user);
     },
-    canDrop: () => !isAppointment,
-    collect: (monitor) => ({ isOver: monitor.isOver() && !isAppointment }),
+    canDrop: () => !blockStaffDrop,
+    collect: (monitor) => ({ isOver: monitor.isOver() && !blockStaffDrop }),
   });
 
   const syntheticEvent = {
@@ -658,6 +691,7 @@ function FullCalendarEventContent({ arg, onStaffDrop, onSelectEvent, eventStyleG
 
   const isRecurring = resource?.job_type === "recurring";
   const isEstimate = type === "estimate";
+  const isTimeOff = type === "time_off";
 
   return (
     <div
@@ -685,6 +719,7 @@ function FullCalendarEventContent({ arg, onStaffDrop, onSelectEvent, eventStyleG
         <span className="truncate">{displayTitle}</span>
         {isRecurring && <span className="flex-shrink-0 text-[11px]">(R)</span>}
         {isEstimate && <span className="flex-shrink-0 text-[11px]">(E)</span>}
+        {isTimeOff && <span className="flex-shrink-0 text-[11px]">(Off)</span>}
       </span>
     </div>
   );
@@ -896,7 +931,6 @@ function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, conti
       }}
       style={{
         backgroundColor: backgroundColor,
-        border: "none",
         outline: "none",
         borderRadius: isMobile ? "4px" : "6px",
         padding: isMobile ? "4px 6px" : "6px 10px",
@@ -1005,6 +1039,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
   const [selectedJob, setSelectedJob] = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [selectedEstimate, setSelectedEstimate] = useState(null);
+  const [selectedTimeOff, setSelectedTimeOff] = useState(null);
   // Default to week view on mobile, month view on desktop
   const [view, setView] = useState(window.innerWidth < 640 ? "day" : "month");
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -1033,6 +1068,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
     jobs: true,
     appointments: false,
     estimates: true,
+    timeOff: true,
   });
   const [selectedAssignees, setSelectedAssignees] = useState({});
   const [filterParams, setFilterParams] = useState({});
@@ -1275,6 +1311,52 @@ appointmentsParams.search = filterParams.appointment_search;
   const estimatesList = Array.isArray(estimates) 
     ? estimates 
     : (estimates?.results ?? []);
+
+  const timeOffQueryParams = useMemo(() => {
+    let startD;
+    let endD;
+    if (view === "month") {
+      startD = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      endD = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    } else if (view === "week") {
+      const weekStart = new Date(currentDate);
+      const day = currentDate.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      weekStart.setDate(currentDate.getDate() + diff);
+      weekStart.setHours(0, 0, 0, 0);
+      endD = new Date(weekStart);
+      endD.setDate(weekStart.getDate() + 6);
+      startD = weekStart;
+    } else {
+      startD = new Date(currentDate);
+      startD.setHours(0, 0, 0, 0);
+      endD = new Date(currentDate);
+      endD.setHours(0, 0, 0, 0);
+    }
+    const fmt = (d) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
+    return { from_date: fmt(startD), to_date: fmt(endD), page_size: 250 };
+  }, [view, currentDate]);
+
+  const { data: payrollEmployeesData } = useGetEmployeesQuery({ is_active: true });
+  const payrollRows = payrollEmployeesData?.results ?? [];
+  const payrollIdToUserId = useMemo(() => {
+    const m = new Map();
+    payrollRows.forEach((row) => {
+      const pid = row.id ?? row.pk;
+      const uid = row.user_id ?? row.user;
+      if (pid != null && uid != null) m.set(String(pid), uid);
+    });
+    return m;
+  }, [payrollRows]);
+
+  const { data: timeOffCalendarData } = useGetTimeOffListQuery(timeOffQueryParams, {
+    skip: selectedCategories.timeOff === false,
+  });
   
   // State for fetching job details when clicked
   const [selectedJobId, setSelectedJobId] = useState(null);
@@ -1574,13 +1656,97 @@ appointmentsParams.search = filterParams.appointment_search;
       : [];
     const estimateEvents = userRole === "worker" ? estimateEventsRaw.filter((ev) => ev.resourceId === "schedule") : estimateEventsRaw;
 
-    const allEvents = [...jobEvents, ...appointmentEvents, ...estimateEvents];
-    const allRawEvents = [...jobEventsRaw, ...appointmentEvents, ...estimateEvents];
+    const showTimeOff = selectedCategories.timeOff !== false;
+    const timeOffList = showTimeOff ? (timeOffCalendarData?.results ?? []) : [];
+
+    const timeOffVisibleForWorker = (entry) => {
+      if (userRole !== "worker") return true;
+      const uid = payrollIdToUserId.get(String(entry.employee));
+      if (uid != null && String(uid) === String(currentUserId)) return true;
+      if (
+        entry.employee_email &&
+        user?.email &&
+        String(entry.employee_email).toLowerCase() === String(user.email).toLowerCase()
+      )
+        return true;
+      return false;
+    };
+
+    const resolveTimeOffResourceId = (entry) => {
+      if (userRole === "worker") return "schedule";
+      const uid = payrollIdToUserId.get(String(entry.employee));
+      if (uid != null) {
+        const rid = assigneeIdToResourceId.get(String(uid));
+        if (rid) return rid;
+      }
+      if (entry.employee_name) {
+        const r = assigneeNameToResourceId.get(normalizeName(entry.employee_name));
+        if (r) return r;
+      }
+      return "unassigned";
+    };
+
+    const timeOffEventsRaw = [];
+    const timeOffDayEvents = [];
+    for (const entry of timeOffList) {
+      if (!timeOffVisibleForWorker(entry)) continue;
+      const startD = parseYmdToLocalDate(entry.start_date);
+      const endD = parseYmdToLocalDate(entry.end_date);
+      if (!startD || !endD) continue;
+      const endExclusive = addDaysLocal(endD, 1);
+      const kindLabel = TIME_OFF_KIND_LABELS[entry.kind] || "Time off";
+      const title = `${entry.employee_name} · ${kindLabel}`;
+      const resourceId = resolveTimeOffResourceId(entry);
+
+      timeOffEventsRaw.push({
+        id: `timeoff-${entry.id}`,
+        title,
+        start: startD,
+        end: endExclusive,
+        resourceId,
+        resource: entry,
+        type: "time_off",
+        allDay: true,
+      });
+
+      if (timeOffRangeOverlapsDay(startD, endExclusive, currentDate)) {
+        timeOffDayEvents.push({
+          id: `timeoff-${entry.id}-day`,
+          title,
+          start: startD,
+          end: endExclusive,
+          resourceId,
+          resource: entry,
+          type: "time_off",
+          allDay: true,
+        });
+      }
+    }
+
+    const allEvents = [...jobEvents, ...appointmentEvents, ...estimateEvents, ...timeOffDayEvents];
+    const allRawEvents = [...jobEventsRaw, ...appointmentEvents, ...estimateEvents, ...timeOffEventsRaw];
 
     setOriginalEvents(allEvents);
     setRawEvents(allRawEvents);
     setEvents(allEvents);
-  }, [jobs, view, currentDate, appointmentsList, estimatesList, accountTimezone, selectedCategories, assigneeIdToResourceId, jobIdToAssigneeIds, calendarResourceIdsSet, userRole]);
+  }, [
+    jobs,
+    view,
+    currentDate,
+    appointmentsList,
+    estimatesList,
+    accountTimezone,
+    selectedCategories,
+    assigneeIdToResourceId,
+    jobIdToAssigneeIds,
+    calendarResourceIdsSet,
+    userRole,
+    timeOffCalendarData,
+    payrollIdToUserId,
+    user,
+    currentUserId,
+    assigneeNameToResourceId,
+  ]);
 
   // Day view: expanded events (one per technician). Month/week: raw events (one per job, API-shaped).
   const displayEvents = useMemo(
@@ -1596,8 +1762,12 @@ appointmentsParams.search = filterParams.appointment_search;
         title: ev.title,
         start: ev.start,
         end: ev.end,
+        allDay: ev.allDay === true,
         extendedProps: { resource: ev.resource, type: ev.type },
-        editable: ev.type !== "appointment" && ev.type !== "more",
+        editable:
+          ev.type !== "appointment" &&
+          ev.type !== "more" &&
+          ev.type !== "time_off",
       })),
     [displayEvents]
   );
@@ -1903,11 +2073,19 @@ appointmentsParams.search = filterParams.appointment_search;
       setSelectedJob(null);
       setSelectedJobId(null);
       setSelectedEstimate(null);
+      setSelectedTimeOff(null);
     } else if (event.type === 'estimate') {
       setSelectedEstimate(event.resource);
       setSelectedJob(null);
       setSelectedJobId(null);
       setSelectedAppointment(null);
+      setSelectedTimeOff(null);
+    } else if (event.type === "time_off") {
+      setSelectedTimeOff(event.resource);
+      setSelectedJob(null);
+      setSelectedJobId(null);
+      setSelectedAppointment(null);
+      setSelectedEstimate(null);
     } else {
       // For jobs, fetch full job details using job_id
       const jobId = event.resource?.job_id || event.resource?.id;
@@ -1918,6 +2096,7 @@ appointmentsParams.search = filterParams.appointment_search;
         setSelectedJobId(jobId);
         setSelectedAppointment(null);
         setSelectedEstimate(null);
+        setSelectedTimeOff(null);
       } else {
         console.error('handleSelectEvent: jobId is missing', event);
       }
@@ -2015,6 +2194,43 @@ appointmentsParams.search = filterParams.appointment_search;
   };
 
   const eventStyleGetter = (event) => {
+    if (event.type === "time_off") {
+      const entry = event.resource;
+      const kind = entry?.kind;
+      let backgroundColor = "#a855f7";
+      switch (kind) {
+        case "sick":
+          backgroundColor = "#f87171";
+          break;
+        case "vacation":
+          backgroundColor = "#c084fc";
+          break;
+        case "personal":
+          backgroundColor = "#60a5fa";
+          break;
+        case "day_off":
+          backgroundColor = "#94a3b8";
+          break;
+        default:
+          backgroundColor = "#a855f7";
+      }
+      return {
+        style: {
+          backgroundColor: "transparent",
+          borderRadius: "8px",
+          opacity: 1,
+          color: "white",
+          border: "none",
+          outline: "none",
+          fontSize: "13px",
+          fontWeight: "500",
+          padding: "0",
+          boxShadow: "none",
+          "--event-bg-color": backgroundColor,
+        },
+      };
+    }
+
     // Handle appointments differently
     if (event.type === 'appointment') {
       const appointment = event.resource;
@@ -3121,8 +3337,16 @@ appointmentsParams.search = filterParams.appointment_search;
                     allDaySlot={false}
                     nowIndicator
                     editable
-                    eventStartEditable={(info) => info.event.extendedProps?.type !== "appointment" && info.event.extendedProps?.type !== "more"}
-                    eventDurationEditable={(info) => info.event.extendedProps?.type !== "appointment" && info.event.extendedProps?.type !== "more"}
+                    eventStartEditable={(info) =>
+                      info.event.extendedProps?.type !== "appointment" &&
+                      info.event.extendedProps?.type !== "more" &&
+                      info.event.extendedProps?.type !== "time_off"
+                    }
+                    eventDurationEditable={(info) =>
+                      info.event.extendedProps?.type !== "appointment" &&
+                      info.event.extendedProps?.type !== "more" &&
+                      info.event.extendedProps?.type !== "time_off"
+                    }
                     eventClick={(info) => {
                       info.jsEvent.preventDefault();
                       const ext = info.event.extendedProps || {};
@@ -3137,6 +3361,10 @@ appointmentsParams.search = filterParams.appointment_search;
                     }}
                     eventDrop={(info) => {
                       const ext = info.event.extendedProps || {};
+                      if (ext.type === "time_off") {
+                        info.revert();
+                        return;
+                      }
                       handleEventDrop({
                         event: {
                           id: info.event.id,
@@ -3152,6 +3380,10 @@ appointmentsParams.search = filterParams.appointment_search;
                     }}
                     eventResize={(info) => {
                       const ext = info.event.extendedProps || {};
+                      if (ext.type === "time_off") {
+                        info.revert();
+                        return;
+                      }
                       handleEventResize({
                         event: {
                           id: info.event.id,
@@ -3308,14 +3540,16 @@ appointmentsParams.search = filterParams.appointment_search;
         setSelectedJob(null);
         setSelectedJobId(null);
       }}>
-        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md max-h-[calc(100vh-2rem)] sm:max-h-[90vh] flex flex-col p-0 sm:p-6">
-          <div className="flex-shrink-0 px-4 pt-6 pb-4 sm:px-0 sm:pt-0">
-            <DialogHeader>
-              <DialogTitle>Job Details</DialogTitle>
-              <DialogDescription>View and manage job information</DialogDescription>
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg max-h-[calc(100vh-2rem)] sm:max-h-[90vh] flex flex-col gap-0 p-0 sm:p-6">
+          <div className="flex-shrink-0 border-b px-4 pb-4 pt-6 pr-12 sm:px-0 sm:pb-4 sm:pt-0 sm:pr-10">
+            <DialogHeader className="space-y-1 text-left">
+              <DialogTitle className="text-lg font-semibold tracking-tight">Job Details</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                View and manage job information
+              </DialogDescription>
             </DialogHeader>
           </div>
-          <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 sm:px-0 sm:pb-0 min-h-0 md:mb-0 mb-60">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 pt-4 sm:px-0 sm:pb-0 sm:pt-4 min-h-0 md:mb-0 mb-60">
             {(() => {
               // Check if selectedJob matches selectedJobId
               const jobMatches = selectedJob && selectedJobId && (
@@ -3345,6 +3579,7 @@ appointmentsParams.search = filterParams.appointment_search;
                     onUpdate={handleJobUpdate}
                     users={users}
                     accountTimezone={accountTimezone}
+                    embeddedInDialog
                   />
                 );
               }
@@ -3624,6 +3859,55 @@ appointmentsParams.search = filterParams.appointment_search;
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!selectedTimeOff}
+        onOpenChange={(open) => {
+          if (!open) setSelectedTimeOff(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Time off</DialogTitle>
+            <DialogDescription>
+              {selectedTimeOff?.employee_name || "Scheduled absence"}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedTimeOff && (
+            <div className="space-y-3 text-sm py-2">
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">Type</span>
+                <span className="font-medium text-right">
+                  {TIME_OFF_KIND_LABELS[selectedTimeOff.kind] || selectedTimeOff.kind}
+                </span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">From</span>
+                <span>{selectedTimeOff.start_date}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">To</span>
+                <span>{selectedTimeOff.end_date}</span>
+              </div>
+              {selectedTimeOff.employee_email && (
+                <div className="flex justify-between gap-2 min-w-0">
+                  <span className="text-muted-foreground shrink-0">Email</span>
+                  <span className="truncate">{selectedTimeOff.employee_email}</span>
+                </div>
+              )}
+              {selectedTimeOff.notes ? (
+                <div>
+                  <span className="text-muted-foreground block mb-1">Notes</span>
+                  <p className="whitespace-pre-wrap text-foreground">{selectedTimeOff.notes}</p>
+                </div>
+              ) : null}
+              <Button variant="outline" className="w-full mt-2" asChild>
+                <Link to="/admin/payroll/time-off">Manage in Payroll</Link>
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

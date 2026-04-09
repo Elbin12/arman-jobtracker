@@ -15,18 +15,34 @@ export const handleDownloadPDF = async (
     const { jsPDF } = await import("jspdf")
     const doc = new jsPDF()
 
-    const colors = {
-      black: "#000000",
-      gray: "#666666",
-      lightGray: "#f5f5f5",
-    }
-
     let yPosition = 20
     const pageHeight = doc.internal.pageSize.height
     const pageWidth = doc.internal.pageSize.width
     const margin = 20
     const lineHeight = 6
     const maxLineWidth = pageWidth - margin * 2
+
+    const COMPANY = {
+      name: import.meta.env.VITE_COMPANY_NAME || "TruShine Window Cleaning",
+      address: import.meta.env.VITE_COMPANY_ADDRESS || "3525 Murdock St, Houston, TX 77047",
+      phone: import.meta.env.VITE_COMPANY_PHONE || "832-713-3545",
+      email: import.meta.env.VITE_COMPANY_EMAIL || "trushinehouston@gmail.com",
+      website: import.meta.env.VITE_COMPANY_WEBSITE || "www.trushinewindowcleaning.com",
+    }
+
+    const rgb = {
+      green: [46, 125, 50],
+      orange: [230, 81, 0],
+      blue: [2, 60, 143],
+      muted: [80, 80, 80],
+    }
+
+    const centerText = (text, y, fontSize = 10, style = "normal") => {
+      doc.setFontSize(fontSize)
+      doc.setFont(undefined, style)
+      const w = doc.getTextWidth(text)
+      doc.text(text, (pageWidth - w) / 2, y)
+    }
 
     const checkPageBreak = (linesNeeded = 1) => {
       if (yPosition + linesNeeded * lineHeight > pageHeight - 30) {
@@ -63,7 +79,11 @@ export const handleDownloadPDF = async (
           return ["N/A"]
         case "multiple_yes_no":
           if (sub_question_responses?.length > 0) {
-            return sub_question_responses.map(sub => `${sub.sub_question_text}: ${sub.yes_no_answer}`)
+            return sub_question_responses.map((sub) => {
+              const a = sub.yes_no_answer
+              const yn = a === true ? "Yes" : a === false ? "No" : String(a ?? "N/A")
+              return `${sub.sub_question_text}: ${yn}`
+            })
           }
           return ["N/A"]
         default:
@@ -89,189 +109,175 @@ export const handleDownloadPDF = async (
       ).join(' ')
     }
 
-    // ------------------------
-    // Logo + Header
-    // ------------------------
-    const logoBase64 = await getBase64FromUrl(import.meta.env.VITE_COMPANY_LOGO_URL || 'https://storage.googleapis.com/msgsndr/b8qvo7VooP3JD3dIZU42/media/683efc8fd5817643ff8194f0.jpeg')
-    const logoSize = 30
-    doc.addImage(logoBase64, "JPEG", margin, yPosition, logoSize, logoSize)
-    const textOffsetY = yPosition + logoSize / 2 - 5
+    const customerName =
+      `${toTitleCase(contact?.first_name) || ""} ${toTitleCase(contact?.last_name) || ""}`.trim() || "Customer"
+    const streetLine = address
+      ? [address.street_address, address.city, address.state, address.postal_code].filter(Boolean).join(", ")
+      : ""
+    const serviceLocation = streetLine || "—"
 
-    doc.setFontSize(18)
-    doc.setFont(undefined, "bold")
-    doc.text(import.meta.env.VITE_COMPANY_NAME || 'TruShine Window Cleaning', margin + logoSize + 10, textOffsetY)
+    // ------------------------
+    // 1. Company logo and information (page 1 only)
+    // ------------------------
+    const logoBase64 = await getBase64FromUrl(
+      import.meta.env.VITE_COMPANY_LOGO_URL ||
+        "https://storage.googleapis.com/msgsndr/b8qvo7VooP3JD3dIZU42/media/683efc8fd5817643ff8194f0.jpeg"
+    )
+    const logoW = 38
+    const logoH = 38
+    doc.addImage(logoBase64, "JPEG", (pageWidth - logoW) / 2, yPosition, logoW, logoH)
+    yPosition += logoH + 10
 
-    doc.setFontSize(10)
+    doc.setTextColor(0, 0, 0)
+    centerText(COMPANY.name, yPosition, 12, "bold")
+    yPosition += 8
+
+    doc.setFontSize(9)
     doc.setFont(undefined, "normal")
-    doc.text(import.meta.env.VITE_COMPANY_TAGLINE || 'Professional Cleaning Services', margin + logoSize + 10, textOffsetY + 8)
+    doc.setTextColor(...rgb.muted)
+    ;[COMPANY.address, COMPANY.phone, COMPANY.email, COMPANY.website].forEach((line) => {
+      checkPageBreak(1)
+      centerText(line, yPosition, 9)
+      yPosition += 5
+    })
+    doc.setTextColor(0, 0, 0)
+    yPosition += 12
 
-    yPosition += logoSize + 15
+    // Prepared for / Prepared by — bottom right, neutral business styling
+    const prepFooterMaxW = 72
+    const preparedAddrLinesP1 = doc.splitTextToSize(streetLine || "—", prepFooterMaxW)
+    const companyFooterLines = doc.splitTextToSize(COMPANY.name, prepFooterMaxW)
+    const footerLineH = 4.5
+    const footerGap = 5
+    const footerBlockHeight =
+      footerLineH +
+      footerLineH +
+      preparedAddrLinesP1.length * footerLineH +
+      footerGap +
+      footerLineH +
+      footerLineH +
+      companyFooterLines.length * footerLineH +
+      4
 
-    doc.setDrawColor(colors.black)
+    let fy = pageHeight - margin - footerBlockHeight
+    const rx = (text) => pageWidth - margin - doc.getTextWidth(text)
+
+    doc.setFontSize(8)
+    doc.setFont(undefined, "bold")
+    doc.setTextColor(64, 64, 64)
+    doc.text("Prepared for:", rx("Prepared for:"), fy)
+    fy += footerLineH
+    doc.setTextColor(0, 0, 0)
+    doc.setFontSize(10)
+    doc.setFont(undefined, "bold")
+    doc.text(customerName, rx(customerName), fy)
+    fy += footerLineH
+    doc.setFont(undefined, "normal")
+    doc.setFontSize(8.5)
+    preparedAddrLinesP1.forEach((ln) => {
+      doc.text(ln, rx(ln), fy)
+      fy += footerLineH
+    })
+    fy += footerGap - 1
+    doc.setFontSize(8)
+    doc.setFont(undefined, "bold")
+    doc.setTextColor(64, 64, 64)
+    doc.text("Prepared by:", rx("Prepared by:"), fy)
+    fy += footerLineH
+    doc.setTextColor(28, 37, 64)
+    doc.setFontSize(10)
+    doc.setFont(undefined, "bold")
+    companyFooterLines.forEach((ln) => {
+      doc.text(ln, rx(ln), fy)
+      fy += footerLineH
+    })
+    doc.setTextColor(0, 0, 0)
+
+    doc.addPage()
+    yPosition = 20
+
+    doc.setDrawColor(200, 200, 200)
     doc.line(margin, yPosition, pageWidth - margin, yPosition)
-    yPosition += 15
+    yPosition += 12
 
-    doc.setFontSize(16)
-    doc.setFont(undefined, "bold")
-    doc.text("SERVICE QUOTE", margin, yPosition)
+    doc.setTextColor(...rgb.orange)
+    centerText("PROPOSAL", yPosition, 18, "bold")
+    doc.setTextColor(0, 0, 0)
+    yPosition += 8
 
-    doc.setFontSize(10)
+    doc.setFontSize(8)
     doc.setFont(undefined, "normal")
-    doc.text(`Quote #: ${quote.id}`, pageWidth - margin - 60, yPosition - 5)
-    doc.text(`Date: ${new Date(quote.created_at).toLocaleDateString()}`, pageWidth - margin - 60, yPosition + 3)
-    yPosition += 20
+    doc.setTextColor(...rgb.muted)
+    centerText(`Quote #${quote.id} · ${new Date(quote.created_at).toLocaleDateString()}`, yPosition, 8)
+    doc.setTextColor(0, 0, 0)
+    yPosition += 12
 
-    // ------------------------
-    // Customer Info
-    // ------------------------
-    doc.setFontSize(12)
-    doc.setFont(undefined, "bold")
-    doc.text("CUSTOMER INFORMATION", margin, yPosition)
+    // Customer information (before line items & totals on proposal pages)
+    doc.setDrawColor(200, 200, 200)
+    doc.line(margin, yPosition, pageWidth - margin, yPosition)
     yPosition += 10
 
-    doc.setFontSize(10)
-    doc.setFont(undefined, "normal")
-    doc.text(`Name: ${toTitleCase(contact?.first_name) || ""} ${toTitleCase(contact?.last_name) || ""}`, margin, yPosition)
-    yPosition += 6
-    doc.text(`Email: ${contact?.email || "N/A"}`, margin, yPosition)
-    yPosition += 6
-    doc.text(`Phone: ${contact?.phone || "N/A"}`, margin, yPosition)
-    yPosition += 6
-    doc.text(`Property Size: ${house_sqft || "N/A"} sq ft`, margin, yPosition)
-    yPosition += 6
+    doc.setFontSize(13)
+    doc.setFont(undefined, "bold")
+    doc.setTextColor(...rgb.green)
+    doc.text("Customer Information", margin, yPosition)
+    doc.setTextColor(0, 0, 0)
+    yPosition += 10
 
-    if (address) {
-      const fullAddress = `${address.name || ""}, ${address.street_address || ""}, ${address.city || ""}, ${address.state || ""} ${address.postal_code || ""}`
-      yPosition += addWrappedText(`Address: ${fullAddress}`, margin, yPosition) + 3
+    const colMid = pageWidth / 2 + 8
+    doc.setFontSize(9)
+    doc.setFont(undefined, "bold")
+    doc.text("Presented To:", margin, yPosition)
+    doc.text("Service location:", colMid, yPosition)
+    yPosition += 5
+    doc.setFont(undefined, "normal")
+    const leftBlock = doc.splitTextToSize(customerName, colMid - margin - 12)
+    const rightBlock = doc.splitTextToSize(serviceLocation, pageWidth - margin - colMid - 4)
+    const blockLines = Math.max(leftBlock.length, rightBlock.length)
+    for (let i = 0; i < blockLines; i++) {
+      checkPageBreak(1)
+      if (leftBlock[i]) doc.text(leftBlock[i], margin, yPosition)
+      if (rightBlock[i]) doc.text(rightBlock[i], colMid, yPosition)
+      yPosition += 5
     }
-
+    yPosition += 2
+    doc.text(`Phone: ${contact?.phone || "N/A"}`, margin, yPosition)
+    yPosition += 5
+    doc.text(`Email: ${contact?.email || "N/A"}`, margin, yPosition)
+    yPosition += 5
+    doc.text(`Property size: ${house_sqft ? `${house_sqft} sq ft` : "N/A"}`, margin, yPosition)
     yPosition += 10
 
-    // ------------------------
-    // Scheduled Service
-    // ------------------------
     if (quote_schedule?.is_submitted && quote_schedule?.scheduled_date) {
-      doc.setFontSize(12)
       doc.setFont(undefined, "bold")
-      doc.text("SCHEDULED SERVICE", margin, yPosition)
-      yPosition += 10
-
-      const scheduledDate = new Date(quote_schedule.scheduled_date)
-      doc.setFontSize(10)
+      doc.setFontSize(9)
+      doc.text("Scheduled service", margin, yPosition)
+      yPosition += 5
       doc.setFont(undefined, "normal")
+      const scheduledDate = new Date(quote_schedule.scheduled_date)
       doc.text(
-        `Date: ${scheduledDate.toLocaleDateString(undefined, {
+        `${scheduledDate.toLocaleDateString(undefined, {
           weekday: "long",
           year: "numeric",
           month: "long",
           day: "numeric",
-        })}`,
+        })} · ${scheduledDate.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`,
         margin,
         yPosition
       )
-      yPosition += 6
-      doc.text(
-        `Time: ${scheduledDate.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`,
-        margin,
-        yPosition
-      )
-      yPosition += 15
-    }
-
-    // ------------------------
-    // Service Selections
-    // ------------------------
-    if (service_selections?.length > 0) {
-      doc.setFontSize(12)
-      doc.setFont(undefined, "bold")
-      doc.text("SERVICES", margin, yPosition)
-      yPosition += 10
-
-      doc.setFontSize(10)
-      doc.setFont(undefined, "bold")
-      doc.text("Description", margin, yPosition)
-      doc.text("Price", pageWidth - margin - 40, yPosition)
-      yPosition += 8
-      doc.line(margin, yPosition - 2, pageWidth - margin, yPosition - 2)
-      yPosition += 5
-      doc.setFont(undefined, "normal")
-
-      service_selections.forEach((selection, index) => {
-        checkPageBreak(2)
-        doc.text(selection.service_details?.name || "Service", margin, yPosition)
-        doc.text(formatPrice(selection.final_total_price), pageWidth - margin - 40, yPosition)
-        yPosition += 6
-
-        if (selection.service_details?.description) {
-          yPosition += addWrappedText(`Description: ${selection.service_details.description}`, margin + 5, yPosition)
-        }
-
-        if (selection.selected_package_details) {
-          doc.text(`Package: ${selection.selected_package_details.name}`, margin + 5, yPosition)
-          yPosition += 6
-        }
-
-        if (selection.question_responses?.length > 0) {
-          doc.text("Responses:", margin + 5, yPosition)
-          yPosition += 6
-          selection.question_responses.forEach((response) => {
-            checkPageBreak(2)
-            const answers = formatResponse(response)
-            doc.text(`• ${response.question_text}:`, margin + 10, yPosition)
-            yPosition += 6
-            answers.forEach(ans => {
-              yPosition += addWrappedText(`   - ${ans}`, margin + 15, yPosition)
-            })
-            yPosition += 3
-          })
-        }
-
-        yPosition += 5
-      })
-    }
-
-    // ------------------------
-    // Custom Services
-    // ------------------------
-    if (custom_products?.length > 0) {
-      doc.setFontSize(12)
-      doc.setFont(undefined, "bold")
-      doc.text("ADDITIONAL SERVICES", margin, yPosition)
-      yPosition += 10
-
-      doc.setFontSize(10)
-      doc.setFont(undefined, "bold")
-      doc.text("Description", margin, yPosition)
-      doc.text("Price", pageWidth - margin - 40, yPosition)
-      yPosition += 8
-      doc.line(margin, yPosition - 2, pageWidth - margin, yPosition - 2)
-      yPosition += 5
-      doc.setFont(undefined, "normal")
-
-      custom_products.forEach((product) => {
-        checkPageBreak(2)
-        doc.text(product.product_name, margin, yPosition)
-        doc.text(formatPrice(product.price), pageWidth - margin - 40, yPosition)
-        yPosition += 6
-        if (product.description) {
-          yPosition += addWrappedText(product.description, margin + 5, yPosition)
-        }
-      })
       yPosition += 10
     }
 
-    // ------------------------
-    // Pricing Summary
-    // ------------------------
-    doc.setFontSize(12)
-    doc.setFont(undefined, "bold")
-    doc.text("PRICING SUMMARY", margin, yPosition)
-    yPosition += 10
+    yPosition += 6
 
-    // Calculate all values like the web page does
-    const totalServicePrice = service_selections?.reduce((sum, s) => sum + Number(s.final_total_price || 0), 0) || 0
-    const customServiceTotal = custom_products?.reduce((sum, p) => sum + Number(p.price || 0), 0) || 0
-    let subtotal = 0;
+    // ------------------------
+    // 2. Proposal — line items + totals (page 2+; continues on extra pages if long)
+    // ------------------------
+    const totalServicePrice =
+      service_selections?.reduce((sum, s) => sum + Number(s.final_total_price || 0), 0) || 0
+    const customServiceTotal =
+      custom_products?.reduce((sum, p) => sum + Number(p.price || 0), 0) || 0
+    let subtotal = 0
     if (service_selections?.length > 0) {
       if (totalServicePrice < (globalPriceData?.base_price || 0)) {
         subtotal = Number(globalPriceData?.base_price || 0)
@@ -281,101 +287,241 @@ export const handleDownloadPDF = async (
     } else {
       subtotal = Number(quote?.final_total || 0)
     }
-    // const adjustment = subtotal < (globalPriceData?.base_price || 0) ? (globalPriceData?.base_price || 0) - subtotal : 0
     const final = subtotal
     const taxRate = parseFloat(import.meta.env.VITE_TAX_RATE) || 0.0825
     const taxAmount = final * taxRate
     const finalWithTax = final + taxAmount
+    const taxRatePercent = (taxRate * 100).toFixed(2)
 
-    console.log('subtotal', subtotal)
-    console.log('final', final, typeof(final))
-    console.log('taxAmount', taxAmount, typeof(taxAmount))
-    console.log('finalWithTax', finalWithTax) 
-    console.log('customServiceTotal', customServiceTotal)
-    console.log('totalServicePrice', totalServicePrice)
+    doc.setFontSize(13)
+    doc.setFont(undefined, "bold")
+    doc.setTextColor(...rgb.green)
+    doc.text("Proposal", margin, yPosition)
+    doc.setTextColor(0, 0, 0)
+    yPosition += 10
 
-    doc.setFontSize(10)
+    const descColW = pageWidth - 2 * margin - 38
+    const detailLine = 4.35
+    const headerBarH = 8
+    checkPageBreak(12)
+    doc.setFillColor(240, 240, 240)
+    doc.rect(margin, yPosition - 4, pageWidth - 2 * margin, headerBarH, "F")
+    doc.setFontSize(9)
+    doc.setFont(undefined, "bold")
+    doc.text("Description", margin + 2, yPosition)
+    doc.text("Total", pageWidth - margin - 2, yPosition)
+    yPosition += 10
+    doc.setDrawColor(200, 200, 200)
+    doc.line(margin, yPosition - 2, pageWidth - margin, yPosition - 2)
     doc.setFont(undefined, "normal")
 
-    // Individual service prices
+    const advanceY = (n = 1) => {
+      yPosition += n * detailLine
+    }
+
+    const drawServiceLineItem = (selection, linePrice) => {
+      checkPageBreak(16)
+      const blockStartY = yPosition
+      const title = selection.service_details?.name || "Service"
+
+      doc.setFont(undefined, "bold")
+      doc.setFontSize(9)
+      doc.setTextColor(0, 0, 0)
+      const titleLines = doc.splitTextToSize(title, descColW)
+      titleLines.forEach((tl) => {
+        doc.text(tl, margin + 2, yPosition)
+        advanceY(1)
+      })
+
+      if (selection.service_details?.description) {
+        advanceY(0.35)
+        doc.setFont(undefined, "normal")
+        doc.setFontSize(8)
+        doc.setTextColor(55, 55, 55)
+        const descLines = doc.splitTextToSize(
+          selection.service_details.description,
+          descColW - 4
+        )
+        descLines.forEach((ln) => {
+          checkPageBreak(1)
+          doc.text(ln, margin + 4, yPosition)
+          advanceY(1)
+        })
+        doc.setTextColor(0, 0, 0)
+        advanceY(0.5)
+      }
+
+      if (selection.selected_package_details?.name) {
+        checkPageBreak(2)
+        doc.setFont(undefined, "bold")
+        doc.setFontSize(8.5)
+        doc.text("Package", margin + 4, yPosition)
+        doc.setFont(undefined, "normal")
+        doc.text(selection.selected_package_details.name, margin + 4 + doc.getTextWidth("Package") + 3, yPosition)
+        advanceY(1.15)
+      }
+
+      if (selection.question_responses?.length > 0) {
+        checkPageBreak(4)
+        advanceY(0.4)
+        doc.setFont(undefined, "bold")
+        doc.setFontSize(8)
+        doc.setTextColor(72, 72, 72)
+        doc.text("Questions & responses", margin + 4, yPosition)
+        doc.setTextColor(0, 0, 0)
+        advanceY(1.1)
+
+        selection.question_responses.forEach((response, qIdx) => {
+          const answers = formatResponse(response)
+          const answerText =
+            answers.length > 1 ? answers.map((a, i) => `${i + 1}. ${a}`).join(" ") : answers.join(" ")
+
+          const qLines = doc.splitTextToSize(
+            `${qIdx + 1}. ${response.question_text || "Question"}`,
+            descColW - 8
+          )
+          const aLines = doc.splitTextToSize(answerText || "—", descColW - 12)
+
+          checkPageBreak(2 + qLines.length + aLines.length)
+          doc.setFont(undefined, "bold")
+          doc.setFontSize(8)
+          qLines.forEach((ql) => {
+            doc.text(ql, margin + 6, yPosition)
+            advanceY(1)
+          })
+          doc.setFont(undefined, "normal")
+          doc.setFontSize(8)
+          doc.setTextColor(60, 60, 60)
+          aLines.forEach((al) => {
+            checkPageBreak(1)
+            doc.text(al, margin + 10, yPosition)
+            advanceY(1)
+          })
+          doc.setTextColor(0, 0, 0)
+          advanceY(0.65)
+        })
+      }
+
+      const priceStr = formatPrice(linePrice)
+      doc.setFontSize(9)
+      doc.setFont(undefined, "bold")
+      doc.setTextColor(0, 0, 0)
+      doc.text(priceStr, pageWidth - margin - 2 - doc.getTextWidth(priceStr), blockStartY + 4)
+      doc.setFont(undefined, "normal")
+      advanceY(0.5)
+      doc.setDrawColor(230, 230, 230)
+      doc.line(margin, yPosition, pageWidth - margin, yPosition)
+      yPosition += 8
+    }
+
+    const drawProposalRow = (title, detailParts, linePrice) => {
+      checkPageBreak(14)
+      const blockStartY = yPosition
+      doc.setFont(undefined, "bold")
+      doc.setFontSize(9)
+      const titleLines = doc.splitTextToSize(title, descColW)
+      titleLines.forEach((tl) => {
+        doc.text(tl, margin + 2, yPosition)
+        yPosition += lineHeight
+      })
+      doc.setFont(undefined, "normal")
+      doc.setFontSize(8)
+      detailParts.forEach((part) => {
+        if (!part) return
+        const lines = doc.splitTextToSize(part, descColW - 4)
+        lines.forEach((ln) => {
+          checkPageBreak(1)
+          doc.text(ln, margin + 4, yPosition)
+          yPosition += detailLine
+        })
+        yPosition += 2
+      })
+      const priceStr = formatPrice(linePrice)
+      doc.setFontSize(9)
+      doc.setFont(undefined, "bold")
+      doc.text(priceStr, pageWidth - margin - 2 - doc.getTextWidth(priceStr), blockStartY + 4)
+      doc.setFont(undefined, "normal")
+      yPosition += 4
+      doc.setDrawColor(230, 230, 230)
+      doc.line(margin, yPosition, pageWidth - margin, yPosition)
+      yPosition += 8
+    }
+
     if (service_selections?.length > 0) {
-      service_selections.forEach((service) => {
-        checkPageBreak(1)
-        doc.text(service.service_details?.name || "Service", margin, yPosition)
-        doc.text(formatPrice(service.final_total_price), pageWidth - margin - 40, yPosition)
-        yPosition += 6
+      service_selections.forEach((selection) => {
+        drawServiceLineItem(selection, selection.final_total_price)
       })
     }
 
-    // Custom Services (if any)
-    if (custom_products?.length > 0 && Number.parseFloat(customServiceTotal) > 0) {
-      checkPageBreak(1)
-      doc.text("Custom Services", margin, yPosition)
-      doc.text(formatPrice(customServiceTotal), pageWidth - margin - 40, yPosition)
-      yPosition += 6
+    if (custom_products?.length > 0) {
+      custom_products.forEach((product) => {
+        const details = []
+        if (product.description) details.push(product.description)
+        drawProposalRow(product.product_name || "Additional item", details, product.price)
+      })
     }
 
-    // Adjustments
-    // checkPageBreak(1)
-    // doc.text("Adjustments", margin, yPosition)
-    // doc.text(formatPrice(adjustment), pageWidth - margin - 40, yPosition)
-    // yPosition += 6
-
-    // Tax
-    checkPageBreak(1)
-    const taxRatePercent = ((parseFloat(import.meta.env.VITE_TAX_RATE) || 0.0825) * 100).toFixed(2)
-    doc.text(`Tax (${taxRatePercent}%)`, margin, yPosition)
-    doc.text(formatPrice(taxAmount), pageWidth - margin - 40, yPosition)
-    yPosition += 6
-
-    // Add note if minimum base price applies
-    if (subtotal < (globalPriceData?.base_price || 0)) {
+    const totalsX = pageWidth - margin - 50
+    const amountsX = pageWidth - margin - 2
+    const lineTotal = (label, value, bold = false) => {
       checkPageBreak(2)
-      yPosition += 3
-      doc.setFontSize(9)
-      doc.setTextColor("#dc2626") // Red color for the note
-      doc.text(`Note: Minimum base price is ${formatPrice(globalPriceData?.base_price || 0)}`, margin, yPosition)
+      doc.setFont(undefined, bold ? "bold" : "normal")
+      doc.setFontSize(10)
+      doc.text(label, totalsX, yPosition)
+      const v = typeof value === "string" ? value : formatPrice(value)
+      doc.text(v, amountsX - doc.getTextWidth(v), yPosition)
       yPosition += 6
-      doc.setFontSize(10)
-      doc.setTextColor("#000000") // Reset to black
-    }
-
-    // Separator line
-    yPosition += 3
-    doc.setDrawColor("#000000")
-    doc.line(margin, yPosition, pageWidth - margin, yPosition)
-    yPosition += 8
-
-    // Final Total
-    doc.setFont(undefined, "bold")
-    doc.text("Final Total", margin, yPosition)
-    doc.text(formatPrice(finalWithTax), pageWidth - margin - 40, yPosition)
-
-    // Tax included note
-    yPosition += 6
-    doc.setFontSize(9)
-    doc.setFont(undefined, "normal")
-    doc.setTextColor("#666666")
-    doc.text("Tax included", pageWidth - margin - 40, yPosition)
-
-    // Reset formatting
-    doc.setFontSize(10)
-    doc.setTextColor("#000000")
-    yPosition += 15
-
-    // ------------------------
-    // Additional Notes
-    // ------------------------
-    if (additional_data?.additional_notes) {
-      doc.setFontSize(12)
-      doc.setFont(undefined, "bold")
-      doc.text("NOTES", margin, yPosition)
-      yPosition += 10
-
-      doc.setFontSize(10)
       doc.setFont(undefined, "normal")
-      yPosition += addWrappedText(additional_data.additional_notes, margin, yPosition) + 3
     }
+
+    yPosition += 4
+    lineTotal("Subtotal", formatPrice(final))
+    lineTotal(`Tax (${taxRatePercent}%)`, formatPrice(taxAmount))
+
+    if (
+      service_selections?.length > 0 &&
+      totalServicePrice < (globalPriceData?.base_price || 0)
+    ) {
+      checkPageBreak(2)
+      doc.setFontSize(9)
+      doc.setTextColor(220, 38, 38)
+      yPosition += addWrappedText(
+        `Minimum base price of ${formatPrice(globalPriceData?.base_price || 0)} applied.`,
+        margin,
+        yPosition
+      )
+      doc.setTextColor(0, 0, 0)
+      doc.setFontSize(10)
+    }
+
+    yPosition += 4
+    doc.setDrawColor(0, 0, 0)
+    doc.line(totalsX - 4, yPosition, pageWidth - margin, yPosition)
+    yPosition += 8
+    lineTotal("Total", formatPrice(finalWithTax), true)
+
+    yPosition += 4
+    doc.setFontSize(8)
+    doc.setTextColor(100, 100, 100)
+    const incNote = "Amounts shown; tax calculated as indicated above."
+    doc.text(incNote, totalsX, yPosition)
+    doc.setTextColor(0, 0, 0)
+    doc.setFontSize(10)
+    yPosition += 12
+
+    if (additional_data?.additional_notes) {
+      checkPageBreak(8)
+      doc.setFontSize(10)
+      doc.setFont(undefined, "bold")
+      doc.text("Notes", margin, yPosition)
+      yPosition += 6
+      doc.setFont(undefined, "normal")
+      yPosition += addWrappedText(additional_data.additional_notes, margin, yPosition) + 4
+    }
+
+    const agreementDate = additional_data?.submitted_at
+      ? new Date(additional_data.submitted_at)
+      : new Date()
 
     // ------------------------
     // Signature
@@ -429,20 +575,18 @@ export const handleDownloadPDF = async (
     // }
 
     // ------------------------
-    // Terms and Conditions Document
+    // 4. Terms and conditions
     // ------------------------
-    if (quote?.status === "accepted" || "submitted") {
-      // Get signature timestamp for agreement date from submitted_at
-      const agreementDate = additional_data?.submitted_at 
-        ? new Date(additional_data.submitted_at)
-        : new Date();
-      
-      // Start new page for Terms & Conditions
-      doc.addPage()
-      yPosition = 15 // Reduced from 20 - tighter top margin
-      
-      // Use tighter spacing for terms section to fit in 2-2.5 pages
-      const termsMargin = 15 // Reduced from 20 for tighter margins
+    {
+      checkPageBreak(30)
+      if (yPosition > pageHeight - 100) {
+        doc.addPage()
+        yPosition = 20
+      } else {
+        yPosition += 14
+      }
+
+      const termsMargin = margin
       const termsLineHeight = 3.5 // Further reduced from 4
       const termsSpacing = 0.5 // Further reduced spacing between items
       const termsMaxLineWidth = pageWidth - termsMargin * 2
@@ -455,18 +599,22 @@ export const handleDownloadPDF = async (
         }
       }
       
-      // Header
-      doc.setFontSize(12) // Further reduced from 14
+      doc.setFontSize(14)
       doc.setFont(undefined, "bold")
-      doc.setTextColor("#000000")
-      doc.text("TERMS AND CONDITIONS", termsMargin, yPosition)
-      yPosition += 3 // Reduced from 5
-      
-      // Company Name
-      doc.setFontSize(7) // Further reduced from 8
+      doc.setTextColor(rgb.green[0], rgb.green[1], rgb.green[2])
+      doc.text("Terms and Conditions", termsMargin, yPosition)
+      yPosition += 6
+      doc.setFontSize(10)
+      doc.setFont(undefined, "bold")
+      doc.setTextColor(0, 0, 0)
+      doc.text("Agreement", termsMargin, yPosition)
+      yPosition += 6
+      doc.setFontSize(8)
       doc.setFont(undefined, "normal")
-      doc.text(import.meta.env.VITE_COMPANY_NAME || 'TruShine Window Cleaning', termsMargin, yPosition)
-      yPosition += 4 // Reduced from 8
+      doc.setTextColor(60, 60, 60)
+      doc.text(COMPANY.name, termsMargin, yPosition)
+      yPosition += 6
+      doc.setTextColor(0, 0, 0)
       
       // Agreement Statement with Timestamp
       doc.setFontSize(7) // Further reduced from 8
@@ -964,55 +1112,58 @@ export const handleDownloadPDF = async (
       const finalAgreement = "By signing this document, the client acknowledges that they have read, understood, and agreed to all Terms & Conditions contained in this proposal."
         const finalAgreementLines = doc.splitTextToSize(finalAgreement, termsMaxLineWidth)
         doc.text(finalAgreementLines, termsMargin, yPosition)
-      yPosition += finalAgreementLines.length * termsLineHeight
-      
-      // Customer Signature Section (Professional Style)
+      yPosition += finalAgreementLines.length * termsLineHeight + 4
+
       if (additional_data?.signature) {
-        checkPageBreak(12)
-        
-        // // Signature Heading
-        // doc.setFontSize(12)
-        // doc.setFont(undefined, "bold")
-        // doc.setTextColor("#000000")
-        // doc.text("CUSTOMER SIGNATURE", margin, yPosition)
-        // yPosition += 8
-        
-        // Signature Image
+        checkTermsPageBreak(22)
         try {
-          doc.addImage(`data:image/png;base64,${additional_data.signature}`, "PNG", margin, yPosition, 100, 40)
-          yPosition += 45
-        } catch (e) {
-          doc.setFontSize(10)
-          doc.setFont(undefined, "normal")
-          doc.setTextColor("#666666")
-          doc.text("Digital signature on file", margin, yPosition)
-          yPosition += 10
+          doc.addImage(
+            `data:image/png;base64,${additional_data.signature}`,
+            "PNG",
+            termsMargin,
+            yPosition,
+            100,
+            40
+          )
+          yPosition += 46
+        } catch {
+          doc.setFontSize(9)
+          doc.setTextColor(100, 100, 100)
+          doc.text("Digital signature on file", termsMargin, yPosition)
+          doc.setTextColor(0, 0, 0)
+          yPosition += 8
         }
-        
-        // Signed by and Timestamp
-        yPosition += 3
+
         doc.setFontSize(10)
         doc.setFont(undefined, "normal")
-        doc.setTextColor("#000000")
-        
-        // Signed by
-        if (contact && (contact?.first_name || contact?.last_name || contact?.email)) {
-          const signedByName = toTitleCase([contact?.first_name, contact?.last_name].filter(Boolean).join(' ')) || contact?.email || 'Customer'
-          doc.text(`Signed by: ${signedByName}`, margin, yPosition)
-          yPosition += 5
-        }
-        
-        // Date and Time
-        doc.text(`Date: ${agreementDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, margin, yPosition)
+        doc.setTextColor(0, 0, 0)
+        const signedByName =
+          (contact &&
+            (toTitleCase([contact?.first_name, contact?.last_name].filter(Boolean).join(" ")) ||
+              contact?.email)) ||
+          "Customer"
+        doc.text(`Signed by: ${signedByName}`, termsMargin, yPosition)
         yPosition += 5
-        doc.text(`Time: ${agreementDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`, margin, yPosition)
-        yPosition += 10
-        
-        // Agreement Statement
-        // doc.setFontSize(9)
-        // doc.setFont(undefined, "normal")
-        // doc.setTextColor("#4b5563")
-        // doc.text("✓ I have read and agree to the Terms & Conditions and Privacy Policy", margin, yPosition)
+        doc.text(
+          `Date: ${agreementDate.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          })}`,
+          termsMargin,
+          yPosition
+        )
+        yPosition += 5
+        doc.text(
+          `Time: ${agreementDate.toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          })}`,
+          termsMargin,
+          yPosition
+        )
+        yPosition += 8
       }
     }
 

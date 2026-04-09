@@ -4,7 +4,7 @@ import { axiosBaseQuery, BASE_URL } from '../axios/axios';
 export const payrollApi = createApi({
   reducerPath: 'payrollApi',
   baseQuery: axiosBaseQuery({ baseUrl: BASE_URL + '/payroll/' }),
-  tagTypes: ['PayrollSettings', 'PayrollEmployee', 'Payout', 'TimeEntry'],
+  tagTypes: ['PayrollSettings', 'PayrollEmployee', 'Payout', 'TimeEntry', 'TimeOff'],
   endpoints: (builder) => ({
     // Settings
     getSettings: builder.query({
@@ -130,6 +130,26 @@ export const payrollApi = createApi({
       }),
       invalidatesTags: ['TimeEntry'],
     }),
+
+    // Time off (PTO / absence)
+    getTimeOffList: builder.query({
+      query: (params = {}) => ({ url: 'time-off/', params }),
+      providesTags: ['TimeOff'],
+    }),
+    createTimeOff: builder.mutation({
+      query: (data) => ({
+        url: 'time-off/',
+        method: 'POST',
+        data,
+      }),
+      invalidatesTags: ['TimeOff'],
+    }),
+    getAvailableEmployeesForDate: builder.query({
+      query: (date) => ({
+        url: 'time-off/available-employees/',
+        params: { date },
+      }),
+    }),
   }),
 });
 
@@ -152,5 +172,8 @@ export const {
   useCreateTimeEntryMutation,
   useUpdateTimeEntryMutation,
   useDeleteTimeEntryMutation,
+  useGetTimeOffListQuery,
+  useCreateTimeOffMutation,
+  useGetAvailableEmployeesForDateQuery,
 } = payrollApi;
 

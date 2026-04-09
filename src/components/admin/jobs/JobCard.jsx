@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import moment from "moment-timezone"
-import { useUpdateJobMutation } from "../../../store/api/jobsApi"
+import { useUpdateJobMutation, useGetJobDetailsQuery } from "../../../store/api/jobsApi"
 import { useToast } from "@/hooks/use-toast"
 import {
   Card,
@@ -45,10 +45,28 @@ import DeleteJobDialog from "./DeleteJobDialog"
 import StatusChangeConfirmationDialog from "./StatusChangeConfirmationDialog"
 import { JobCompletionDetails } from "./JobCompletionDetails"
 import { ImageViewer } from "@/components/ui/ImageViewer"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
-export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTimezone = "America/Chicago" }) {
+export function JobCard({
+  job,
+  onUpdate,
+  onEdit,
+  onDelete,
+  users = [],
+  accountTimezone = "America/Chicago",
+  embeddedInDialog = false,
+}) {
   const [updating, setUpdating] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [imagesRequiredDialogOpen, setImagesRequiredDialogOpen] = useState(false)
   const [notesExpanded, setNotesExpanded] = useState(false)
   const [statusChangeDialogOpen, setStatusChangeDialogOpen] = useState(false)
   const [pendingStatus, setPendingStatus] = useState(null)
@@ -62,6 +80,11 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
   const [updateJob] = useUpdateJobMutation()
   const { toast } = useToast()
 
+  const jobId = job?.job_id || job?.id
+  const { data: jobDetailsData } = useGetJobDetailsQuery(jobId, { skip: !jobId })
+  const uploadedJobImages = jobDetailsData?.images ?? job?.images ?? []
+  const hasUploadedJobImages = Array.isArray(uploadedJobImages) && uploadedJobImages.length > 0
+
   // Update displayStatus when job status changes externally
   useEffect(() => {
     if (job?.status) {
@@ -74,20 +97,6 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
     setDiscountType(job?.discount_type ?? null)
     setDiscountValue(job?.discount_type ? String(job?.discount_value ?? "") : "")
   }, [job?.discount_type, job?.discount_value])
-
-  const getStatusColor = (status) => {
-    const colors = {
-      pending: "#fbbf24",
-      confirmed: "#06b6d4",
-      on_the_way: "#f97316",
-      in_progress: "#3b82f6",
-      onhold: "#8b5cf6",
-      completed: "#10b981",
-      cancelled: "#ef4444",
-      service_due: "#a855f7",
-    }
-    return colors[status] || "#6b7280"
-  }
 
   const getPriorityColor = (priority) => {
     const priorityStr = String(priority).toLowerCase()
@@ -143,6 +152,10 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
 
     // Check if status change requires confirmation
     if (newStatus === "completed" || newStatus === "cancelled") {
+      if (newStatus === "completed" && !hasUploadedJobImages) {
+        setImagesRequiredDialogOpen(true)
+        return
+      }
       setPendingStatus(newStatus)
       setStatusChangeDialogOpen(true)
       // Keep the current display status until confirmed
@@ -196,8 +209,13 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
 
   const handleConfirmStatusChange = async () => {
     if (pendingStatus) {
-      // For completed status, the completion form handles images and payment method
-      // and then calls this to update the status
+      if (pendingStatus === "completed" && !hasUploadedJobImages) {
+        setStatusChangeDialogOpen(false)
+        setPendingStatus(null)
+        setDisplayStatus(job?.status)
+        setImagesRequiredDialogOpen(true)
+        return
+      }
       await updateJobStatus(pendingStatus)
     }
   }
@@ -266,16 +284,9 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
   // Check if job is recurring based on job_type
   const isRecurring = job.job_type === "recurring" || job.is_recurring
 
-  // Build status badges (max 3)
-  // Priority order: Status, Recurring (if applicable), Priority
+  // Build status badges (max 3) — job status is controlled by the header selector, not duplicated here
+  // Priority order: Recurring (if applicable), Priority
   const statusBadges = []
-  if (job.status) {
-    statusBadges.push({
-      label: job.status.replace(/_/g, " "),
-      color: getStatusColor(job.status),
-      key: "status"
-    })
-  }
   // Always show recurring if it's a recurring job (business-critical)
   if (isRecurring && statusBadges.length < 3) {
     statusBadges.push({
@@ -295,22 +306,28 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
   return (
     <>
       <Card
+        elevation={embeddedInDialog ? 0 : undefined}
         sx={{
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
+          ...(embeddedInDialog && {
+            boxShadow: 'none',
+            bgcolor: 'transparent',
+          }),
         }}
       >
-        <CardContent sx={{ p: 3, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-          {/* Header - Responsive height */}
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'flex-start', 
-            mb: 2,
-            minHeight: { xs: 'auto', sm: '64px' }, // Responsive minimum height
-          }}>
-            <Box sx={{ flex: 1, pr: 1 }}>
+        <CardContent
+          sx={{
+            p: embeddedInDialog ? 0 : 3,
+            flexGrow: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            ...(embeddedInDialog && { '&:last-child': { pb: 0 } }),
+          }}
+        >
+          {/* Title & customer — full width, no competing controls */}
+          <Box sx={{ mb: 1.5, minWidth: 0 }}>
               <Typography 
                 variant="h6" 
                 sx={{ 
@@ -445,30 +462,112 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
                 )
               )}
             </Box>
-            <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
-              <IconButton 
-                size="small" 
-                onClick={() => onEdit(job)} 
+
+          {/* Toolbar: meta chips (left) · compact status + actions (right) — one row, CRM-style */}
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 1.5,
+              mb: 3,
+              minWidth: 0,
+              flexWrap: 'nowrap',
+              overflowX: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              pb: 1.5,
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+            }}
+          >
+            <Box
+              sx={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 1,
+                alignItems: 'center',
+                minWidth: 0,
+                flex: '1 1 auto',
+              }}
+            >
+              {statusBadges.length > 0 ? (
+                statusBadges.map((badge) => (
+                  <Chip
+                    key={badge.key}
+                    label={badge.label}
+                    size="small"
+                    sx={{
+                      bgcolor: badge.color === "error" || badge.color === "warning" || badge.color === "success"
+                        ? undefined
+                        : badge.color,
+                      color: badge.color === "error" || badge.color === "warning" || badge.color === "success"
+                        ? undefined
+                        : "white",
+                      textTransform: "capitalize",
+                      fontSize: "0.75rem",
+                      height: "24px",
+                      fontWeight: 500,
+                    }}
+                    color={badge.color === "error" || badge.color === "warning" || badge.color === "success"
+                      ? badge.color
+                      : undefined}
+                  />
+                ))
+              ) : null}
+            </Box>
+            <Box
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.5,
+                flexShrink: 0,
+              }}
+            >
+              <Select
+                value={displayStatus || job?.status}
+                onValueChange={handleStatusChange}
+                disabled={updating}
+              >
+                <SelectTrigger
+                  className="h-8 w-[148px] shrink-0 px-2.5 text-xs font-medium capitalize shadow-none"
+                  aria-label="Job status"
+                >
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent className="z-[1300]">
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="confirmed">Confirmed</SelectItem>
+                  <SelectItem value="service_due">Service Due</SelectItem>
+                  <SelectItem value="on_the_way">On The Way</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="onhold">On Hold</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+              <IconButton
+                size="small"
+                onClick={() => onEdit(job)}
                 title="Edit job"
                 aria-label="Edit job"
-                sx={{ 
+                sx={{
                   color: 'text.secondary',
-                  minWidth: { xs: '44px', sm: 'auto' },
-                  minHeight: { xs: '44px', sm: 'auto' },
+                  minWidth: 36,
+                  minHeight: 36,
                 }}
               >
                 <Edit size={18} />
               </IconButton>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <IconButton 
-                    size="small" 
+                  <IconButton
+                    size="small"
                     title="More options"
                     aria-label="More options"
-                    sx={{ 
+                    sx={{
                       color: 'text.secondary',
-                      minWidth: { xs: '44px', sm: 'auto' },
-                      minHeight: { xs: '44px', sm: 'auto' },
+                      minWidth: 36,
+                      minHeight: 36,
                     }}
                   >
                     <MoreVertical size={18} />
@@ -484,43 +583,6 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
               </DropdownMenu>
             </Box>
           </Box>
-
-          {/* Status Badges - Responsive height */}
-          <Box sx={{ 
-            display: "flex", 
-            gap: 1, 
-            mb: 3, 
-            flexWrap: "wrap",
-            minHeight: { xs: 'auto', sm: '32px' }, // Responsive minimum height
-            alignItems: 'flex-start',
-          }}>
-            {statusBadges.length > 0 ? (
-              statusBadges.map((badge) => (
-                <Chip
-                  key={badge.key}
-                  label={badge.label}
-                  size="small"
-                  sx={{
-                    bgcolor: badge.color === "error" || badge.color === "warning" || badge.color === "success" 
-                      ? undefined 
-                      : badge.color,
-                    color: badge.color === "error" || badge.color === "warning" || badge.color === "success"
-                      ? undefined
-                      : "white",
-                    textTransform: "capitalize",
-                    fontSize: "0.75rem",
-                    height: "24px",
-                    fontWeight: 500,
-                  }}
-                  color={badge.color === "error" || badge.color === "warning" || badge.color === "success" 
-                    ? badge.color 
-                    : undefined}
-                />
-              ))
-            ) : (
-              <Box sx={{ height: '24px' }} /> // Placeholder to maintain height
-            )}
-            </Box>
 
           {/* 2-Column Layout */}
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mb: 3 }}>
@@ -1106,33 +1168,6 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
               onUpdate={onUpdate} 
               onImageClick={(image) => setSelectedImage(image)}
             />
-
-          {/* Status Selector */}
-          <Box>
-            <Select
-              value={displayStatus || job?.status}
-              onValueChange={handleStatusChange}
-              disabled={updating}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent className="z-[1300]">
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem 
-                  value="confirmed"
-                >
-                  Confirmed
-                </SelectItem>
-                <SelectItem value="service_due">Service Due</SelectItem>
-                <SelectItem value="on_the_way">On The Way</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="onhold">On Hold</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
-          </Box>
         </CardContent>
       </Card>
 
@@ -1158,6 +1193,20 @@ export function JobCard({ job, onUpdate, onEdit, onDelete, users = [], accountTi
           isUpdating={updating}
         />
       )}
+
+      <AlertDialog open={imagesRequiredDialogOpen} onOpenChange={setImagesRequiredDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Job images required</AlertDialogTitle>
+            <AlertDialogDescription>
+              Upload and save at least one job photo in the Job Images section before marking this job as completed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>OK</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Image Viewer */}
       <ImageViewer

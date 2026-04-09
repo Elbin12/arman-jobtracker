@@ -212,6 +212,7 @@ export function TimelineSidebar({
     { id: "jobs", label: "Jobs", color: "#9ca3ef" },
     { id: "appointments", label: "Appointments", color: "#06b6d4" },
     { id: "estimates", label: "Estimates", color: "#14b8a6" }, // Teal for "Prior quoting" state
+    { id: "timeOff", label: "Time off", color: "#c084fc" },
   ];
 
   // Generate mini calendar days

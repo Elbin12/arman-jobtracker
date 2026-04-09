@@ -42,11 +42,13 @@ import {
   DeleteForever,
   Lock,
   LockOpen,
+  PictureAsPdf,
 } from '@mui/icons-material';
 import { useCalculatePriceMutation } from '../../../store/api/user/priceApi';
 import { useCreateCustomProductMutation, useDeleteCustomProductMutation, useGetQuoteDetailsQuery, useUpdateCustomProductMutation, useDeleteServiceMutation, useGetGlobalPriceQuery, useRejectQuoteMutation, useUpdateAdditionalDataMutation } from '../../../store/api/user/quoteApi';
 import SignatureCanvas from 'react-signature-canvas';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { handleDownloadPDF } from '../../../utils/handleDownloadPDF';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { FreeMode, Navigation, Pagination, Virtual } from 'swiper/modules';
 import 'swiper/css';
@@ -105,6 +107,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
   const [lockNotesDialogOpen, setLockNotesDialogOpen] = useState(false);
   const [showLockButton, setShowLockButton] = useState(false);
   const [isLockingNotes, setIsLockingNotes] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   const [searchParams] = useSearchParams();
   const submissionIdFromUrl = searchParams.get("submission_id");
@@ -600,6 +603,17 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
     }
   };
 
+  const {
+    contact,
+    address,
+    house_sqft,
+    service_selections,
+    additional_data,
+    custom_products,
+    custom_service_total,
+    quote_schedule,
+  } = quoteData;
+
   return (
     <Box>
       <Container maxWidth="lg" sx={{p:"0rem"}}>
@@ -653,6 +667,46 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
             <Typography variant="body2" color="text.secondary">
               {new Date(quoteData.created_at).toLocaleDateString()}
             </Typography>
+            <Button
+              variant="outlined"
+              onClick={() =>
+                handleDownloadPDF(
+                  setIsGeneratingPDF,
+                  quoteData,
+                  contact,
+                  address,
+                  quote_schedule,
+                  service_selections,
+                  custom_products,
+                  globalPriceData,
+                  additional_data,
+                  house_sqft,
+                  custom_service_total
+                )
+              }
+              disabled={isGeneratingPDF}
+              startIcon={
+                isGeneratingPDF ? <CircularProgress size={16} /> : <PictureAsPdf />
+              }
+              sx={{
+                borderColor: "#42bd3f",
+                color: "#42bd3f",
+                "&:hover": {
+                  bgcolor: "rgba(66, 189, 63, 0.04)",
+                  borderColor: "#42bd3f",
+                },
+                "& .pdf-btn-label": {
+                  display: "none",
+                  "@media (min-width:600px)": {
+                    display: "inline",
+                  },
+                },
+              }}
+            >
+              <span className="pdf-btn-label">
+                {isGeneratingPDF ? "Generating..." : "Download PDF"}
+              </span>
+            </Button>
           </Box>
         </Box>
 
