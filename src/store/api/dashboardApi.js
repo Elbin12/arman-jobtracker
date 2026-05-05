@@ -4,7 +4,7 @@ import { axiosBaseQuery, BASE_URL } from '../axios/axios';
 export const dashboardApi = createApi({
   reducerPath: 'dashboardApi',
   baseQuery: axiosBaseQuery({ baseUrl: BASE_URL + '/dashboard/' }),
-  tagTypes: ['Dashboard'],
+  tagTypes: ['Dashboard', 'DashboardContact'],
   endpoints: (builder) => ({
     getAnalytics: builder.query({
       query: (params = {}) => ({ url: 'invoices/analytics/', params }),
@@ -22,9 +22,37 @@ export const dashboardApi = createApi({
       query: (params = {}) => ({ url: 'invoices/lead_funnel_report/', params }),
       providesTags: ['Dashboard'],
     }),
+    /** Paginated CRM contacts (GHL-synced). Params: page, page_size, search, location_id, ordering */
+    getDashboardContacts: builder.query({
+      query: (params = {}) => ({ url: 'contacts/', params }),
+      providesTags: (result) =>
+        result?.results?.length
+          ? [
+              ...result.results.map((row) => ({
+                type: 'DashboardContact',
+                id: String(row.ghl_contact_id || row.contact_id || row.id),
+              })),
+              { type: 'DashboardContact', id: 'LIST' },
+            ]
+          : [{ type: 'DashboardContact', id: 'LIST' }],
+    }),
+    /** Full contact graph: addresses, submissions, jobs, invoices, appointments, summary */
+    getDashboardContactById: builder.query({
+      query: (id) => ({
+        url: `contacts/${encodeURIComponent(String(id))}/`,
+      }),
+      providesTags: (result, error, id) => [{ type: 'DashboardContact', id: String(id) }],
+    }),
   }),
 });
 
-export const { useGetAnalyticsQuery, useGetHeatMapQuery, useGetSalesForecastingQuery, useGetLeadFunnelReportQuery } = dashboardApi;
+export const {
+  useGetAnalyticsQuery,
+  useGetHeatMapQuery,
+  useGetSalesForecastingQuery,
+  useGetLeadFunnelReportQuery,
+  useGetDashboardContactsQuery,
+  useGetDashboardContactByIdQuery,
+} = dashboardApi;
 
 

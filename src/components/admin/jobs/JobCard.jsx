@@ -63,6 +63,8 @@ export function JobCard({
   users = [],
   accountTimezone = "America/Chicago",
   embeddedInDialog = false,
+  /** When true: view-only (e.g. contact CRM). No status edits, discount, delete, or completion uploads. */
+  readOnly = false,
 }) {
   const [updating, setUpdating] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -523,64 +525,81 @@ export function JobCard({
                 flexShrink: 0,
               }}
             >
-              <Select
-                value={displayStatus || job?.status}
-                onValueChange={handleStatusChange}
-                disabled={updating}
-              >
-                <SelectTrigger
-                  className="h-8 w-[148px] shrink-0 px-2.5 text-xs font-medium capitalize shadow-none"
-                  aria-label="Job status"
-                >
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent className="z-[1300]">
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="confirmed">Confirmed</SelectItem>
-                  <SelectItem value="service_due">Service Due</SelectItem>
-                  <SelectItem value="on_the_way">On The Way</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="onhold">On Hold</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-              <IconButton
-                size="small"
-                onClick={() => onEdit(job)}
-                title="Edit job"
-                aria-label="Edit job"
-                sx={{
-                  color: 'text.secondary',
-                  minWidth: 36,
-                  minHeight: 36,
-                }}
-              >
-                <Edit size={18} />
-              </IconButton>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+              {readOnly ? (
+                <Chip
+                  size="small"
+                  label={String(displayStatus || job?.status || '').replace(/_/g, ' ')}
+                  sx={{ textTransform: 'capitalize', fontWeight: 600 }}
+                  color={
+                    ['completed', 'cancelled'].includes(String(job?.status || '').toLowerCase())
+                      ? 'default'
+                      : ['in_progress', 'on_the_way'].includes(String(job?.status || '').toLowerCase())
+                        ? 'primary'
+                        : 'warning'
+                  }
+                  variant="outlined"
+                />
+              ) : (
+                <>
+                  <Select
+                    value={displayStatus || job?.status}
+                    onValueChange={handleStatusChange}
+                    disabled={updating}
+                  >
+                    <SelectTrigger
+                      className="h-8 w-[148px] shrink-0 px-2.5 text-xs font-medium capitalize shadow-none"
+                      aria-label="Job status"
+                    >
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[1300]">
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="confirmed">Confirmed</SelectItem>
+                      <SelectItem value="service_due">Service Due</SelectItem>
+                      <SelectItem value="on_the_way">On The Way</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="onhold">On Hold</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <IconButton
                     size="small"
-                    title="More options"
-                    aria-label="More options"
+                    onClick={() => onEdit?.(job)}
+                    title="Edit job"
+                    aria-label="Edit job"
                     sx={{
                       color: 'text.secondary',
                       minWidth: 36,
                       minHeight: 36,
                     }}
                   >
-                    <MoreVertical size={18} />
+                    <Edit size={18} />
                   </IconButton>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="z-[1300]">
-                  <DropdownMenuItem onClick={() => setDeleteDialogOpen(true)}>
-                    <Trash2 size={16} className="mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                  {/* Add Duplicate and Archive options here if needed */}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <IconButton
+                        size="small"
+                        title="More options"
+                        aria-label="More options"
+                        sx={{
+                          color: 'text.secondary',
+                          minWidth: 36,
+                          minHeight: 36,
+                        }}
+                      >
+                        <MoreVertical size={18} />
+                      </IconButton>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="z-[1300]">
+                      <DropdownMenuItem onClick={() => setDeleteDialogOpen(true)}>
+                        <Trash2 size={16} className="mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
+              )}
             </Box>
           </Box>
 
@@ -825,7 +844,8 @@ export function JobCard({
                   )
                 })}
               </Box>
-              {/* Discount section */}
+              {/* Discount section — editors hidden in read-only */}
+              {!readOnly && (
               <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
                 <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', mb: 1, display: 'block', fontSize: '0.7rem', letterSpacing: '0.5px' }}>
                   Discount
@@ -891,6 +911,7 @@ export function JobCard({
                   )}
                 </Box>
               </Box>
+              )}
               <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                 {discountAmount > 0 && (
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1162,12 +1183,14 @@ export function JobCard({
             </Box>
           )}
 
-          {/* Completion Details - Show for all jobs */}
+          {/* Completion Details — uploads/edits hidden on contact CRM view */}
+          {!readOnly && (
             <JobCompletionDetails 
               job={job} 
               onUpdate={onUpdate} 
               onImageClick={(image) => setSelectedImage(image)}
             />
+          )}
         </CardContent>
       </Card>
 

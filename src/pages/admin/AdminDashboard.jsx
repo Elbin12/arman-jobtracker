@@ -11,6 +11,7 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  OutlinedInput,
   Select,
   Skeleton,
   Chip,
@@ -135,7 +136,7 @@ export const AdminDashboard = () => {
     view: 'heatmap',
   });
 
-  // Lead Funnel Report: current year only — Jan 1 to Dec 31
+  // Lead Funnel Report: current year only — Jan 1 to Dec 31; optional assignee filter (same `assignee_ids` shape as sales forecasting)
   const [leadFunnelFilters, setLeadFunnelFilters] = useState(() => {
     const now = new Date();
     const startOfYear = new Date(now.getFullYear(), 0, 1);
@@ -143,8 +144,21 @@ export const AdminDashboard = () => {
     return {
       start_date: format(startOfYear, 'yyyy-MM-dd'),
       end_date: format(endOfYear, 'yyyy-MM-dd'),
+      assigneeUserIds: [],
     };
   });
+
+  const leadFunnelReportParams = useMemo(() => {
+    const p = {
+      start_date: leadFunnelFilters.start_date,
+      end_date: leadFunnelFilters.end_date,
+    };
+    const ids = leadFunnelFilters.assigneeUserIds;
+    if (ids?.length) {
+      p.assignee_ids = ids.join(',');
+    }
+    return p;
+  }, [leadFunnelFilters.start_date, leadFunnelFilters.end_date, leadFunnelFilters.assigneeUserIds]);
 
   const { data: analyticsData, isLoading: analyticsLoading, refetch: refetchAnalytics } = useGetAnalyticsQuery(filters);
   const { data: heatmapData, isLoading: heatmapLoading, refetch: refetchHeatmap } = useGetHeatMapQuery(heatmapParams);
@@ -155,7 +169,7 @@ export const AdminDashboard = () => {
     [filters, assigneeIdsString]
   );
   const { data: salesForecastData, isLoading: forecastLoading } = useGetSalesForecastingQuery(salesForecastParams);
-  const { data: leadFunnelData, isLoading: leadFunnelLoading } = useGetLeadFunnelReportQuery(leadFunnelFilters);
+  const { data: leadFunnelData, isLoading: leadFunnelLoading } = useGetLeadFunnelReportQuery(leadFunnelReportParams);
 
   const [forecastFormulaAnchor, setForecastFormulaAnchor] = useState(null);
 
@@ -179,6 +193,7 @@ export const AdminDashboard = () => {
   }, [salesForecastData?.months]);
 
   const activeAssigneeCount = assigneesData?.results?.length ?? 0;
+  const leadFunnelAssigneeRows = assigneesData?.results || [];
 
   const formatCurrency = (amount) =>
     new Intl.NumberFormat('en-US', {
@@ -871,22 +886,95 @@ export const AdminDashboard = () => {
                 <Typography variant="subtitle1" fontWeight="600">
                   Lead Funnel Report
                 </Typography>
-                <LocalizationProvider dateAdapter={AdapterDateFns}>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
-                    <DatePicker
-                      label="Start date"
-                      value={parseLocalDate(leadFunnelFilters.start_date)}
-                      onChange={(date) => date && handleLeadFunnelFilterChange('start_date', format(date, 'yyyy-MM-dd'))}
-                      slotProps={{ textField: { size: 'small', sx: { minWidth: 140 } } }}
-                    />
-                    <DatePicker
-                      label="End date"
-                      value={parseLocalDate(leadFunnelFilters.end_date)}
-                      onChange={(date) => date && handleLeadFunnelFilterChange('end_date', format(date, 'yyyy-MM-dd'))}
-                      slotProps={{ textField: { size: 'small', sx: { minWidth: 140 } } }}
-                    />
-                  </Box>
-                </LocalizationProvider>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
+                  <LocalizationProvider dateAdapter={AdapterDateFns}>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
+                      <DatePicker
+                        label="Start date"
+                        value={parseLocalDate(leadFunnelFilters.start_date)}
+                        onChange={(date) => date && handleLeadFunnelFilterChange('start_date', format(date, 'yyyy-MM-dd'))}
+                        slotProps={{ textField: { size: 'small', sx: { minWidth: 140 } } }}
+                      />
+                      <DatePicker
+                        label="End date"
+                        value={parseLocalDate(leadFunnelFilters.end_date)}
+                        onChange={(date) => date && handleLeadFunnelFilterChange('end_date', format(date, 'yyyy-MM-dd'))}
+                        slotProps={{ textField: { size: 'small', sx: { minWidth: 140 } } }}
+                      />
+                    </Box>
+                  </LocalizationProvider>
+                  {canViewStaff && (
+                    <FormControl size="small" sx={{ minWidth: 200, maxWidth: { xs: '100%', sm: 320 } }}>
+                      <InputLabel id="lead-funnel-assignees-label">Assignees</InputLabel>
+                      <Select
+                        labelId="lead-funnel-assignees-label"
+                        multiple
+                        value={leadFunnelFilters.assigneeUserIds}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          handleLeadFunnelFilterChange(
+                            'assigneeUserIds',
+                            typeof v === 'string' ? v.split(',').filter(Boolean) : [...v]
+                          );
+                        }}
+                        input={<OutlinedInput label="Assignees" />}
+                        renderValue={(selected) => {
+                          if (!selected?.length) {
+                            return (
+                              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                                All assignees
+                              </Typography>
+                            );
+                          }
+                          const maxChips = 2;
+                          const shown = selected.slice(0, maxChips);
+                          return (
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, py: 0.25 }}>
+                              {shown.map((id) => {
+                                const emp = leadFunnelAssigneeRows.find(
+                                  (e) => String(e.user_id ?? e.id) === String(id)
+                                );
+                                return (
+                                  <Chip key={id} size="small" label={emp?.full_name || id} sx={{ height: 22 }} />
+                                );
+                              })}
+                              {selected.length > maxChips && (
+                                <Chip
+                                  size="small"
+                                  variant="outlined"
+                                  label={`+${selected.length - maxChips}`}
+                                  sx={{ height: 22 }}
+                                />
+                              )}
+                            </Box>
+                          );
+                        }}
+                        MenuProps={{ PaperProps: { style: { maxHeight: 320 } } }}
+                      >
+                        {leadFunnelAssigneeRows.map((emp) => {
+                          const uid = emp.user_id ?? emp.id;
+                          if (uid == null || uid === '') return null;
+                          const val = String(uid);
+                          return (
+                            <MenuItem key={val} value={val}>
+                              {emp.full_name || val}
+                            </MenuItem>
+                          );
+                        })}
+                      </Select>
+                    </FormControl>
+                  )}
+                  {canViewStaff && leadFunnelFilters.assigneeUserIds?.length > 0 && (
+                    <Button
+                      size="small"
+                      variant="text"
+                      onClick={() => handleLeadFunnelFilterChange('assigneeUserIds', [])}
+                      sx={{ textTransform: 'none', flexShrink: 0 }}
+                    >
+                      Clear assignees
+                    </Button>
+                  )}
+                </Box>
               </Box>
 
               {leadFunnelLoading ? (

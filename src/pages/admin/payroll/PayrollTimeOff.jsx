@@ -7,6 +7,7 @@ const PayrollTimeOff = () => {
   const user = useSelector((state) => state.auth.user);
   const normalizedRole = String(user?.role ?? 'worker').toLowerCase();
   const isManagerOrSupervisor = ['admin', 'manager', 'supervisor'].includes(normalizedRole);
+  const canManageTimeOff = isManagerOrSupervisor || Boolean(user?.is_admin);
   const getCurrentDate = () => {
     const date = new Date();
     return date.toLocaleDateString('en-US', {
@@ -44,9 +45,9 @@ const PayrollTimeOff = () => {
           {getCurrentDate()}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1, maxWidth: 640 }}>
-          {isManagerOrSupervisor
-            ? 'Record scheduled absence for any team member and review entries for the selected date range.'
-            : 'Submit planned time away; your team can see entries in payroll.'}
+          {canManageTimeOff
+            ? 'Record or update scheduled absence for any team member and review entries for the selected date range.'
+            : 'Your scheduled time off appears below. Only a manager, supervisor, or administrator can add or change entries.'}
         </Typography>
       </Box>
 

@@ -38,6 +38,8 @@ import PayrollCalculator from './pages/admin/payroll/PayrollCalculator.jsx';
 import PayrollReports from './pages/admin/payroll/PayrollReports.jsx';
 import PayrollSettings from './pages/admin/payroll/PayrollSettings.jsx';
 import PayrollTeamManagement from './pages/admin/payroll/PayrollTeamManagement.jsx';
+import Contacts from './pages/admin/Contacts.jsx';
+import ContactDetail from './pages/admin/ContactDetail.jsx';
 
 // Create Material-UI theme that integrates with our design system
 const theme = createTheme({
@@ -89,6 +91,7 @@ function App() {
                   <Route path="/" element={<Navigate to="/booking" replace />} />
                   <Route path="/booking" element={<BookingWizard />} />
                   <Route path="/quote/details/:id" element={<QuoteDetailsPage />} />
+                  <Route path="/portal/contacts/:id" element={<ContactDetail />} />
                   <Route path="/terms" element={<TermsAndConditions />} />
                   
                   {/* Admin Login Route */}
@@ -137,6 +140,18 @@ function App() {
                     <Route path="team" element={
                         <RoleProtectedRoute allowedRoles={['manager', 'supervisor']}>
                           <TeamManagement />
+                        </RoleProtectedRoute>
+                      }
+                    />
+                    <Route path="contacts" element={
+                        <RoleProtectedRoute allowedRoles={['admin', 'manager', 'supervisor']}>
+                          <Contacts />
+                        </RoleProtectedRoute>
+                      }
+                    />
+                    <Route path="contacts/:id" element={
+                        <RoleProtectedRoute allowedRoles={['admin', 'manager', 'supervisor']}>
+                          <ContactDetail />
                         </RoleProtectedRoute>
                       }
                     />

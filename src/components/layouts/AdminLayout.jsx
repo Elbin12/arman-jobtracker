@@ -49,6 +49,7 @@ import {
   NavigateNext,
   Dashboard as DashboardIcon,
   AccountCircle,
+  Contacts as ContactsIcon,
 } from "@mui/icons-material"
 import { useState, useMemo } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
@@ -64,6 +65,7 @@ const getNavItemsByRole = (role, fullAccessRoles, user_profile) => {
     { text: "Map", path: "/admin/map", icon: MapIcon, roles: ["admin", "supervisor"] },
     { text: "Quotes", path: "/admin/accepted-quotes", icon: ReceiptLong, roles: ["admin", "supervisor"] },
     { text: "On Hold Jobs", path: "/admin/on-hold-jobs", icon: PauseCircleOutline, roles: ["admin", "supervisor"] },
+    // { text: "Contacts", path: "/admin/contacts", icon: ContactsIcon, roles: ["admin", "supervisor"] },
     { text: "Team", path: "/admin/team", icon: Group, roles: ["admin", "supervisor"] },
   ]
 
@@ -309,7 +311,11 @@ export const AdminLayout = ({ children }) => {
               <Box sx={{ display: "flex", gap: 0.5, flexGrow: 1 }}>
                 {navItems.map((item) => {
                   const isPayrollPath = item.path === "/admin/payroll"
-                  const isActive = location.pathname === item.path || (isPayrollPath && isPayrollSection)
+                  const isContactsNav = item.path === "/admin/contacts"
+                  const isActive =
+                    isContactsNav
+                      ? location.pathname === "/admin/contacts" || location.pathname.startsWith("/admin/contacts/")
+                      : location.pathname === item.path || (isPayrollPath && isPayrollSection)
                   
                   return (
                     <Button
@@ -467,6 +473,11 @@ export const AdminLayout = ({ children }) => {
             <Box sx={{ py: 1 }}>
               {navItems.map((item) => {
                 const isPayrollPath = item.path === "/admin/payroll"
+                const isContactsNav = item.path === "/admin/contacts"
+                const navSelected =
+                  isContactsNav
+                    ? location.pathname === "/admin/contacts" || location.pathname.startsWith("/admin/contacts/")
+                    : location.pathname === item.path
                 return isPayrollPath ? (
                   <Box key={item.text}>
                     <ListItemButton
@@ -532,7 +543,7 @@ export const AdminLayout = ({ children }) => {
                   <MenuItem
                     key={item.text}
                     onClick={() => handleNavigate(item.path)}
-                    selected={location.pathname === item.path}
+                    selected={navSelected}
                     sx={{
                       py: 1.5,
                       mx: 1,
@@ -543,7 +554,7 @@ export const AdminLayout = ({ children }) => {
                       },
                     }}
                   >
-                    <ListItemIcon sx={{ color: location.pathname === item.path ? "hsl(var(--primary))" : "inherit" }}>
+                    <ListItemIcon sx={{ color: navSelected ? "hsl(var(--primary))" : "inherit" }}>
                       <item.icon fontSize="small" />
                     </ListItemIcon>
                     <ListItemText primary={item.text} />

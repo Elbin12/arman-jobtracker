@@ -62,6 +62,12 @@ export const jobsApi = createApi({
       providesTags: (r, e, jobId) => [{ type: 'Job', id: jobId }],
     }),
 
+    /** Public job detail (portal / unauthenticated-safe); GET …/job/public/jobs/{job_id}/ */
+    getPublicJobDetails: builder.query({
+      query: (jobId) => ({ url: `public/jobs/${jobId}/` }),
+      providesTags: (r, e, jobId) => [{ type: 'Job', id: `public:${jobId}` }],
+    }),
+
     // Appointments
     getAppointmentsCalendar: builder.query({
       query: (params = {}) => {
@@ -216,6 +222,7 @@ export const {
   useGetJobsQuery,
   useGetJobByIdQuery,
   useGetJobDetailsQuery,
+  useGetPublicJobDetailsQuery,
   useCreateJobMutation,
   useUpdateJobMutation,
   useDeleteJobMutation,
