@@ -53,27 +53,25 @@ import {
 import { TableSkeleton } from '../../../components/ui/skeletons';
 import { useSelector } from 'react-redux';
 
+function formatYmd(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 const PayrollReports = () => {
   const user = useSelector((state) => state.auth.user);
   const userRole = user?.role || 'worker';
   const canEditDelete = ['admin', 'supervisor', "manager"].includes(userRole);
 
-  // Default date range: current calendar year (Jan 1 – today) so yearly stats don't accumulate.
-  // Resets conceptually on Jan 1 when users open the page or clear filters.
+  // Default date range: month-to-date (first day of this month – today).
   const getDefaultDateRange = () => {
     const today = new Date();
-    const jan1 = new Date(today.getFullYear(), 0, 1);
-
-    const formatDate = (date) => {
-      const y = date.getFullYear();
-      const m = String(date.getMonth() + 1).padStart(2, '0');
-      const d = String(date.getDate()).padStart(2, '0');
-      return `${y}-${m}-${d}`;
-    };
-
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     return {
-      start_date: formatDate(jan1),
-      end_date: formatDate(today),
+      start_date: formatYmd(monthStart),
+      end_date: formatYmd(today),
     };
   };
 

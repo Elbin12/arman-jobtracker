@@ -33,8 +33,18 @@ import { useDispatch } from "react-redux";
 import ContactSearchableSelect from "./ContactSearchableSelect";
 import { Select as ShadcnSelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+import { jobGrandTotalAmount, jobSurchargeAmount } from "../../../utils/jobPricing";
 
-export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, accountTimezone = "America/Chicago" }) {
+export function EditJobDialog({
+  job,
+  open,
+  onClose,
+  objective,
+  handleJobUpdate,
+  accountTimezone = "America/Chicago",
+  /** Query string for PATCH when objective is convert (default: accepted-quotes `to_convert`). */
+  convertQueryFilter = "status=to_convert",
+}) {
   const [updateJob, { isLoading, error }] = useUpdateJobMutation();
   const [customServices, setCustomServices] = useState([]);
   const [showCustomServiceForm, setShowCustomServiceForm] = useState(false);
@@ -517,7 +527,11 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
         }
       });
 
-      const result = await updateJob({ id: job.id, filter:objective==='convert'&&'status=to_convert', ...payload}).unwrap();
+      const result = await updateJob({
+        id: job.id,
+        ...(objective === "convert" ? { filter: convertQueryFilter } : {}),
+        ...payload,
+      }).unwrap();
 
       // Show success message
       if (objective === 'convert') {
@@ -876,30 +890,44 @@ export function EditJobDialog({ job, open, onClose, objective, handleJobUpdate, 
             </div>
 
             {/* Duration and Price */}
-            <div className="flex gap-1">
-              <TextField
-                id="estimated_duration"
-                label="Duration (hours)"
-                type="number"
-                size="small"
-                fullWidth
-                inputProps={{ min: 0.5, step: 0.5 }}
-                value={formData.duration_hours}
-                onChange={(e) => setFormData(prev => ({ ...prev, duration_hours: parseFloat(e.target.value) || 0 }))}
-                placeholder="2"
-              />
+            <div className="space-y-1">
+              <div className="flex gap-1">
+                <TextField
+                  id="estimated_duration"
+                  label="Duration (hours)"
+                  type="number"
+                  size="small"
+                  fullWidth
+                  inputProps={{ min: 0.5, step: 0.5 }}
+                  value={formData.duration_hours}
+                  onChange={(e) => setFormData(prev => ({ ...prev, duration_hours: parseFloat(e.target.value) || 0 }))}
+                  placeholder="2"
+                />
 
-              <TextField
-                id="price"
-                label="Price ($)"
-                type="number"
-                size="small"
-                fullWidth
-                inputProps={{ min: 0, step: 0.01 }}
-                value={formData.total_price}
-                onChange={(e) => setFormData(prev => ({ ...prev, total_price: parseFloat(e.target.value) || 0 }))}
-                placeholder="100.00"
-              />
+                <TextField
+                  id="price"
+                  label="Price ($)"
+                  type="number"
+                  size="small"
+                  fullWidth
+                  inputProps={{ min: 0, step: 0.01 }}
+                  value={formData.total_price}
+                  onChange={(e) => setFormData(prev => ({ ...prev, total_price: parseFloat(e.target.value) || 0 }))}
+                  placeholder="100.00"
+                />
+              </div>
+              {jobSurchargeAmount(job) > 0 && (
+                <p className="text-xs text-muted-foreground px-0.5">
+                  Surcharge:{" "}
+                  {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
+                    jobSurchargeAmount(job)
+                  )}{" "}
+                  · Total with surcharge:{" "}
+                  {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
+                    jobGrandTotalAmount({ ...job, total_price: formData.total_price })
+                  )}
+                </p>
+              )}
             </div>
 
             {/* Date and Time */}

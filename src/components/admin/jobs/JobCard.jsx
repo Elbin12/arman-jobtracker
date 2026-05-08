@@ -1,8 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
+import { useDispatch } from "react-redux"
 import moment from "moment-timezone"
-import { useUpdateJobMutation, useGetJobDetailsQuery } from "../../../store/api/jobsApi"
+import { useUpdateJobMutation, useGetJobDetailsQuery, jobsApi } from "../../../store/api/jobsApi"
+import { useRescheduleQuoteFromJobMutation } from "../../../store/api/user/quoteApi"
+import { slotWallClockAsUtcIso } from "../../../utils/scheduleIso"
+import QuoteCalendarScheduler from "../../user/QuoteCalendarScheduler"
+import { jobSurchargeAmount } from "../../../utils/jobPricing"
 import { useToast } from "@/hooks/use-toast"
 import {
   Card,
@@ -13,6 +18,11 @@ import {
   IconButton,
   Collapse,
   Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
 } from "@mui/material"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
@@ -65,6 +75,10 @@ export function JobCard({
   embeddedInDialog = false,
   /** When true: view-only (e.g. contact CRM). No status edits, discount, delete, or completion uploads. */
   readOnly = false,
+  /** Skip GET /jobs/:id/ when parent already loaded public job details (portal). */
+  skipJobDetailsQuery = false,
+  /** Client portal: show reschedule flow (POST /quote/reschedule/from-job/). */
+  clientPortalReschedule = false,
 }) {
   const [updating, setUpdating] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -79,11 +93,21 @@ export function JobCard({
     job?.discount_type ? String(job?.discount_value ?? "") : ""
   )
   const [discountSaving, setDiscountSaving] = useState(false)
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false)
+  const [rescheduleNotes, setRescheduleNotes] = useState("")
+  const [schedulerResetKey, setSchedulerResetKey] = useState(0)
   const [updateJob] = useUpdateJobMutation()
+  const [rescheduleQuoteFromJob, { isLoading: isRescheduleSubmitting }] = useRescheduleQuoteFromJobMutation()
+  const dispatch = useDispatch()
   const { toast } = useToast()
 
   const jobId = job?.job_id || job?.id
-  const { data: jobDetailsData } = useGetJobDetailsQuery(jobId, { skip: !jobId })
+  const { data: jobDetailsData } = useGetJobDetailsQuery(jobId, { skip: !jobId || skipJobDetailsQuery })
+  /** Merge detail query into props so pricing fields (e.g. total_surcharge) always match GET /jobs/:id/ */
+  const pricingJob = useMemo(() => {
+    if (!job) return null
+    return jobDetailsData ? { ...job, ...jobDetailsData } : job
+  }, [job, jobDetailsData])
   const uploadedJobImages = jobDetailsData?.images ?? job?.images ?? []
   const hasUploadedJobImages = Array.isArray(uploadedJobImages) && uploadedJobImages.length > 0
 
@@ -99,6 +123,50 @@ export function JobCard({
     setDiscountType(job?.discount_type ?? null)
     setDiscountValue(job?.discount_type ? String(job?.discount_value ?? "") : "")
   }, [job?.discount_type, job?.discount_value])
+
+  const submissionIdForReschedule = job?.submission_id ?? job?.submission ?? null
+  const statusLower = String(job?.status || "").toLowerCase()
+  const canOpenReschedule =
+    clientPortalReschedule &&
+    readOnly &&
+    submissionIdForReschedule &&
+    !["completed", "cancelled"].includes(statusLower)
+
+  useEffect(() => {
+    if (rescheduleDialogOpen) {
+      setRescheduleNotes("")
+      setSchedulerResetKey((k) => k + 1)
+    }
+  }, [rescheduleDialogOpen])
+
+  const handlePortalRescheduleSlot = async (slotIso) => {
+    if (!slotIso || !jobId) return
+    try {
+      await rescheduleQuoteFromJob({
+        jobId,
+        scheduled_date: slotWallClockAsUtcIso(slotIso),
+        notes: rescheduleNotes.trim() || undefined,
+      }).unwrap()
+      toast({
+        title: "Reschedule request submitted",
+        description: "Your new date and time will be confirmed by our team.",
+      })
+      setRescheduleDialogOpen(false)
+      dispatch(jobsApi.util.invalidateTags([{ type: "Job", id: jobId }, { type: "Job", id: `public:${jobId}` }]))
+    } catch (err) {
+      const msg =
+        err?.data?.detail ||
+        err?.data?.message ||
+        (typeof err?.data === "string" ? err.data : null) ||
+        err?.error ||
+        "Could not submit reschedule request."
+      toast({
+        title: "Reschedule failed",
+        description: String(msg),
+        variant: "destructive",
+      })
+    }
+  }
 
   const getPriorityColor = (priority) => {
     const priorityStr = String(priority).toLowerCase()
@@ -245,8 +313,11 @@ export function JobCard({
     .filter((name) => name)
     .join(", ") || "Unassigned"
 
-  // Calculate subtotal from items if available
-  const servicesTotal = job.items?.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0) || job.total_price || 0
+  // Calculate subtotal from items if available (prefer merged detail payload)
+  const servicesTotal =
+    pricingJob?.items?.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0) ||
+    parseFloat(pricingJob?.total_price) ||
+    0
 
   // Discount: amount (fixed $) or percentage (%). Payload: discount_type ("amount" | "percentage" | null), discount_value (string)
   const numDiscountValue = parseFloat(discountValue) || 0
@@ -256,7 +327,11 @@ export function JobCard({
       : discountType === "percentage"
         ? (servicesTotal * numDiscountValue) / 100
         : 0
-  const finalTotal = Math.max(0, servicesTotal - discountAmount)
+  const surchargeAmount = jobSurchargeAmount(pricingJob)
+  const discountedBase = Math.max(0, servicesTotal - discountAmount)
+  const finalTotal = discountedBase + surchargeAmount
+  const showSubtotalBeforeAdjustments =
+    discountAmount > 0 || surchargeAmount > 0
 
   const handleApplyDiscount = async () => {
     const jobId = job?.job_id || job?.id
@@ -816,6 +891,26 @@ export function JobCard({
                   {assignedUserNames}
                 </Typography>
               </Box>
+
+              {clientPortalReschedule && readOnly && (
+                <Box sx={{ mt: 1.5 }}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!canOpenReschedule || isRescheduleSubmitting}
+                    title={
+                      !submissionIdForReschedule
+                        ? "This job cannot be rescheduled online (no linked quote submission)."
+                        : ["completed", "cancelled"].includes(statusLower)
+                          ? "Completed or cancelled jobs cannot be rescheduled here."
+                          : undefined
+                    }
+                    onClick={() => setRescheduleDialogOpen(true)}
+                  >
+                    Reschedule
+                  </Button>
+                </Box>
+              )}
             </Box>
           </Box>
 
@@ -913,7 +1008,7 @@ export function JobCard({
               </Box>
               )}
               <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                {discountAmount > 0 && (
+                {showSubtotalBeforeAdjustments && (
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <Typography variant="body2" sx={{ fontSize: '0.875rem', fontWeight: 500, color: 'text.secondary' }}>
                       Subtotal
@@ -930,6 +1025,16 @@ export function JobCard({
                     </Typography>
                     <Typography variant="body2" sx={{ fontSize: '0.875rem', color: "error.main", fontWeight: 500 }}>
                       -{formatPrice(discountAmount)}
+                    </Typography>
+                  </Box>
+                )}
+                {surchargeAmount > 0 && (
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" sx={{ fontSize: '0.875rem', fontWeight: 500, color: 'text.secondary' }}>
+                      Surcharge
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontSize: '0.875rem', color: "text.secondary", fontWeight: 500 }}>
+                      {formatPrice(surchargeAmount)}
                     </Typography>
                   </Box>
                 )}
@@ -1238,6 +1343,40 @@ export function JobCard({
         image={selectedImage}
         showCaption={true}
       />
+
+      <Dialog
+        open={rescheduleDialogOpen}
+        onClose={() => !isRescheduleSubmitting && setRescheduleDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Reschedule this job</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Choose a new date and time. We will confirm your request shortly.
+          </Typography>
+          <TextField
+            label="Notes (optional)"
+            multiline
+            minRows={2}
+            fullWidth
+            value={rescheduleNotes}
+            onChange={(e) => setRescheduleNotes(e.target.value)}
+            sx={{ mb: 2 }}
+            disabled={isRescheduleSubmitting}
+          />
+          <QuoteCalendarScheduler
+            key={schedulerResetKey}
+            onSchedule={handlePortalRescheduleSlot}
+            isSubmitting={isRescheduleSubmitting}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button variant="ghost" onClick={() => setRescheduleDialogOpen(false)} disabled={isRescheduleSubmitting}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   )
 }

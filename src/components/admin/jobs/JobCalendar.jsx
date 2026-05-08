@@ -17,6 +17,7 @@ import {
   Paper,
   Grid,
 } from "@mui/material"
+import { jobGrandTotalAmount } from "../../../utils/jobPricing"
 import {
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
@@ -190,14 +191,22 @@ export function JobCalendar({ jobs = [], statusFilter = "all", assigneeFilter = 
               </Box>
             )}
 
-            {selectedJob.price && (
+            {(() => {
+              const hasApiTotals =
+                selectedJob.total_price != null || selectedJob.total_surcharge != null
+              const displayAmount = hasApiTotals
+                ? jobGrandTotalAmount(selectedJob)
+                : parseFloat(selectedJob.price) || 0
+              if (!displayAmount) return null
+              return (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <MoneyIcon fontSize="small" color="action" />
                 <Typography variant="body2" sx={{ color: "success.main", fontWeight: "bold" }}>
-                  {formatPrice(selectedJob.price)}
+                  {formatPrice(displayAmount)}
                 </Typography>
               </Box>
-            )}
+              )
+            })()}
 
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <EventIcon fontSize="small" color="action" />

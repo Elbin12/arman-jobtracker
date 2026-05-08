@@ -41,6 +41,7 @@ import {
 import { ContactPickRow } from '../../components/admin/contacts/ContactPickRow';
 import { contactsPageSx, portalInviteSx, PORTAL_INSIGHT_AVATAR_GRADIENTS } from './contactsTheme';
 import { exportInvoicesToCsv } from '../../utils/exportInvoicesCsv';
+import { jobGrandTotalAmount } from '../../utils/jobPricing';
 import { CompanyContactBanner } from '../../components/contacts/CompanyContactBanner';
 
 const money = (v, currency = 'USD') => {
@@ -513,7 +514,7 @@ const ContactDetail = () => {
                       {when(j.scheduled_at)}
                     </Typography>
                     <Typography variant="caption" fontWeight={700}>
-                      {money(j.total_price)}
+                      {money(jobGrandTotalAmount(j))}
                     </Typography>
                   </Stack>
                 </ContactPickRow>

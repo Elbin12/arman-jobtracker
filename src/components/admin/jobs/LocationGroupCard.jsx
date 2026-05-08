@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { MapPin, Clock, DollarSign, Calendar, X } from 'lucide-react';
 import { jobsApi, useGetJobsByLocationQuery } from '../../../store/api/jobsApi';
 import { EditJobDialog } from './EditJobDialog';
+import { jobGrandTotalAmount } from '../../../utils/jobPricing';
 import { JobCard } from './JobCard';
 import { Box, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Typography } from '@mui/material';
 import { useDispatch } from 'react-redux';
@@ -13,6 +14,7 @@ export const LocationGroupCard = ({ locationInfo, users }) => {
     customer_names,
     status_counts,
     total_price,
+    total_surcharge,
     total_hours,
     next_scheduled,
     service_names,
@@ -201,7 +203,10 @@ export const LocationGroupCard = ({ locationInfo, users }) => {
             <div className="flex items-center gap-1">
               <DollarSign className="text-gray-400" size={18} />
               <span className="font-semibold text-gray-900">
-                {total_price.toFixed(2)}
+                {jobGrandTotalAmount({
+                  total_price,
+                  total_surcharge,
+                }).toFixed(2)}
               </span>
             </div>
             <div className="flex items-center gap-1">

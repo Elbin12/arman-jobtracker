@@ -28,6 +28,7 @@ import JobsMap from './pages/admin/JobsMap.jsx';
 import AdminCalendar from './pages/admin/AdminCalendar.jsx';
 import TeamManagement from './pages/admin/TeamManagement.jsx';
 import AcceptedQuotes from './pages/admin/AcceptedQuotes.jsx';
+import PendingRescheduleQuotes from './pages/admin/PendingRescheduleQuotes.jsx';
 import OnHoldJobs from './pages/admin/OnHoldJobs.jsx';
 import CreateJob from './pages/admin/CreateJob.jsx';
 import CalendarCreateJob from './pages/admin/CalendarCreateJob.jsx';
@@ -129,6 +130,12 @@ function App() {
                     <Route path="accepted-quotes" element={
                         <RoleProtectedRoute allowedRoles={['manager', 'supervisor']}>
                           <AcceptedQuotes />
+                        </RoleProtectedRoute>
+                      }
+                    />
+                    <Route path="pending-reschedule-quotes" element={
+                        <RoleProtectedRoute allowedRoles={['manager', 'supervisor']}>
+                          <PendingRescheduleQuotes />
                         </RoleProtectedRoute>
                       }
                     />

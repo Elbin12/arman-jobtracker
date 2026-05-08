@@ -39,6 +39,7 @@ import {
   MoreHoriz as OtherIcon,
   Weekend as DayOffIcon,
   Edit as EditIcon,
+  DeleteOutline as DeleteIcon,
 } from '@mui/icons-material';
 import { useSelector } from 'react-redux';
 import {
@@ -46,6 +47,7 @@ import {
   useGetTimeOffListQuery,
   useCreateTimeOffMutation,
   useUpdateTimeOffMutation,
+  useDeleteTimeOffMutation,
 } from '../../../store/api/payrollApi';
 import { useToast } from '@/hooks/use-toast';
 
@@ -241,6 +243,9 @@ const TimeOffSection = ({ hideHero = false }) => {
   const [editEnd, setEditEnd] = useState(() => formatYmd(new Date()));
   const [editNotes, setEditNotes] = useState('');
 
+  /** Row pending deletion in the confirmation dialog (same shape as list `results` items). */
+  const [deleteConfirmRow, setDeleteConfirmRow] = useState(null);
+
   const { data: employeesData } = useGetEmployeesQuery({ is_active: true }, { skip: !canManageTimeOff });
   const employees = employeesData?.results || [];
 
@@ -259,6 +264,7 @@ const TimeOffSection = ({ hideHero = false }) => {
   });
   const [createTimeOff, { isLoading: creating }] = useCreateTimeOffMutation();
   const [updateTimeOff, { isLoading: updating }] = useUpdateTimeOffMutation();
+  const [deleteTimeOff, { isLoading: deletingTimeOff }] = useDeleteTimeOffMutation();
 
   const results = rangeInvalid ? [] : timeOffData?.results || [];
   const totalCount = rangeInvalid ? 0 : timeOffData?.count ?? results.length;
@@ -345,6 +351,35 @@ const TimeOffSection = ({ hideHero = false }) => {
         description: 'Your changes have been saved.',
       });
       closeEditDialog();
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Something went wrong',
+        description: formatTimeOffApiError(err),
+      });
+    }
+  };
+
+  const closeDeleteConfirmDialog = () => {
+    if (!deletingTimeOff) setDeleteConfirmRow(null);
+  };
+
+  const openDeleteConfirmDialog = (row) => {
+    if (!canManageTimeOff || row?.id == null) return;
+    setDeleteConfirmRow(row);
+  };
+
+  const confirmDeleteTimeOff = async () => {
+    const row = deleteConfirmRow;
+    if (!canManageTimeOff || row?.id == null) return;
+    try {
+      await deleteTimeOff(row.id).unwrap();
+      setDeleteConfirmRow(null);
+      if (editingId === row.id) closeEditDialog();
+      toast({
+        title: 'Time off removed',
+        description: 'The entry has been deleted.',
+      });
     } catch (err) {
       toast({
         variant: 'destructive',
@@ -661,7 +696,7 @@ const TimeOffSection = ({ hideHero = false }) => {
                         {canManageTimeOff && (
                           <TableCell
                             align="right"
-                            sx={{ fontWeight: 600, color: '#64748b', fontSize: '0.8125rem', width: 72 }}
+                            sx={{ fontWeight: 600, color: '#64748b', fontSize: '0.8125rem', width: 104 }}
                           >
                             Actions
                           </TableCell>
@@ -726,19 +761,36 @@ const TimeOffSection = ({ hideHero = false }) => {
                             {canManageTimeOff && (
                               <TableCell align="right" sx={{ verticalAlign: 'middle' }}>
                                 {row.id != null ? (
-                                  <Tooltip title="Edit">
-                                    <IconButton
-                                      size="small"
-                                      aria-label={`Edit time off for ${row.employee_name || 'employee'}`}
-                                      onClick={() => openEditDialog(row)}
-                                      sx={{
-                                        color: PAYROLL_NAVY,
-                                        '&:hover': { bgcolor: alpha(PAYROLL_NAVY, 0.08) },
-                                      }}
-                                    >
-                                      <EditIcon fontSize="small" />
-                                    </IconButton>
-                                  </Tooltip>
+                                  <Stack direction="row" spacing={0} justifyContent="flex-end">
+                                    <Tooltip title="Edit">
+                                      <IconButton
+                                        size="small"
+                                        aria-label={`Edit time off for ${row.employee_name || 'employee'}`}
+                                        onClick={() => openEditDialog(row)}
+                                        disabled={deletingTimeOff}
+                                        sx={{
+                                          color: PAYROLL_NAVY,
+                                          '&:hover': { bgcolor: alpha(PAYROLL_NAVY, 0.08) },
+                                        }}
+                                      >
+                                        <EditIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Delete">
+                                      <IconButton
+                                        size="small"
+                                        aria-label={`Delete time off for ${row.employee_name || 'employee'}`}
+                                        onClick={() => openDeleteConfirmDialog(row)}
+                                        disabled={deletingTimeOff}
+                                        sx={{
+                                          color: '#b91c1c',
+                                          '&:hover': { bgcolor: alpha('#b91c1c', 0.08) },
+                                        }}
+                                      >
+                                        <DeleteIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </Stack>
                                 ) : null}
                               </TableCell>
                             )}
@@ -770,22 +822,44 @@ const TimeOffSection = ({ hideHero = false }) => {
                       }}
                     >
                       {canManageTimeOff && row.id != null && (
-                        <Tooltip title="Edit">
-                          <IconButton
-                            size="small"
-                            aria-label="Edit time off"
-                            onClick={() => openEditDialog(row)}
-                            sx={{
-                              position: 'absolute',
-                              top: 8,
-                              right: 8,
-                              color: PAYROLL_NAVY,
-                              '&:hover': { bgcolor: alpha(PAYROLL_NAVY, 0.08) },
-                            }}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
+                        <Stack
+                          direction="row"
+                          spacing={0}
+                          sx={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                          }}
+                        >
+                          <Tooltip title="Edit">
+                            <IconButton
+                              size="small"
+                              aria-label="Edit time off"
+                              onClick={() => openEditDialog(row)}
+                              disabled={deletingTimeOff}
+                              sx={{
+                                color: PAYROLL_NAVY,
+                                '&:hover': { bgcolor: alpha(PAYROLL_NAVY, 0.08) },
+                              }}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete">
+                            <IconButton
+                              size="small"
+                              aria-label="Delete time off"
+                              onClick={() => openDeleteConfirmDialog(row)}
+                              disabled={deletingTimeOff}
+                              sx={{
+                                color: '#b91c1c',
+                                '&:hover': { bgcolor: alpha('#b91c1c', 0.08) },
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
                       )}
                       {isManagerOrSupervisor && (
                         <Box display="flex" alignItems="center" gap={1.5} mb={1.5}>
@@ -950,6 +1024,93 @@ const TimeOffSection = ({ hideHero = false }) => {
               }}
             >
               {updating ? 'Saving…' : 'Save changes'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog
+          open={Boolean(deleteConfirmRow)}
+          onClose={() => {
+            if (!deletingTimeOff) closeDeleteConfirmDialog();
+          }}
+          fullWidth
+          maxWidth="xs"
+          PaperProps={{ sx: { borderRadius: 3 } }}
+        >
+          <DialogTitle sx={{ fontWeight: 700, color: '#0f172a', pb: 0.5 }}>Delete time off?</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              This removes the scheduled absence permanently. You can&apos;t undo this action.
+            </Typography>
+            {deleteConfirmRow && (
+              <Box
+                sx={{
+                  p: 2,
+                  borderRadius: 2,
+                  bgcolor: '#fef2f2',
+                  border: '1px solid',
+                  borderColor: alpha('#b91c1c', 0.22),
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 2,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 2,
+                    bgcolor: alpha('#b91c1c', 0.12),
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <DeleteIcon sx={{ fontSize: 22, color: '#b91c1c' }} />
+                </Box>
+                <Box minWidth={0}>
+                  <Typography variant="caption" color="text.secondary" fontWeight={500} display="block">
+                    Entry
+                  </Typography>
+                  {deleteConfirmRow.employee_name ? (
+                    <Typography variant="body2" fontWeight={600} color="#0f172a">
+                      {deleteConfirmRow.employee_name}
+                    </Typography>
+                  ) : null}
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                    {(kindMeta[deleteConfirmRow.kind] || kindMeta.other).label} ·{' '}
+                    {formatDisplayDate(deleteConfirmRow.start_date)} — {formatDisplayDate(deleteConfirmRow.end_date)}
+                  </Typography>
+                </Box>
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2.5, pt: 0, gap: 1 }}>
+            <Button
+              onClick={closeDeleteConfirmDialog}
+              disabled={deletingTimeOff}
+              color="inherit"
+              sx={{ textTransform: 'none' }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmDeleteTimeOff}
+              variant="contained"
+              disabled={deletingTimeOff}
+              startIcon={deletingTimeOff ? <CircularProgress size={18} color="inherit" /> : null}
+              sx={{
+                textTransform: 'none',
+                fontWeight: 600,
+                bgcolor: '#b91c1c',
+                borderRadius: 2,
+                px: 2.5,
+                boxShadow: 'none',
+                '&:hover': { bgcolor: '#991b1b', boxShadow: 'none' },
+              }}
+            >
+              {deletingTimeOff ? 'Deleting…' : 'Delete'}
             </Button>
           </DialogActions>
         </Dialog>

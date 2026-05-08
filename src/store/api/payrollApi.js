@@ -152,6 +152,13 @@ export const payrollApi = createApi({
       }),
       invalidatesTags: ['TimeOff'],
     }),
+    deleteTimeOff: builder.mutation({
+      query: (id) => ({
+        url: `time-off/${id}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['TimeOff'],
+    }),
     getAvailableEmployeesForDate: builder.query({
       query: (date) => ({
         url: 'time-off/available-employees/',
@@ -183,6 +190,7 @@ export const {
   useGetTimeOffListQuery,
   useCreateTimeOffMutation,
   useUpdateTimeOffMutation,
+  useDeleteTimeOffMutation,
   useGetAvailableEmployeesForDateQuery,
 } = payrollApi;
 

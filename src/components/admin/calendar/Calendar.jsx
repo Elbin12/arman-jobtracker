@@ -580,6 +580,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { EditJobDialog } from "../jobs/EditJobDialog";
 import { TimelineSidebar } from "./TimelineSidebar";
 import { useUpdateJobMutation } from "../../../store/api/jobsApi";
+import { jobGrandTotalAmount } from "../../../utils/jobPricing";
 import { Typography } from "@mui/material";
 
 const TIME_OFF_KIND_LABELS = {
@@ -1801,8 +1802,14 @@ appointmentsParams.search = filterParams.appointment_search;
     // Only count jobs that are scheduled
     jobs.forEach((job) => {
       if (!job.scheduled_at) return;
-      if (job.total_price === null || job.total_price === undefined) return;
-      
+      const hasPriceField =
+        job.total_price !== null &&
+        job.total_price !== undefined;
+      const hasSurchargeField =
+        job.total_surcharge !== null &&
+        job.total_surcharge !== undefined;
+      if (!hasPriceField && !hasSurchargeField) return;
+
       const m = moment.utc(job.scheduled_at);
       const jobDate = new Date(m.year(), m.month(), m.date());
       
@@ -1813,20 +1820,22 @@ appointmentsParams.search = filterParams.appointment_search;
         const date = String(jobDate.getDate()).padStart(2, '0');
         const dayKey = `${year}-${month}-${date}`;
         
-        const price = parseFloat(job.total_price) || 0;
-        totals[dayKey] = (totals[dayKey] || 0) + price;
+        totals[dayKey] = (totals[dayKey] || 0) + jobGrandTotalAmount(job);
       }
     });
 
     return totals;
   }, [jobs, currentDate, showJobs]);
 
-  // Weekly totals by Sunday date (Mon–Sun week): key = "YYYY-MM-DD" of the week-ending Sunday, value = sum of job total_price in that week
+  // Weekly totals by Sunday date (Mon–Sun week): key = "YYYY-MM-DD" of the week-ending Sunday, value = sum of job totals incl. surcharge in that week
   const weeklyTotalsBySunday = useMemo(() => {
     if (!showJobs) return {};
     const bySunday = {};
     jobs.forEach((job) => {
-      if (!job.scheduled_at || job.total_price == null) return;
+      if (!job.scheduled_at) return;
+      const hasPriceField = job.total_price != null;
+      const hasSurchargeField = job.total_surcharge != null;
+      if (!hasPriceField && !hasSurchargeField) return;
       const m = moment.utc(job.scheduled_at);
       const jobDate = new Date(m.year(), m.month(), m.date());
       const day = jobDate.getDay();
@@ -1837,7 +1846,7 @@ appointmentsParams.search = filterParams.appointment_search;
       const mo = String(sundayDate.getMonth() + 1).padStart(2, "0");
       const d = String(sundayDate.getDate()).padStart(2, "0");
       const key = `${y}-${mo}-${d}`;
-      bySunday[key] = (bySunday[key] || 0) + (parseFloat(job.total_price) || 0);
+      bySunday[key] = (bySunday[key] || 0) + jobGrandTotalAmount(job);
     });
     return bySunday;
   }, [jobs, showJobs]);

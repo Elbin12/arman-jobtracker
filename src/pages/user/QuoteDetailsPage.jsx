@@ -1,7 +1,7 @@
 "use client"
 
-import { useRef, useState, useEffect, useCallback } from "react"
-import { useParams, useNavigate, useLocation } from "react-router-dom"
+import { useState, useEffect } from "react"
+import { useParams, useNavigate } from "react-router-dom"
 import {
   Box,
   Typography,
@@ -48,6 +48,8 @@ import { Info, Plus } from "lucide-react"
 import { handleDownloadPDF } from "../../utils/handleDownloadPDF"
 import { QuoteDetailsSkeleton } from "../../components/ui/skeletons"
 import { ImageViewer } from "../../components/ui/ImageViewer"
+import QuoteCalendarScheduler from "../../components/user/QuoteCalendarScheduler"
+import { slotWallClockAsUtcIso } from "../../utils/scheduleIso"
 
 const statusStyles = {
   pending: { bgcolor: "warning.light", color: "warning.dark" },
@@ -68,10 +70,10 @@ const QuoteDetailsPage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const [expandedServices, setExpandedServices] = useState({})
-  const [selectedDate, setSelectedDate] = useState(null)
   const [activeTab, setActiveTab] = useState("recurring")
   const [showTermsDialog, setShowTermsDialog] = useState(false)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
+  const [isScheduling, setIsScheduling] = useState(false)
   const [selectedImage, setSelectedImage] = useState(null)
 
   const {
@@ -89,53 +91,6 @@ const QuoteDetailsPage = () => {
   const { data: globalPriceData } = useGetGlobalPriceQuery()
 
   const [createSchedule] = useCreateScheduleMutation()
-
-  const location = useLocation()
-  const queryParams = new URLSearchParams(location.search)
-
-  const firstName = queryParams.get("first_name")
-  const lastName = queryParams.get("last_name")
-  const phone = queryParams.get("phone")
-  const email = queryParams.get("email")
-  const iframeRef = useRef(null)
-
-  const params = new URLSearchParams()
-  const [iframeLoaded, setIframeLoaded] = useState(false)
-
-  if (firstName) params.append("first_name", firstName)
-  if (lastName) params.append("last_name", lastName)
-  if (phone) params.append("phone", phone)
-  if (email) params.append("email", email)
-  const paramsString = params.toString()
-
-  const isInIframe = typeof window !== "undefined" && window.self !== window.top
-  const PRIMARY_BOOKING_ID = import.meta.env.VITE_PRIMARY_BOOKING_ID || "1rwE7cUSN5MxPeI1CHiB"
-  const IFRAME_BOOKING_ID = import.meta.env.VITE_IFRAME_BOOKING_ID || "Bh99EZHXlRpJ0CfqwDEW"
-  const bookingId = isInIframe ? IFRAME_BOOKING_ID : PRIMARY_BOOKING_ID
-  const iframeSrc = `${import.meta.env.VITE_SERVICE_PILOT_LINKS_URL || 'https://links.theservicepilot.com'}/widget/booking/${bookingId}${paramsString ? `?${paramsString}` : ""}`
-
-  useEffect(() => {
-    const script = document.createElement("script")
-    script.src = `${import.meta.env.VITE_SERVICE_PILOT_LINKS_URL || 'https://links.theservicepilot.com'}/js/form_embed.js`
-    script.async = true
-
-    script.onload = () => {
-      // Form embed script loaded
-    }
-
-    const timer = setTimeout(() => {
-      if (iframeRef.current) {
-        document.body.appendChild(script)
-      }
-    }, 500)
-
-    return () => {
-      clearTimeout(timer)
-      if (document.body.contains(script)) {
-        document.body.removeChild(script)
-      }
-    }
-  }, [])
 
   // Expand all services by default
   useEffect(() => {
@@ -162,19 +117,23 @@ const QuoteDetailsPage = () => {
     ).join(' ')
   }
 
-  const handleSchedule = async () => {
-    if (!selectedDate) return
+  const handleSchedule = async (slotDate) => {
+    if (!slotDate) return
     const payload = {
       id: quote.id,
-      scheduled_date: selectedDate,
+      scheduled_date: slotWallClockAsUtcIso(slotDate),
       is_submitted: true,
       quoted_by: quote.quote_schedule?.quoted_by,
     }
+
+    setIsScheduling(true)
     try {
-      const response = await createSchedule(payload).unwrap()
+      await createSchedule(payload).unwrap()
       await refetch()
     } catch (err) {
       // Error handled by toast notification
+    } finally {
+      setIsScheduling(false)
     }
   }
 
@@ -937,36 +896,7 @@ const QuoteDetailsPage = () => {
               {status?.toLowerCase() !== 'rejected' && (
                 <>
                   {!quote_schedule?.is_submitted ? (
-                    <Box
-                      sx={{
-                        borderRadius: 3,
-                        background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
-                      }}
-                    >
-                      <CardContent sx={{ p: 0 }}>
-                        {!iframeLoaded && (
-                          <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}>
-                            <CircularProgress size={24} sx={{ color: "#023c8f" }} />
-                            <Typography variant="body2" sx={{ ml: 1 }}>
-                              Loading scheduler...
-                            </Typography>
-                          </Box>
-                        )}
-                        <iframe
-                          ref={iframeRef}
-                          src={iframeSrc}
-                          style={{
-                            width: "100%",
-                            border: "none",
-                            overflow: "hidden",
-                            height: iframeLoaded ? "950px" : "600px",
-                            display: iframeLoaded ? "block" : "none",
-                          }}
-                          scrolling="no"
-                          onLoad={() => setIframeLoaded(true)}
-                        />
-                      </CardContent>
-                    </Box>
+                    <QuoteCalendarScheduler onSchedule={handleSchedule} isSubmitting={isScheduling} />
                   ) : (
                     <Card
                       elevation={4}

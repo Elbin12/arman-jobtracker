@@ -19,7 +19,11 @@ export const jobsApi = createApi({
       invalidatesTags: ['Job'],
     }),
     updateJob: builder.mutation({
-      query: ({ id, filter, ...payload }) => ({ url: `jobs/${id}/?${filter}`, method: 'PATCH', data: payload, }),
+      query: ({ id, filter, ...payload }) => ({
+        url: filter ? `jobs/${id}/?${filter}` : `jobs/${id}/`,
+        method: 'PATCH',
+        data: payload,
+      }),
       invalidatesTags: (r, e, { id }) => [{ type: 'Job', id }],
     }),
     getJobsByLocation: builder.query({

@@ -54,7 +54,13 @@ export function ContactJobJobCard({ jobLite, usePublicJobApi = false }) {
         /* Default JobCard uses embeddedInDialog → CardContent p:0; omit it so inner content gets normal padding */
       }}
     >
-      <JobCard job={job} readOnly users={[]} />
+      <JobCard
+        job={job}
+        readOnly
+        users={[]}
+        skipJobDetailsQuery={usePublicJobApi}
+        clientPortalReschedule={usePublicJobApi}
+      />
       {isError && (
         <Typography variant="caption" color="warning.main" sx={{ mt: 1.5, display: 'block' }}>
           Live job details could not be loaded; showing data from this contact record.
