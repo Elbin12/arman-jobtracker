@@ -191,7 +191,9 @@
     const emailParam = searchParams.get("email");
     const hasSetQuotedByRef = useRef(false);
 
-    const { data: initialData, isLoading, error } = useGetInitialDataQuery();
+    const location_id = searchParams.get('location_id');
+
+    const { data: initialData, isLoading, error } = useGetInitialDataQuery({location_id:location_id});
     const contactId = data.userInfo?.contactId;
 
     const { data: addresses, isFetching: isFetchingAddresses } =
@@ -293,6 +295,8 @@
             label="Contacts"
             useSearchHook={useSearchContactsQuery}
             onSelect={handleContactSelect}
+            location_id={location_id}
+            email={emailParam}
             value={data.userInfo?.contact?.first_name + data?.userInfo?.contact?.last_name}
           />
 

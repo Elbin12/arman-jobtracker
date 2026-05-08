@@ -10,11 +10,11 @@ import {
   ClickAwayListener,
 } from "@mui/material";
 
-const SearchableSelect = ({ label, useSearchHook, onSelect, value }) => {
+const SearchableSelect = ({ label, useSearchHook, onSelect, location_id, emailParam, value }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  const { data: searchData, isFetching } = useSearchHook(searchTerm, {
+  const { data: searchData, isFetching } = useSearchHook({searchTerm, location_id, emailParam}, {
     skip: !searchTerm,
   });
 

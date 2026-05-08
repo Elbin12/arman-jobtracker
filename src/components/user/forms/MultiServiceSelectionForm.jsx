@@ -12,10 +12,17 @@ import {
 } from "@/components/ui/dialog";
 import { useCreateCustomProductMutation, useGetServicesQuery, useUpdateCustomProductMutation } from "../../../store/api/user/quoteApi";
 import { getServiceIcon } from "../../../utils/serviceIcons";
+import { useSearchParams } from 'react-router-dom';
+
 
 const MultiServiceSelectionForm = ({ data, onUpdate }) => {
+
+  const [searchParams] = useSearchParams();
+
+  const location_id = searchParams.get('location_id');
+
   const { data: servicesData, error, isLoading } = useGetServicesQuery(
-    data?.submission_id,
+    {id:data?.submission_id, location_id},
     {
       refetchOnMountOrArgChange: true,
     }

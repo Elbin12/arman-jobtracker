@@ -4,10 +4,10 @@ import { axiosBaseQuery, BASE_URL, axiosInstance } from '../../axios/axios';
 export const quoteApi = createApi({
   reducerPath: 'quoteApi',
   baseQuery: axiosBaseQuery({ baseUrl: BASE_URL + '/quote/' }),
-  tagTypes: ['quote'],
+  tagTypes: ['quote', 'ReschedulePending'],
   endpoints: (builder) => ({
     getInitialData: builder.query({
-        query: ()=>({url:'initial-data/'}),
+        query: (params)=>({url:'initial-data/', params}),
         providesTags: ['quote'],
     }),
     getServiceQuestions: builder.query({
@@ -58,8 +58,9 @@ export const quoteApi = createApi({
       invalidatesTags: ['Quote', 'Submission'],
     }),
     searchContacts: builder.query({
-      query: (searchTerm) => ({
-        url: `contacts/search/?search=${searchTerm}`,
+      query: (params) => ({
+        url: `contacts/search/`,
+        params:{search:params?.searchTerm, location_id:params?.location_id, email:params?.emailParam},
         method: "GET",
       }),
     }),
@@ -94,7 +95,7 @@ export const quoteApi = createApi({
       invalidatesTags: ['Custom Product'],
     }),
     getServices: builder.query({
-        query: (id)=>({url:`services/?submission_id=${id}`}),
+        query: ({id, location_id})=>({url:`services/?submission_id=${id}&location_id=${location_id}`}),
         providesTags: ['services'],
     }),
     createSchedule: builder.mutation({
@@ -102,6 +103,12 @@ export const quoteApi = createApi({
         url: `schedule/update/${id}/`,
         method: 'PUT',
         data: payload,
+      }),
+    }),
+    getCalendarFreeSlots: builder.query({
+      query: ({ startDate, endDate }) => ({
+        url: `calendar/free-slots/?startDate=${startDate}&endDate=${endDate}`,
+        method: 'GET',
       }),
     }),
     deleteService: builder.mutation({
@@ -195,6 +202,26 @@ export const quoteApi = createApi({
       },
       invalidatesTags: ['quote', 'Details'],
     }),
+
+    /** POST /quote/reschedule/from-job/<job_id>/ — creates reschedule_pending submission */
+    rescheduleQuoteFromJob: builder.mutation({
+      query: ({ jobId, ...body }) => ({
+        url: `reschedule/from-job/${jobId}/`,
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: ['ReschedulePending'],
+    }),
+
+    /** GET /quote/reschedule/jobs/ — paginated reschedule_pending list */
+    getReschedulePendingSubmissions: builder.query({
+      query: (params = {}) => ({
+        url: 'reschedule/jobs/',
+        method: 'GET',
+        params,
+      }),
+      providesTags: ['ReschedulePending'],
+    }),
     
   }),
 });
@@ -202,6 +229,7 @@ export const quoteApi = createApi({
 export const { useGetInitialDataQuery, useGetServiceQuestionsQuery, useCreateSubmissionMutation, useUpdateSubmissionMutation, useCreateQuestionResponsesMutation,
   useCreateServiceToSubmissionMutation,   useGetQuoteDetailsQuery,useSubmitQuoteMutation, useGetAddressesByContactQuery, useSearchContactsQuery, useCreateCustomProductMutation,
   useUpdateCustomProductMutation, useDeleteCustomProductMutation, useGetServicesQuery, useCreateScheduleMutation, useDeleteServiceMutation, useGetGlobalPriceQuery,
-  useSubmitOnlyCustomProductsMutation, useRejectQuoteMutation, useUpdateAdditionalDataMutation, useUploadSubmissionImageMutation, useGetSubmissionImagesQuery,
-  useUpdateSubmissionImageMutation, useDeleteSubmissionImageMutation, useReplaceSubmissionImageMutation
+  useGetCalendarFreeSlotsQuery, useSubmitOnlyCustomProductsMutation, useRejectQuoteMutation, useUpdateAdditionalDataMutation, useUploadSubmissionImageMutation, useGetSubmissionImagesQuery,
+  useUpdateSubmissionImageMutation, useDeleteSubmissionImageMutation, useReplaceSubmissionImageMutation,
+  useRescheduleQuoteFromJobMutation, useGetReschedulePendingSubmissionsQuery,
  } = quoteApi;
