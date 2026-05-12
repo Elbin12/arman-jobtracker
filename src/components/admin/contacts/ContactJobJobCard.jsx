@@ -7,11 +7,13 @@ import { useGetJobDetailsQuery, useGetPublicJobDetailsQuery } from '../../../sto
  * Loads full job from the jobs API and renders the standard JobCard (read-only),
  * merged with the snapshot from the contact CRM payload.
  * @param {boolean} [usePublicJobApi] — if true, fetches GET …/job/public/jobs/{id}/ (portal contact view)
+ * @param {string|number} [lookupId] — override id used for the detail fetch.
+ * @param {boolean} [skipDetailFetch] — render the dashboard row snapshot without fetching live job details.
  */
-export function ContactJobJobCard({ jobLite, usePublicJobApi = false }) {
-  const jobId = jobLite?.job_id || jobLite?.id;
-  const internal = useGetJobDetailsQuery(jobId, { skip: !jobId || usePublicJobApi });
-  const pub = useGetPublicJobDetailsQuery(jobId, { skip: !jobId || !usePublicJobApi });
+export function ContactJobJobCard({ jobLite, usePublicJobApi = false, lookupId, skipDetailFetch = false }) {
+  const jobId = lookupId || jobLite?.job_id || jobLite?.id;
+  const internal = useGetJobDetailsQuery(jobId, { skip: !jobId || usePublicJobApi || skipDetailFetch });
+  const pub = useGetPublicJobDetailsQuery(jobId, { skip: !jobId || !usePublicJobApi || skipDetailFetch });
   const { data: full, isLoading, isError } = usePublicJobApi ? pub : internal;
 
   const job = useMemo(() => {
@@ -58,10 +60,10 @@ export function ContactJobJobCard({ jobLite, usePublicJobApi = false }) {
         job={job}
         readOnly
         users={[]}
-        skipJobDetailsQuery={usePublicJobApi}
+        skipJobDetailsQuery={usePublicJobApi || skipDetailFetch}
         clientPortalReschedule={usePublicJobApi}
       />
-      {isError && (
+      {!skipDetailFetch && isError && (
         <Typography variant="caption" color="warning.main" sx={{ mt: 1.5, display: 'block' }}>
           Live job details could not be loaded; showing data from this contact record.
         </Typography>

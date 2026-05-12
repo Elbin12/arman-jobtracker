@@ -247,7 +247,7 @@ const ReschedulePendingQuoteCard = ({ row: quote, onConvertToJob }) => {
                 variant="outlined"
               />
             )}
-            <Chip label="Reschedule pending" color="warning" size="small" variant="outlined" />
+            <Chip label="Repeat request" color="warning" size="small" variant="outlined" />
           </Box>
         }
       />
@@ -257,7 +257,7 @@ const ReschedulePendingQuoteCard = ({ row: quote, onConvertToJob }) => {
       <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 0.2 }}>
         {quote?.created_at && (
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-            Reschedule requested {formatCreated(quote.created_at)}
+            Requested again {formatCreated(quote.created_at)}
           </Typography>
         )}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>

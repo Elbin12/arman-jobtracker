@@ -65,7 +65,7 @@ const getNavItemsByRole = (role, fullAccessRoles, user_profile) => {
     { text: "Jobs", path: "/admin/jobs", icon: WorkOutline, roles: ["admin", "supervisor"] },
     { text: "Map", path: "/admin/map", icon: MapIcon, roles: ["admin", "supervisor"] },
     { text: "Quotes", path: "/admin/accepted-quotes", icon: ReceiptLong, roles: ["admin", "supervisor"] },
-    { text: "Pending reschedule", path: "/admin/pending-reschedule-quotes", icon: PublishedWithChanges, roles: ["admin", "supervisor"] },
+    { text: "Repeat Job Requests", path: "/admin/pending-reschedule-quotes", icon: PublishedWithChanges, roles: ["admin", "supervisor"] },
     { text: "On Hold Jobs", path: "/admin/on-hold-jobs", icon: PauseCircleOutline, roles: ["admin", "supervisor"] },
     // { text: "Contacts", path: "/admin/contacts", icon: ContactsIcon, roles: ["admin", "supervisor"] },
     { text: "Team", path: "/admin/team", icon: Group, roles: ["admin", "supervisor"] },

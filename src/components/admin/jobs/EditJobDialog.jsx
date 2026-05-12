@@ -25,7 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Users, RotateCcw, Plus, XSquare } from "lucide-react";
 import moment from "moment-timezone";
-import { jobsApi, useUpdateJobMutation, useSearchContactsQuery, useGetAddressesByContactQuery } from "../../../store/api/jobsApi";
+import { jobsApi, useUpdateJobMutation, useConvertJobToSeriesMutation, useSearchContactsQuery, useGetAddressesByContactQuery } from "../../../store/api/jobsApi";
 import { useGetEmployeesQuery } from "../../../store/api/payrollApi";
 import { JobTeamAssignmentField } from "./JobTeamAssignmentField";
 import { useGetServicesQuery } from "../../../store/api/servicesApi";
@@ -46,6 +46,7 @@ export function EditJobDialog({
   convertQueryFilter = "status=to_convert",
 }) {
   const [updateJob, { isLoading, error }] = useUpdateJobMutation();
+  const [convertJobToSeries, { isLoading: isConvertingToSeries, error: convertToSeriesError }] = useConvertJobToSeriesMutation();
   const [customServices, setCustomServices] = useState([]);
   const [showCustomServiceForm, setShowCustomServiceForm] = useState(false);
   const [customServiceData, setCustomServiceData] = useState({
@@ -66,6 +67,8 @@ export function EditJobDialog({
 
   const dispatch = useDispatch();
   const { toast } = useToast();
+  const isSubmitting = isLoading || isConvertingToSeries;
+  const submitError = error || convertToSeriesError;
 
   // Store form data in the same structure as the job object
   const [formData, setFormData] = useState({
@@ -527,11 +530,17 @@ export function EditJobDialog({
         }
       });
 
-      const result = await updateJob({
-        id: job.id,
-        ...(objective === "convert" ? { filter: convertQueryFilter } : {}),
-        ...payload,
-      }).unwrap();
+      const shouldConvertToSeries = objective === "convert" && formData.job_type === "recurring";
+      const result = shouldConvertToSeries
+        ? await convertJobToSeries({
+            id: job.id,
+            payload,
+          }).unwrap()
+        : await updateJob({
+            id: job.id,
+            ...(objective === "convert" ? { filter: convertQueryFilter } : {}),
+            ...payload,
+          }).unwrap();
 
       // Show success message
       if (objective === 'convert') {
@@ -1342,16 +1351,16 @@ export function EditJobDialog({
           </div>
 
           {/* Error Display */}
-          {error && (
+          {submitError && (
             <div className="bg-destructive/10 text-destructive p-3 rounded-md text-sm">
-              {error.data?.message || "Failed to update job. Please try again."}
+              {submitError.data?.message || "Failed to update job. Please try again."}
             </div>
           )}
 
           {/* Action Buttons */}
           <div className="flex flex-col-reverse sm:flex-row gap-3 sticky bottom-0">
-            <Button variant="contained" onClick={handleSubmit} disabled={isLoading || !formData.assignments?.length} className="sm:flex-1 w-full">
-              {isLoading ? "Updating..." : objective === "convert"? "Convert to Job" : "Update Job"}
+            <Button variant="contained" onClick={handleSubmit} disabled={isSubmitting || !formData.assignments?.length} className="sm:flex-1 w-full">
+              {isSubmitting ? "Updating..." : objective === "convert"? "Convert to Job" : "Update Job"}
             </Button>
           </div>
         </div>

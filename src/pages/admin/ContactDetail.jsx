@@ -28,7 +28,7 @@ import AccountBalanceOutlined from '@mui/icons-material/AccountBalanceOutlined';
 import ListAltOutlined from '@mui/icons-material/ListAltOutlined';
 import { ArrowBack, OpenInNew } from '@mui/icons-material';
 import TableChart from '@mui/icons-material/TableChart';
-import { format, parseISO } from 'date-fns';
+import moment from 'moment-timezone';
 import { useGetDashboardContactByIdQuery } from '../../store/api/dashboardApi';
 import { ContactActivitySplit } from '../../components/admin/contacts/ContactActivitySplit';
 import { ContactJobJobCard } from '../../components/admin/contacts/ContactJobJobCard';
@@ -54,7 +54,7 @@ const money = (v, currency = 'USD') => {
 const when = (iso) => {
   if (!iso) return '—';
   try {
-    return format(parseISO(iso), 'MMM d, yyyy h:mm a');
+    return moment.utc(iso).format('MMM D, YYYY · h:mm A');
   } catch {
     return iso;
   }
@@ -103,6 +103,7 @@ const ContactDetail = () => {
   const [tab, setTab] = useState(0);
   const [selJob, setSelJob] = useState(null);
   const [selQuote, setSelQuote] = useState(null);
+  const [selPendingRequest, setSelPendingRequest] = useState(null);
   const [selInvoice, setSelInvoice] = useState(null);
   const [selAppt, setSelAppt] = useState(null);
   const [selAddr, setSelAddr] = useState(null);
@@ -112,6 +113,7 @@ const ContactDetail = () => {
   useEffect(() => {
     setSelJob(null);
     setSelQuote(null);
+    setSelPendingRequest(null);
     setSelInvoice(null);
     setSelAppt(null);
     setSelAddr(null);
@@ -169,6 +171,7 @@ const ContactDetail = () => {
 
   const submissions = data.submissions || [];
   const jobs = data.jobs || [];
+  const pendingRequests = data.reschedule_pending_jobs || [];
   const invoices = data.invoices || [];
   const appointments = data.appointments || [];
   const addresses = data.addresses || [];
@@ -321,6 +324,15 @@ const ContactDetail = () => {
         </Grid>
         <Grid item xs={12} sm={6} md={4}>
           <InsightStat
+            icon={PendingActionsOutlined}
+            label="Pending requests"
+            value={summary.reschedule_pending_jobs_count ?? pendingRequests.length ?? 0}
+            portalInvite={isPortal}
+            accentIndex={7}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={4}>
+          <InsightStat
             icon={ReceiptLongOutlined}
             label="Invoices"
             value={summary.invoices_total ?? '—'}
@@ -414,6 +426,7 @@ const ContactDetail = () => {
           <Tab disableRipple label="Overview" />
           <Tab disableRipple label={`Quotes (${submissions.length})`} />
           <Tab disableRipple label={`Jobs (${jobs.length})`} />
+          <Tab disableRipple label={`Pending Requests (${pendingRequests.length})`} />
           <Tab disableRipple label={`Invoices (${invoices.length})`} />
           <Tab disableRipple label={`Appointments (${appointments.length})`} />
           <Tab disableRipple label={`Addresses (${addresses.length})`} />
@@ -524,6 +537,47 @@ const ContactDetail = () => {
           )}
 
           {tab === 3 && (
+            <ContactActivitySplit
+              invitePortal={isPortal}
+              items={pendingRequests}
+              getKey={(j) => j.id}
+              selectedId={selPendingRequest}
+              onSelect={setSelPendingRequest}
+              emptyList="No pending repeat job requests for this contact."
+              selectHint="Select a pending request to review the requested job."
+              drawerTitle="Pending Request"
+              renderListItem={(j, active) => (
+                <ContactPickRow key={j.id} active={active} onClick={() => setSelPendingRequest(j.id)}>
+                  <Typography fontWeight={700} sx={{ pr: 1 }}>
+                    {j.title || 'Pending request'}
+                  </Typography>
+                  <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ mt: 0.5 }}>
+                    <Chip size="small" label="Pending request" color="warning" />
+                    {(j.job_type === 'recurring' || j.is_recurring) && (
+                      <Chip size="small" variant="outlined" label="Recurring" />
+                    )}
+                  </Stack>
+                  <Stack direction="row" justifyContent="space-between" sx={{ mt: 1 }} spacing={1}>
+                    <Typography variant="caption" color="text.secondary">
+                      {when(j.scheduled_at)}
+                    </Typography>
+                    <Typography variant="caption" fontWeight={700}>
+                      {money(jobGrandTotalAmount(j))}
+                    </Typography>
+                  </Stack>
+                </ContactPickRow>
+              )}
+              renderDetail={(j) => (
+                <ContactJobJobCard
+                  jobLite={j}
+                  usePublicJobApi={!isAdminRoute}
+                  lookupId={j.job_id || j.reschedule_source_job_id || j.source_job?.job_id || j.source_job?.id || j.source_job_id || j.id}
+                />
+              )}
+            />
+          )}
+
+          {tab === 4 && (
             <>
               <Stack direction="row" justifyContent="flex-end" sx={{ mb: 2 }}>
                 <Button
@@ -578,7 +632,7 @@ const ContactDetail = () => {
             </>
           )}
 
-          {tab === 4 && (
+          {tab === 5 && (
             <ContactActivitySplit
               invitePortal={isPortal}
               items={appointments}
@@ -601,7 +655,7 @@ const ContactDetail = () => {
             />
           )}
 
-          {tab === 5 && (
+          {tab === 6 && (
             <ContactActivitySplit
               invitePortal={isPortal}
               items={addresses}

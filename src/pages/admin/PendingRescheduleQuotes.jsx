@@ -100,17 +100,17 @@ const PendingRescheduleQuotes = () => {
   return (
     <Box>
       <Typography variant="h4" component="h1" gutterBottom>
-        Pending reschedule
+        Repeat Job Requests
       </Typography>
       <Typography variant="body2" color="text.secondary" mb={3}>
-        Quotes waiting for staff confirmation after a customer requested a new date from an existing job.
+        Customers who requested to book a previous job again will appear here.
       </Typography>
 
       {isFetching && <QuoteCardSkeleton count={6} />}
 
       {isError && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          {error?.data?.detail || error?.data?.message || 'Failed to load pending reschedule requests.'}
+          {error?.data?.detail || error?.data?.message || 'Failed to load repeat job requests.'}
         </Alert>
       )}
 
@@ -124,10 +124,10 @@ const PendingRescheduleQuotes = () => {
           }}
         >
           <Typography variant="h6" color="text.secondary" gutterBottom>
-            No pending reschedule requests
+            No repeat job requests
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            When customers reschedule from the portal, they will appear here.
+            When customers request a job again from the portal, they will appear here.
           </Typography>
         </Box>
       )}

@@ -26,6 +26,14 @@ export const jobsApi = createApi({
       }),
       invalidatesTags: (r, e, { id }) => [{ type: 'Job', id }],
     }),
+    convertJobToSeries: builder.mutation({
+      query: ({ id, payload }) => ({
+        url: `jobs/${id}/convert-to-series/`,
+        method: 'POST',
+        data: payload,
+      }),
+      invalidatesTags: ['Job'],
+    }),
     getJobsByLocation: builder.query({
       query: (params) => ({ url: 'locations/jobs/', method: 'GET', params}),
     }),
@@ -229,6 +237,7 @@ export const {
   useGetPublicJobDetailsQuery,
   useCreateJobMutation,
   useUpdateJobMutation,
+  useConvertJobToSeriesMutation,
   useDeleteJobMutation,
   useDeleteJobSeriesMutation,
   useGetJobsByLocationQuery,

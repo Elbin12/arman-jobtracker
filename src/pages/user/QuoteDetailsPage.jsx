@@ -66,6 +66,20 @@ const formatYesNo = (val) => {
   return "N/A"
 }
 
+const buildBookingRedirectUrl = (contact) => {
+  const fullName =
+    contact?.full_name ||
+    [contact?.first_name, contact?.last_name].filter(Boolean).join(" ")
+
+  const params = new URLSearchParams({
+    full_name: fullName || "",
+    email: contact?.email || "",
+    phone: contact?.phone || "",
+  })
+
+  return `https://trushinewindowcleaning.theservicepilot.com/?${params.toString()}`
+}
+
 const QuoteDetailsPage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -129,7 +143,7 @@ const QuoteDetailsPage = () => {
     setIsScheduling(true)
     try {
       await createSchedule(payload).unwrap()
-      await refetch()
+      window.location.assign(buildBookingRedirectUrl(quote.contact))
     } catch (err) {
       // Error handled by toast notification
     } finally {

@@ -130,7 +130,7 @@ export function JobCard({
     clientPortalReschedule &&
     readOnly &&
     submissionIdForReschedule &&
-    !["completed", "cancelled"].includes(statusLower)
+    statusLower === "completed"
 
   useEffect(() => {
     if (rescheduleDialogOpen) {
@@ -148,8 +148,8 @@ export function JobCard({
         notes: rescheduleNotes.trim() || undefined,
       }).unwrap()
       toast({
-        title: "Reschedule request submitted",
-        description: "Your new date and time will be confirmed by our team.",
+        title: "Repeat job request submitted",
+        description: "Your requested date and time will be confirmed by our team.",
       })
       setRescheduleDialogOpen(false)
       dispatch(jobsApi.util.invalidateTags([{ type: "Job", id: jobId }, { type: "Job", id: `public:${jobId}` }]))
@@ -159,9 +159,9 @@ export function JobCard({
         err?.data?.message ||
         (typeof err?.data === "string" ? err.data : null) ||
         err?.error ||
-        "Could not submit reschedule request."
+        "Could not submit repeat job request."
       toast({
-        title: "Reschedule failed",
+        title: "Request failed",
         description: String(msg),
         variant: "destructive",
       })
@@ -900,14 +900,14 @@ export function JobCard({
                     disabled={!canOpenReschedule || isRescheduleSubmitting}
                     title={
                       !submissionIdForReschedule
-                        ? "This job cannot be rescheduled online (no linked quote submission)."
-                        : ["completed", "cancelled"].includes(statusLower)
-                          ? "Completed or cancelled jobs cannot be rescheduled here."
+                        ? "This job cannot be requested again online (no linked quote submission)."
+                        : statusLower !== "completed"
+                          ? "Only completed jobs can be requested again."
                           : undefined
                     }
                     onClick={() => setRescheduleDialogOpen(true)}
                   >
-                    Reschedule
+                    Request This Job Again
                   </Button>
                 </Box>
               )}
@@ -1350,10 +1350,10 @@ export function JobCard({
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>Reschedule this job</DialogTitle>
+        <DialogTitle>Request this job again</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Choose a new date and time. We will confirm your request shortly.
+            Choose a date and time. We will confirm your request shortly.
           </Typography>
           <TextField
             label="Notes (optional)"
