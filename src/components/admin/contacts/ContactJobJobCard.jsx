@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Box, Skeleton, Typography } from '@mui/material';
 import { JobCard } from '../jobs/JobCard';
 import { useGetJobDetailsQuery, useGetPublicJobDetailsQuery } from '../../../store/api/jobsApi';
+import { overlayJobDetail } from '../../../utils/jobPricing';
 
 /**
  * Loads full job from the jobs API and renders the standard JobCard (read-only),
@@ -19,8 +20,7 @@ export function ContactJobJobCard({ jobLite, usePublicJobApi = false, lookupId, 
   const job = useMemo(() => {
     if (!jobLite) return null;
     const merged = {
-      ...jobLite,
-      ...(full || {}),
+      ...overlayJobDetail(jobLite, full || {}),
       id: full?.id ?? jobLite.id,
       job_id: full?.job_id ?? jobLite.job_id ?? jobLite.id,
     };

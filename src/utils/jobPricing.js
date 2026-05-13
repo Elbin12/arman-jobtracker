@@ -23,3 +23,23 @@ export function jobGrandTotalAmount(job) {
   const baseAmt = Number.isFinite(base) ? base : 0;
   return baseAmt + jobSurchargeAmount(job);
 }
+
+const SURCHARGE_KEYS = ["total_surcharge", "total_surcharges", "trip_surcharge"];
+
+/**
+ * Merge a list/snapshot job with GET-job detail. Detail responses sometimes omit or null
+ * surcharge fields while the list payload has them — avoid clobbering valid values with null/"".
+ */
+export function overlayJobDetail(listJob, detailJob) {
+  if (!listJob) return null;
+  if (!detailJob) return listJob;
+  const merged = { ...listJob, ...detailJob };
+  for (const key of SURCHARGE_KEYS) {
+    const fromDetail = detailJob[key];
+    if (fromDetail == null || fromDetail === "") {
+      const fromList = listJob[key];
+      if (fromList != null && fromList !== "") merged[key] = fromList;
+    }
+  }
+  return merged;
+}

@@ -7,7 +7,7 @@ import { useUpdateJobMutation, useGetJobDetailsQuery, jobsApi } from "../../../s
 import { useRescheduleQuoteFromJobMutation } from "../../../store/api/user/quoteApi"
 import { slotWallClockAsUtcIso } from "../../../utils/scheduleIso"
 import QuoteCalendarScheduler from "../../user/QuoteCalendarScheduler"
-import { jobSurchargeAmount } from "../../../utils/jobPricing"
+import { jobSurchargeAmount, overlayJobDetail } from "../../../utils/jobPricing"
 import { useToast } from "@/hooks/use-toast"
 import {
   Card,
@@ -103,10 +103,10 @@ export function JobCard({
 
   const jobId = job?.job_id || job?.id
   const { data: jobDetailsData } = useGetJobDetailsQuery(jobId, { skip: !jobId || skipJobDetailsQuery })
-  /** Merge detail query into props so pricing fields (e.g. total_surcharge) always match GET /jobs/:id/ */
+  /** Merge detail query without losing list-only pricing (detail often nulls/omits total_surcharge). */
   const pricingJob = useMemo(() => {
     if (!job) return null
-    return jobDetailsData ? { ...job, ...jobDetailsData } : job
+    return overlayJobDetail(job, jobDetailsData)
   }, [job, jobDetailsData])
   const uploadedJobImages = jobDetailsData?.images ?? job?.images ?? []
   const hasUploadedJobImages = Array.isArray(uploadedJobImages) && uploadedJobImages.length > 0
