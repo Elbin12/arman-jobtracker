@@ -16,6 +16,8 @@ import { AdminLayout } from './components/layouts/AdminLayout.jsx';
 import AdminDashboard from './pages/admin/AdminDashboard.jsx';
 import ServicesManagement from './pages/admin/ServicesManagement.jsx';
 import LocationsManagement from './pages/admin/LocationsManagement.jsx';
+import SubaccountsManagement from './pages/admin/SubaccountsManagement.jsx';
+import LocationOAuthCallback from './pages/admin/LocationOAuthCallback.jsx';
 import { BookingWizard } from './components/user/BookingWizard.jsx';
 import UserLogin from './pages/admin/userLogin.jsx';
 import AdminProtectedRoute from './pages/AdminProtectedRoute.jsx';
@@ -93,6 +95,7 @@ function App() {
                   <Route path="/quote/details/:id" element={<QuoteDetailsPage />} />
                   <Route path="/portal/contacts/:id" element={<ContactDetail />} />
                   <Route path="/terms" element={<TermsAndConditions />} />
+                  <Route path="/oauth/location-callback" element={<LocationOAuthCallback />} />
                   
                   {/* Admin Login Route */}
                   <Route path="/admin/login" element={<UserLogin />} />
@@ -177,6 +180,12 @@ function App() {
                     <Route path="house-size-info" element={
                         <RoleProtectedRoute allowedRoles={['manager', 'supervisor']}>
                           <HouseSizeInfo />
+                        </RoleProtectedRoute>
+                      }
+                    />
+                    <Route path="subaccounts" element={
+                        <RoleProtectedRoute allowedRoles={['admin', 'manager', 'supervisor']}>
+                          <SubaccountsManagement />
                         </RoleProtectedRoute>
                       }
                     />

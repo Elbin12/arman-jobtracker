@@ -37,6 +37,7 @@ import {
   PauseCircleOutline,
   AddCircleOutline,
   Home,
+  AccountTree,
   ExpandLess,
   ExpandMore,
   AttachMoney,
@@ -151,6 +152,7 @@ const getManagementItemsByRole = (role, fullAccessRoles) => {
     // { text: "Calendar", path: "/admin/calendar", icon: Event },
     { text: "Service Management", path: "/admin/services", icon: BusinessCenter },
     { text: "Location Management", path: "/admin/locations", icon: LocationOn },
+    { text: "Subaccount Management", path: "/admin/subaccounts", icon: AccountTree },
     { text: "House Size Info", path: "/admin/house-size-info", icon: Home },
   ]
 }

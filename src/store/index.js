@@ -1,6 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { servicesApi } from './api/servicesApi';
 import { locationsApi } from './api/locationsApi';
+import { ghlLocationsApi } from './api/ghlLocationsApi';
 import { bookingApi } from './api/bookingApi';
 import { packagesApi } from './api/packagesApi';
 import { featuresApi } from './api/featuresApi';
@@ -9,6 +10,7 @@ import { packageFeaturesApi } from './api/packageFeaturesApi';
 import { questionOptionsApi } from './api/questionOptionsApi';
 import servicesSlice from './slices/servicesSlice';
 import locationsSlice from './slices/locationsSlice';
+import ghlLocationsSlice from './slices/ghlLocationsSlice';
 import authSlice from './slices/authSlice';
 import { createOptionPricingApi } from './api/optionPricing';
 import { contactsApi } from './api/user/contactsApi';
@@ -42,10 +44,12 @@ export const store = configureStore({
     booking: persistedBookingReducer,
     services: servicesSlice,
     locations: locationsSlice,
+    ghlLocations: ghlLocationsSlice,
 
     auth: authSlice,
     [servicesApi.reducerPath]: servicesApi.reducer,
     [locationsApi.reducerPath]: locationsApi.reducer,
+    [ghlLocationsApi.reducerPath]: ghlLocationsApi.reducer,
     [bookingApi.reducerPath]: bookingApi.reducer,
     [packagesApi.reducerPath]: packagesApi.reducer,
     [featuresApi.reducerPath]: featuresApi.reducer,
@@ -77,6 +81,7 @@ export const store = configureStore({
     })
       .concat(servicesApi.middleware)
       .concat(locationsApi.middleware)
+      .concat(ghlLocationsApi.middleware)
       .concat(bookingApi.middleware)
       .concat(packagesApi.middleware)
       .concat(featuresApi.middleware)
