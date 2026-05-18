@@ -43,7 +43,7 @@ export const handleDownloadPDF = async (
       }
     }
 
-    const t = (text) => applyCompanyNameToTermsText(text, COMPANY.name)
+    const t = (text) => applyCompanyNameToTermsText(text, COMPANY.name, COMPANY.abbreviation)
     const companyContactLines = getCompanyContactLines(COMPANY)
 
     const rgb = {

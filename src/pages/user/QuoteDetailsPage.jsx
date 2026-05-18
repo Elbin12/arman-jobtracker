@@ -99,7 +99,7 @@ const QuoteDetailsPage = () => {
   const { profile, locationId, isReady, isLoading: isBrandingLoading } = useAccountBranding({ quote })
   const termsCompanyLabel = (text) => {
     if (!profile.name) return ''
-    return applyCompanyNameToTermsText(text, profile.name)
+    return applyCompanyNameToTermsText(text, profile.name, profile.abbreviation)
   }
   const termsHref = locationId
     ? `/terms?location_id=${encodeURIComponent(locationId)}`
@@ -455,7 +455,7 @@ const QuoteDetailsPage = () => {
             </Typography>
             <Box component="ul" sx={{ pl: 3, m: 0 }}>
               <Typography component="li" variant="body2">
-                <strong>"{profile.name} / TWC"</strong> = {profile.name}.
+                <strong>"{profile.name} / {profile.abbreviation}"</strong> = {profile.name}.
               </Typography>
               <Typography component="li" variant="body2">
                 <strong>"Client"</strong> = the person or entity booking services.

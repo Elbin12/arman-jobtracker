@@ -7,7 +7,7 @@ function TermsAndConditions() {
   const { profile, isLoading, isReady } = useAccountBranding();
   const t = (text) => {
     if (!isReady || !profile.name) return '';
-    return applyCompanyNameToTermsText(text, profile.name);
+    return applyCompanyNameToTermsText(text, profile.name, profile.abbreviation);
   };
 
   return (
@@ -674,7 +674,7 @@ function TermsAndConditions() {
                     <div className="flex items-start">
                       <span className="text-600 mr-3 mt-1">•</span>
                       <p className="text-gray-700 leading-relaxed text-base">
-                        <strong>"{profile.name} / TWC"</strong> = {profile.name}.
+                        <strong>"{profile.name} / {profile.abbreviation}"</strong> = {profile.name}.
                       </p>
                     </div>
                     <div className="flex items-start">

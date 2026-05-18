@@ -17,6 +17,7 @@ import { useDispatch } from "react-redux"
 import { resetBookingData } from "../../store/slices/bookingSlice"
 import { Box, Typography, Card, CardContent } from "@mui/material"
 import PoweredBy from "../PoweredBy"
+import { resolveBrandingLocationId, useAccountBranding } from "../../hooks/useAccountBranding"
 
 import SignatureCanvas from "react-signature-canvas";
 import { AdminPanelSettings, PostAdd } from "@mui/icons-material"
@@ -54,9 +55,21 @@ const initialBookingData = {
   selectedPackages: [],
 };
 
+function buildQuoteDetailsHref(searchParams, submissionId, extraParams = {}) {
+  const id = String(submissionId ?? '').trim().split(/\s+/)[0];
+  const locationId = resolveBrandingLocationId(searchParams);
+  const params = new URLSearchParams();
+  if (locationId) params.set('location_id', locationId);
+  Object.entries(extraParams).forEach(([key, value]) => {
+    if (value != null && value !== '') params.set(key, String(value));
+  });
+  const qs = params.toString();
+  return qs ? `/quote/details/${id}?${qs}` : `/quote/details/${id}`;
+}
 
 export const BookingWizard = () => {
   const [searchParams] = useSearchParams();
+  const { locationId: brandingLocationId } = useAccountBranding();
   const submissionIdFromUrl = searchParams.get("submission_id");
   const paramEmail = searchParams.get("email")
 
@@ -202,7 +215,7 @@ export const BookingWizard = () => {
   useLayoutEffect(() => {
     if (isSuccess && submissionData) {
       if (submissionData?.status==="submitted" || submissionData?.status==="accepted" || submissionData?.status==="rejected"){
-        navigate(`/quote/details/${submissionData?.id}`)
+        navigate(buildQuoteDetailsHref(searchParams, submissionData?.id))
       }
       setActiveStep(4); // Updated to step 4 (Review & Submit) since we added image upload step
     }
@@ -519,7 +532,12 @@ export const BookingWizard = () => {
       await submitQuote({ submissionId: submission_id, payload }).unwrap();
       
       localStorage.removeItem("bookingData");      // Navigate to success page or quote details
-      navigate(`/quote/details/${submission_id}?first_name=${quoteDetails?.contact?.first_name}&last_name=${quoteDetails?.contact?.last_name}&email=${quoteDetails?.contact?.email}&phone=${quoteDetails?.contact?.phone}`);
+      navigate(buildQuoteDetailsHref(searchParams, submission_id, {
+        first_name: quoteDetails?.contact?.first_name,
+        last_name: quoteDetails?.contact?.last_name,
+        email: quoteDetails?.contact?.email,
+        phone: quoteDetails?.contact?.phone,
+      }));
       
     } catch (err) {
       alert("Could not submit booking. Please try again.");
@@ -761,7 +779,7 @@ export const BookingWizard = () => {
               </Button>
 
               <div className="justify-self-center">
-                <PoweredBy />
+                <PoweredBy locationId={brandingLocationId} />
               </div>
 
               <div className="flex items-center justify-end w-full gap-3">

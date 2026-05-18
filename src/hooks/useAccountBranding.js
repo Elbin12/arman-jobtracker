@@ -7,12 +7,26 @@ import {
   mapAccountInfoToCompanyProfile,
 } from '../utils/companyProfile';
 
-export function resolveLocationId(searchParams, quote) {
+/** Branding location from URL or env — not the GHL location on a submission. */
+export function resolveBrandingLocationId(searchParams) {
   return (
     searchParams?.get?.('location_id') ||
+    searchParams?.get?.('locaton_id') ||
+    import.meta.env.VITE_LOCATION_ID ||
+    null
+  );
+}
+
+export function resolveLocationId(searchParams, quote) {
+  const locationFromQuote =
     quote?.location_id ||
     quote?.location_details?.location_id ||
-    import.meta.env.VITE_LOCATION_ID ||
+    (typeof quote?.location === 'string' ? quote.location : null) ||
+    quote?.location?.id;
+
+  return (
+    resolveBrandingLocationId(searchParams) ||
+    locationFromQuote ||
     null
   );
 }

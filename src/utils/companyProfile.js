@@ -1,4 +1,12 @@
 import { axiosInstance, BASE_URL } from '../store/axios/axios';
+import { ALL_DAY_PROJECTS_LOCATION_ID } from './bookingRedirect';
+
+const DEFAULT_COMPANY_NAME = import.meta.env.VITE_COMPANY_NAME || 'TruShine Window Cleaning';
+const DEFAULT_ABBREVIATION = 'TWC';
+
+const LOCATION_ABBREVIATIONS = {
+  [ALL_DAY_PROJECTS_LOCATION_ID]: 'ADP',
+};
 
 const DEFAULT_LOGO =
   'https://storage.googleapis.com/msgsndr/b8qvo7VooP3JD3dIZU42/media/683efc8fd5817643ff8194f0.jpeg';
@@ -23,9 +31,38 @@ const formatWebsite = (website) => {
   return value;
 };
 
+export function deriveAbbreviationFromName(companyName) {
+  if (!companyName) return DEFAULT_ABBREVIATION;
+  const normalized = companyName.trim();
+  if (/all\s*day\s*projects/i.test(normalized)) return 'ADP';
+  if (/trushine/i.test(normalized)) return DEFAULT_ABBREVIATION;
+
+  const words = normalized.split(/\s+/).filter((w) => w && !/^(and|the|of|&|a)$/i.test(w));
+  if (words.length === 0) return DEFAULT_ABBREVIATION;
+  return words.map((w) => w[0]).join('').toUpperCase();
+}
+
+export function resolveCompanyAbbreviation(companyName, { locationId, accountInfo } = {}) {
+  const fromApi = pickAccountField(accountInfo, [
+    'abbreviation',
+    'company_abbreviation',
+    'short_code',
+    'short_name',
+  ]);
+  if (fromApi) return fromApi.toUpperCase();
+
+  if (locationId && LOCATION_ABBREVIATIONS[locationId]) {
+    return LOCATION_ABBREVIATIONS[locationId];
+  }
+
+  if (companyName === DEFAULT_COMPANY_NAME) return DEFAULT_ABBREVIATION;
+  return deriveAbbreviationFromName(companyName);
+}
+
 export function getDefaultCompanyProfile() {
   return {
-    name: import.meta.env.VITE_COMPANY_NAME || 'TruShine Window Cleaning',
+    name: DEFAULT_COMPANY_NAME,
+    abbreviation: DEFAULT_ABBREVIATION,
     tagline: import.meta.env.VITE_COMPANY_TAGLINE || 'Professional Cleaning Services',
     logoUrl: import.meta.env.VITE_COMPANY_LOGO_URL || DEFAULT_LOGO,
     website: import.meta.env.VITE_COMPANY_WEBSITE || 'www.trushinewindowcleaning.com',
@@ -79,8 +116,14 @@ export function mapAccountInfoToCompanyProfile(accountInfo) {
     'contact_email',
   ]);
 
+  const abbreviation = resolveCompanyAbbreviation(name, {
+    locationId: accountInfo.location_id,
+    accountInfo,
+  });
+
   return {
     name,
+    abbreviation,
     tagline,
     logoUrl: pickAccountField(accountInfo, ['logo_url', 'logo']) || defaults.logoUrl,
     website,
@@ -111,19 +154,26 @@ export function getCompanyContactLines(profile) {
   return [profile.address, profile.phone, profile.email, profile.website].filter(Boolean);
 }
 
-/** Replace legacy TruShine legal branding with the active account/location name. */
-export function applyCompanyNameToTermsText(text, companyName) {
+/** Replace legacy TruShine legal branding with the active account/location name and abbreviation. */
+export function applyCompanyNameToTermsText(text, companyName, companyAbbreviation) {
   if (!text || !companyName) return text;
+
+  const abbr =
+    companyAbbreviation ||
+    resolveCompanyAbbreviation(companyName);
 
   return text
     .replaceAll('TruShine Window Cleaning', companyName)
     .replaceAll("TruShine's", `${companyName}'s`)
-    .replaceAll('TruShine', companyName);
+    .replaceAll('TruShine / TWC', `${companyName} / ${abbr}`)
+    .replaceAll('TruShine', companyName)
+    .replace(/\bTWC\b/g, abbr);
 }
 
 export function getLoadingCompanyProfile() {
   return {
     name: '',
+    abbreviation: '',
     tagline: '',
     logoUrl: null,
     website: '',

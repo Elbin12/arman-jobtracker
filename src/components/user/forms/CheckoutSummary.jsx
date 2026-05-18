@@ -89,6 +89,12 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
   const termsHref = locationId
     ? `/terms?location_id=${encodeURIComponent(locationId)}`
     : '/terms';
+  const quoteDetailsHref = (submissionId) => {
+    const base = `/quote/details/${submissionId}`;
+    return locationId
+      ? `${base}?location_id=${encodeURIComponent(locationId)}`
+      : base;
+  };
   const [selectedPackages, setSelectedPackages] = useState({});
   const [expandedServices, setExpandedServices] = useState({});
   const [customProducts, setCustomProducts] = useState([]);
@@ -648,7 +654,11 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                       boxShadow: "0 2px 6px rgba(0, 60, 143, 0.2)"
                     }
                   }}
-                  onClick={() => {setBookingData(initialBookingData); setActiveStep(0); navigate("/booking/")}}
+                  onClick={() => {
+                    setBookingData(initialBookingData);
+                    setActiveStep(0);
+                    navigate(locationId ? `/booking?location_id=${encodeURIComponent(locationId)}` : '/booking');
+                  }}
                 >
                   + Create Another Quote
                 </Button>
@@ -713,7 +723,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
         {/* Customer Info */}
         <Card sx={{ mb: 2 }}>
           <Grid item xs={12} sm={6} paddingRight={2} textAlign="right">
-            <PoweredBy variant="text" />
+            <PoweredBy variant="text" locationId={locationId} />
           </Grid>
           <CardContent sx={{ px: {xs:2, md:3}, py: 0.5 }}>
             <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f', fontSize:{ xs: "1rem", sm: "1.2rem", md: "1.5rem"} }}>
@@ -1868,7 +1878,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                 setRejectDialogOpen(false);
                 
                 // Navigate to quote details
-                navigate(`/quote/details/${data.submission_id}`);
+                navigate(quoteDetailsHref(data.submission_id));
               } catch (error) {
                 // Error handled by toast notification
                 console.error('Failed to reject quote:', error);

@@ -1,15 +1,16 @@
 import { Typography } from '@mui/material';
 import { useSearchParams } from 'react-router-dom';
+import { resolveBrandingLocationId } from '../hooks/useAccountBranding';
+import { ALL_DAY_PROJECTS_LOCATION_ID } from '../utils/bookingRedirect';
 
-const HIDDEN_POWERED_BY_LOCATION_ID = 'Q6mmZyHzEztauzOHEBrk';
-
-export function useShouldShowPoweredBy() {
+export function useShouldShowPoweredBy(locationIdProp) {
   const [searchParams] = useSearchParams();
-  return searchParams.get('location_id') !== HIDDEN_POWERED_BY_LOCATION_ID;
+  const locationId = locationIdProp ?? resolveBrandingLocationId(searchParams);
+  return locationId !== ALL_DAY_PROJECTS_LOCATION_ID;
 }
 
-const PoweredBy = ({ variant = 'logo', sx, ...typographyProps }) => {
-  const show = useShouldShowPoweredBy();
+const PoweredBy = ({ variant = 'logo', locationId: locationIdProp, sx, ...typographyProps }) => {
+  const show = useShouldShowPoweredBy(locationIdProp);
   if (!show) return null;
 
   return (
