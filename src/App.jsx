@@ -16,11 +16,15 @@ import { AdminLayout } from './components/layouts/AdminLayout.jsx';
 import AdminDashboard from './pages/admin/AdminDashboard.jsx';
 import ServicesManagement from './pages/admin/ServicesManagement.jsx';
 import LocationsManagement from './pages/admin/LocationsManagement.jsx';
+import SubaccountsManagement from './pages/admin/SubaccountsManagement.jsx';
+import LocationOAuthCallback from './pages/admin/LocationOAuthCallback.jsx';
 import { BookingWizard } from './components/user/BookingWizard.jsx';
 import UserLogin from './pages/admin/userLogin.jsx';
 import AdminProtectedRoute from './pages/AdminProtectedRoute.jsx';
 import QuoteDetailsPage from './pages/user/QuoteDetailsPage.jsx';
 import HouseSizeInfo from './components/admin/HouseSizeInfo.jsx';
+import LocationScopedManagementGuard from './components/admin/LocationScopedManagementGuard.jsx';
+import SuperuserProtectedRoute from './pages/SuperuserProtectedRoute.jsx';
 import { PersistGate } from 'redux-persist/integration/react';
 import TermsAndConditions from './pages/user/TermsAndConditions.jsx';
 import Jobs from './pages/admin/Jobs.jsx';
@@ -94,6 +98,7 @@ function App() {
                   <Route path="/quote/details/:id" element={<QuoteDetailsPage />} />
                   <Route path="/portal/contacts/:id" element={<ContactDetail />} />
                   <Route path="/terms" element={<TermsAndConditions />} />
+                  <Route path="/oauth/location-callback" element={<LocationOAuthCallback />} />
                   
                   {/* Admin Login Route */}
                   <Route path="/admin/login" element={<UserLogin />} />
@@ -185,6 +190,14 @@ function App() {
                         <RoleProtectedRoute allowedRoles={['manager', 'supervisor']}>
                           <HouseSizeInfo />
                         </RoleProtectedRoute>
+                      }
+                    />
+                    <Route path="subaccounts" element={
+                        <LocationScopedManagementGuard>
+                          <SuperuserProtectedRoute>
+                            <SubaccountsManagement />
+                          </SuperuserProtectedRoute>
+                        </LocationScopedManagementGuard>
                       }
                     />
                     

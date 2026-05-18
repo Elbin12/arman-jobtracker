@@ -37,6 +37,7 @@ import {
   PauseCircleOutline,
   AddCircleOutline,
   Home,
+  AccountTree,
   ExpandLess,
   ExpandMore,
   AttachMoney,
@@ -53,7 +54,7 @@ import {
   Contacts as ContactsIcon,
 } from "@mui/icons-material"
 import { useState, useMemo } from "react"
-import { useNavigate, useLocation } from "react-router-dom"
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom"
 import { useDispatch, useSelector } from "react-redux"
 import { logoutUser } from "../../store/slices/authSlice"
 import AdminFooter from "../admin/AdminFooter"
@@ -154,6 +155,7 @@ const getManagementItemsByRole = (role, fullAccessRoles) => {
     // { text: "Calendar", path: "/admin/calendar", icon: Event },
     { text: "Service Management", path: "/admin/services", icon: BusinessCenter },
     { text: "Location Management", path: "/admin/locations", icon: LocationOn },
+    { text: "Subaccount Management", path: "/admin/subaccounts", icon: AccountTree },
     { text: "House Size Info", path: "/admin/house-size-info", icon: Home },
   ]
 }
@@ -169,7 +171,10 @@ export const AdminLayout = ({ children }) => {
   const [mobilePayrollOpen, setMobilePayrollOpen] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const dispatch = useDispatch()
+
+  const location_id = searchParams.get("location_id")
 
   const user_profile = useSelector((state) => state.auth.user_profile)
   const user = useSelector((state) => state.auth.user)
@@ -192,10 +197,14 @@ export const AdminLayout = ({ children }) => {
     [userRole, user_profile, fullAccessRoles]
   )
   
-  const managementItems = useMemo(() => 
-    getManagementItemsByRole(userRole, fullAccessRoles),
-    [userRole, fullAccessRoles]
-  )
+  const managementItems = useMemo(() => {
+    const items = getManagementItemsByRole(userRole, fullAccessRoles)
+    return items.filter((item) => {
+      if (item.path !== "/admin/subaccounts") return true
+      if (location_id) return false
+      return Boolean(user?.is_superuser)
+    })
+  }, [userRole, fullAccessRoles, location_id, user?.is_superuser])
 
   const isPayrollSection = location.pathname.startsWith("/admin/payroll")
   const isManagementActive = managementItems.some((item) => location.pathname === item.path)
