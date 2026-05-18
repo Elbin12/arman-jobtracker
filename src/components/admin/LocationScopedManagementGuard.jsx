@@ -3,18 +3,11 @@
 import { useEffect } from "react"
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom"
 
-/** Management routes hidden when `?location_id=` is present (location-scoped admin session). */
-export const ADMIN_MANAGEMENT_PATHS = [
-  "/admin/services",
-  "/admin/locations",
-  "/admin/subaccounts",
-  "/admin/house-size-info",
-]
-
+export const ADMIN_SUBACCOUNTS_PATH = "/admin/subaccounts"
 export const ADMIN_HOME_PATH = "/admin/jobs"
 
 /**
- * Redirects away from company-wide management pages when `location_id` is in the query string.
+ * Redirects away from subaccount management when `location_id` is in the query string.
  */
 export default function LocationScopedManagementGuard({ children }) {
   const [searchParams] = useSearchParams()
@@ -22,20 +15,20 @@ export default function LocationScopedManagementGuard({ children }) {
   const location = useLocation()
   const location_id = searchParams.get("location_id")
 
-  const isManagementPath = ADMIN_MANAGEMENT_PATHS.some(
-    (path) => location.pathname === path || location.pathname.startsWith(`${path}/`)
-  )
+  const isSubaccountsPath =
+    location.pathname === ADMIN_SUBACCOUNTS_PATH ||
+    location.pathname.startsWith(`${ADMIN_SUBACCOUNTS_PATH}/`)
 
   useEffect(() => {
-    if (!location_id || !isManagementPath) return
+    if (!location_id || !isSubaccountsPath) return
     const search = searchParams.toString()
     navigate(
       { pathname: ADMIN_HOME_PATH, search: search ? `?${search}` : "" },
       { replace: true }
     )
-  }, [location_id, isManagementPath, navigate, searchParams])
+  }, [location_id, isSubaccountsPath, navigate, searchParams])
 
-  if (location_id && isManagementPath) {
+  if (location_id && isSubaccountsPath) {
     return null
   }
 

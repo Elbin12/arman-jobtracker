@@ -195,9 +195,13 @@ export const AdminLayout = ({ children }) => {
   )
   
   const managementItems = useMemo(() => {
-    if (location_id) return []
-    return getManagementItemsByRole(userRole, fullAccessRoles)
-  }, [userRole, fullAccessRoles, location_id])
+    const items = getManagementItemsByRole(userRole, fullAccessRoles)
+    return items.filter((item) => {
+      if (item.path !== "/admin/subaccounts") return true
+      if (location_id) return false
+      return Boolean(user?.is_superuser)
+    })
+  }, [userRole, fullAccessRoles, location_id, user?.is_superuser])
 
   const isPayrollSection = location.pathname.startsWith("/admin/payroll")
   const isManagementActive = managementItems.some((item) => location.pathname === item.path)
