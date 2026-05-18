@@ -23,6 +23,7 @@ import UserLogin from './pages/admin/userLogin.jsx';
 import AdminProtectedRoute from './pages/AdminProtectedRoute.jsx';
 import QuoteDetailsPage from './pages/user/QuoteDetailsPage.jsx';
 import HouseSizeInfo from './components/admin/HouseSizeInfo.jsx';
+import LocationScopedManagementGuard from './components/admin/LocationScopedManagementGuard.jsx';
 import { PersistGate } from 'redux-persist/integration/react';
 import TermsAndConditions from './pages/user/TermsAndConditions.jsx';
 import Jobs from './pages/admin/Jobs.jsx';
@@ -166,27 +167,35 @@ function App() {
                       }
                     />
                     <Route path="services" element={
-                        <RoleProtectedRoute allowedRoles={['manager', 'supervisor']}>
-                          <ServicesManagement />
-                        </RoleProtectedRoute>
+                        <LocationScopedManagementGuard>
+                          <RoleProtectedRoute allowedRoles={['manager', 'supervisor']}>
+                            <ServicesManagement />
+                          </RoleProtectedRoute>
+                        </LocationScopedManagementGuard>
                       }
                     />
                     <Route path="locations" element={
-                        <RoleProtectedRoute allowedRoles={['manager', 'supervisor']}>
-                          <LocationsManagement />
-                        </RoleProtectedRoute>
+                        <LocationScopedManagementGuard>
+                          <RoleProtectedRoute allowedRoles={['manager', 'supervisor']}>
+                            <LocationsManagement />
+                          </RoleProtectedRoute>
+                        </LocationScopedManagementGuard>
                       }
                     />
                     <Route path="house-size-info" element={
-                        <RoleProtectedRoute allowedRoles={['manager', 'supervisor']}>
-                          <HouseSizeInfo />
-                        </RoleProtectedRoute>
+                        <LocationScopedManagementGuard>
+                          <RoleProtectedRoute allowedRoles={['manager', 'supervisor']}>
+                            <HouseSizeInfo />
+                          </RoleProtectedRoute>
+                        </LocationScopedManagementGuard>
                       }
                     />
                     <Route path="subaccounts" element={
-                        <RoleProtectedRoute allowedRoles={['admin', 'manager', 'supervisor']}>
-                          <SubaccountsManagement />
-                        </RoleProtectedRoute>
+                        <LocationScopedManagementGuard>
+                          <RoleProtectedRoute allowedRoles={['admin', 'manager', 'supervisor']}>
+                            <SubaccountsManagement />
+                          </RoleProtectedRoute>
+                        </LocationScopedManagementGuard>
                       }
                     />
                     

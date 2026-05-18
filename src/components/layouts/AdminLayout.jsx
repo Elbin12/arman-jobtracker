@@ -53,7 +53,7 @@ import {
   Contacts as ContactsIcon,
 } from "@mui/icons-material"
 import { useState, useMemo } from "react"
-import { useNavigate, useLocation } from "react-router-dom"
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom"
 import { useDispatch, useSelector } from "react-redux"
 import { logoutUser } from "../../store/slices/authSlice"
 import AdminFooter from "../admin/AdminFooter"
@@ -168,7 +168,10 @@ export const AdminLayout = ({ children }) => {
   const [mobilePayrollOpen, setMobilePayrollOpen] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const dispatch = useDispatch()
+
+  const location_id = searchParams.get("location_id")
 
   const user_profile = useSelector((state) => state.auth.user_profile)
   const user = useSelector((state) => state.auth.user)
@@ -191,10 +194,10 @@ export const AdminLayout = ({ children }) => {
     [userRole, user_profile, fullAccessRoles]
   )
   
-  const managementItems = useMemo(() => 
-    getManagementItemsByRole(userRole, fullAccessRoles),
-    [userRole, fullAccessRoles]
-  )
+  const managementItems = useMemo(() => {
+    if (location_id) return []
+    return getManagementItemsByRole(userRole, fullAccessRoles)
+  }, [userRole, fullAccessRoles, location_id])
 
   const isPayrollSection = location.pathname.startsWith("/admin/payroll")
   const isManagementActive = managementItems.some((item) => location.pathname === item.path)
