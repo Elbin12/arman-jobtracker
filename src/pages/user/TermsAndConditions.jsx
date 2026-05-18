@@ -1,35 +1,18 @@
+import { Box, Skeleton } from '@mui/material';
+import TermsBrandingHeader from '../../components/TermsBrandingHeader';
+import { useAccountBranding } from '../../hooks/useAccountBranding';
+import { applyCompanyNameToTermsText } from '../../utils/companyProfile';
+
 function TermsAndConditions() {
+  const { profile, isLoading, isReady } = useAccountBranding();
+  const t = (text) => {
+    if (!isReady || !profile.name) return '';
+    return applyCompanyNameToTermsText(text, profile.name);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b py-2 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-24">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-3">
-              <img
-                src={import.meta.env.VITE_COMPANY_LOGO_URL || 'https://storage.googleapis.com/msgsndr/b8qvo7VooP3JD3dIZU42/media/683efc8fd5817643ff8194f0.jpeg'}
-                alt="TruShine Window Cleaning Logo"
-                className="h-14 w-14 rounded-lg object-cover"
-              />
-              <div className="h-12 w-px bg-gray-300" />
-              <div>
-                <h1 className="text-xl text-gray-900">TruShine Window Cleaning</h1>
-                <p className="text-sm text-gray-600">Professional Cleaning Services</p>
-              </div>
-            </div>
-            {/* <div className="hidden md:flex items-center space-x-6">
-              <a href="#" className="text-gray-600 hover:text-blue-600 transition-colors">
-                Home
-              </a>
-              <a href="#" className="text-gray-600 hover:text-blue-600 transition-colors">
-                Services
-              </a>
-              <a href="#" className="text-gray-600 hover:text-blue-600 transition-colors">
-                Contact
-              </a>
-            </div> */}
-          </div>
-        </div>
-      </nav>
+      <TermsBrandingHeader profile={profile} isLoading={isLoading} />
 
       <div className="sm:py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">
@@ -41,7 +24,7 @@ function TermsAndConditions() {
             <div className="sm:px-8 pb-8">
               <div className="mb-8 p-4">
                 <p className="text-gray-800 leading-relaxed font-medium">
-                  Written notice for anything in this agreement means email or SMS/text message to TruShine's official contact information on your invoice/estimate/website (or the number/email used to confirm your appointment).
+                  {t("Written notice for anything in this agreement means email or SMS/text message to TruShine's official contact information on your invoice/estimate/website (or the number/email used to confirm your appointment).")}
                 </p>
               </div>
 
@@ -272,9 +255,7 @@ function TermsAndConditions() {
                     </div>
                     <div className="flex items-start">
                       <span className="text-600 mr-3 mt-1">•</span>
-                      <p className="text-gray-700 leading-relaxed text-base">
-                        TruShine not liable for delays due to weather/supply/uncontrollable issues.
-                      </p>
+                      <p className="text-gray-700 leading-relaxed text-base">{t(`TruShine not liable for delays due to weather/supply/uncontrollable issues.`)}</p>
                     </div>
                   </div>
                 </section>
@@ -386,17 +367,13 @@ function TermsAndConditions() {
                   <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
                     Recurring Service Agreement
                   </h2>
-                  <p className="text-gray-700 leading-relaxed text-base mb-6">
-                    This Recurring Service Agreement outlines the terms and conditions for ongoing window cleaning
-                    and/or gutter cleaning services provided by TruShine Window Cleaning.
-                  </p>
+                  <p className="text-gray-700 leading-relaxed text-base mb-6">{t(`This Recurring Service Agreement outlines the terms and conditions for ongoing window cleaning
+                    and/or gutter cleaning services provided by TruShine Window Cleaning.`)}</p>
 
                   <div className="space-y-6">
                     <div className="p-6 rounded-lg">
                       <h3 className="text-lg text-900 mb-4">1. Scope of Services</h3>
-                      <p className="text-gray-700 text-base mb-4">
-                        TruShine agrees to perform recurring services, which may include:
-                      </p>
+                      <p className="text-gray-700 text-base mb-4">{t(`TruShine agrees to perform recurring services, which may include:`)}</p>
 
                       <div className="space-y-4">
                         <div>
@@ -535,10 +512,8 @@ function TermsAndConditions() {
                             </div>
                             <div className="flex items-start">
                               <span className="text-600 mr-2 mt-1">•</span>
-                              <p className="text-gray-700 text-base">
-                                TruShine reserves the right to cancel or reschedule service due to weather, safety
-                                concerns, or access limitations
-                              </p>
+                              <p className="text-gray-700 text-base">{t(`TruShine reserves the right to cancel or reschedule service due to weather, safety
+                                concerns, or access limitations`)}</p>
                             </div>
                           </div>
                         </div>
@@ -607,10 +582,8 @@ function TermsAndConditions() {
                         </div>
                         <div className="flex items-start">
                           <span className="text-600 mr-3 mt-1">•</span>
-                          <p className="text-gray-700 text-base">
-                            Notify TruShine of any pre-existing issues, fragile items, or safety concerns prior to
-                            service
-                          </p>
+                          <p className="text-gray-700 text-base">{t(`Notify TruShine of any pre-existing issues, fragile items, or safety concerns prior to
+                            service`)}</p>
                         </div>
                         <div className="flex items-start">
                           <span className="text-600 mr-3 mt-1">•</span>
@@ -639,9 +612,7 @@ function TermsAndConditions() {
                         </div>
                         <div className="flex items-start">
                           <span className="text-600 mr-3 mt-1">•</span>
-                          <p className="text-gray-700 text-base">
-                            TruShine will always provide advance notice of any pricing updates
-                          </p>
+                          <p className="text-gray-700 text-base">{t(`TruShine will always provide advance notice of any pricing updates`)}</p>
                         </div>
                       </div>
                     </div>
@@ -651,16 +622,12 @@ function TermsAndConditions() {
                       <div className="space-y-3">
                         <div className="flex items-start">
                           <span className="text-600 mr-3 mt-1">•</span>
-                          <p className="text-gray-700 text-base">
-                            TruShine is fully insured and exercises care during all services
-                          </p>
+                          <p className="text-gray-700 text-base">{t(`TruShine is fully insured and exercises care during all services`)}</p>
                         </div>
                         <div className="flex items-start">
                           <span className="text-600 mr-3 mt-1">•</span>
-                          <p className="text-gray-700 text-base">
-                            TruShine is not responsible for pre-existing damage such as aged gutters, broken seals, or
-                            cracked panes
-                          </p>
+                          <p className="text-gray-700 text-base">{t(`TruShine is not responsible for pre-existing damage such as aged gutters, broken seals, or
+                            cracked panes`)}</p>
                         </div>
                         <div className="flex items-start">
                           <span className="text-600 mr-3 mt-1">•</span>
@@ -678,11 +645,18 @@ function TermsAndConditions() {
 
               {/* NEW TERMS AND CONDITIONS */}
               <div className="space-y-8">
+                {!isReady ? (
+                  <Box sx={{ py: 2 }}>
+                    <Skeleton variant="text" width="55%" height={40} sx={{ mb: 2 }} />
+                    <Skeleton variant="text" width="100%" height={20} sx={{ mb: 1 }} />
+                    <Skeleton variant="text" width="100%" height={20} sx={{ mb: 1 }} />
+                    <Skeleton variant="text" width="100%" height={20} />
+                  </Box>
+                ) : (
+                <>
                 {/* Title */}
                 <section>
-                  <h1 className="text-3xl text-gray-900 mb-2 font-bold">
-                    TruShine Window Cleaning
-                  </h1>
+                  <h1 className="text-3xl text-gray-900 mb-2 font-bold">{profile.name}</h1>
                   <h2 className="text-2xl text-gray-900 mb-4 pb-2 border-b-2 border-600">
                     Master Terms & Conditions + Recurring Service Addendum
                   </h2>
@@ -700,7 +674,7 @@ function TermsAndConditions() {
                     <div className="flex items-start">
                       <span className="text-600 mr-3 mt-1">•</span>
                       <p className="text-gray-700 leading-relaxed text-base">
-                        <strong>"TruShine / TWC"</strong> = TruShine Window Cleaning.
+                        <strong>"{profile.name} / TWC"</strong> = {profile.name}.
                       </p>
                     </div>
                     <div className="flex items-start">
@@ -754,9 +728,7 @@ function TermsAndConditions() {
                     3) Professional Standards, Codes, and Insurance
                   </h2>
                   <div className="space-y-3">
-                    <p className="text-gray-700 leading-relaxed text-base">
-                      All work is performed in a professional, workmanlike manner and in compliance with applicable local codes and regulations. TruShine is properly insured against injury to employees and losses resulting from employee actions.
-                    </p>
+                    <p className="text-gray-700 leading-relaxed text-base">{t(`All work is performed in a professional, workmanlike manner and in compliance with applicable local codes and regulations. TruShine is properly insured against injury to employees and losses resulting from employee actions.`)}</p>
                   </div>
                 </section>
 
@@ -797,14 +769,14 @@ function TermsAndConditions() {
                         <div className="space-y-2 ml-4">
                           <p className="text-gray-700 leading-relaxed text-base">Removes most stains; some marks may remain.</p>
                           <p className="text-gray-700 leading-relaxed text-base">External water access is required.</p>
-                          <p className="text-gray-700 leading-relaxed text-base">Client must cover/remove outdoor furniture. If TruShine must do it, a $150 fee may apply. TruShine is not liable for chemical damage to items not properly protected/removed.</p>
+                          <p className="text-gray-700 leading-relaxed text-base">{t(`Client must cover/remove outdoor furniture. If TruShine must do it, a $150 fee may apply. TruShine is not liable for chemical damage to items not properly protected/removed.`)}</p>
                         </div>
                       </div>
 
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-2">D) Awning Cleaning</h3>
                         <div className="space-y-2 ml-4">
-                          <p className="text-gray-700 leading-relaxed text-base">TruShine is not liable for unexpected damage during awning cleaning.</p>
+                          <p className="text-gray-700 leading-relaxed text-base">{t('TruShine is not liable for unexpected damage during awning cleaning.')}</p>
                           <p className="text-gray-700 leading-relaxed text-base">Service may be declined if material is over 5 years old or fails inspection.</p>
                         </div>
                       </div>
@@ -826,27 +798,19 @@ function TermsAndConditions() {
                     </div>
                     <div className="flex items-start">
                       <span className="text-600 mr-3 mt-1">•</span>
-                      <p className="text-gray-700 leading-relaxed text-base">
-                        TruShine will not move obstacles/furniture for access (unless agreed).
-                      </p>
+                      <p className="text-gray-700 leading-relaxed text-base">{t(`TruShine will not move obstacles/furniture for access (unless agreed).`)}</p>
                     </div>
                     <div className="flex items-start">
                       <span className="text-600 mr-3 mt-1">•</span>
-                      <p className="text-gray-700 leading-relaxed text-base">
-                        If TruShine arrives and cannot perform due to lack of access or unsafe conditions, a $75 trip fee applies.
-                      </p>
+                      <p className="text-gray-700 leading-relaxed text-base">{t(`If TruShine arrives and cannot perform due to lack of access or unsafe conditions, a $75 trip fee applies.`)}</p>
                     </div>
                     <div className="flex items-start">
                       <span className="text-600 mr-3 mt-1">•</span>
-                      <p className="text-gray-700 leading-relaxed text-base">
-                        Client is responsible for ensuring items/structures are sound. TruShine may document or refuse questionable items.
-                      </p>
+                      <p className="text-gray-700 leading-relaxed text-base">{t(`Client is responsible for ensuring items/structures are sound. TruShine may document or refuse questionable items.`)}</p>
                     </div>
                     <div className="flex items-start">
                       <span className="text-600 mr-3 mt-1">•</span>
-                      <p className="text-gray-700 leading-relaxed text-base">
-                        Any special accommodations must be reviewed and approved by TruShine management before accepting the proposal.
-                      </p>
+                      <p className="text-gray-700 leading-relaxed text-base">{t(`Any special accommodations must be reviewed and approved by TruShine management before accepting the proposal.`)}</p>
                     </div>
                   </div>
                 </section>
@@ -859,9 +823,7 @@ function TermsAndConditions() {
                   <div className="space-y-3">
                     <div className="flex items-start">
                       <span className="text-600 mr-3 mt-1">•</span>
-                      <p className="text-gray-700 leading-relaxed text-base">
-                        TruShine is not liable for delays due to weather, supply issues, or other uncontrollable factors.
-                      </p>
+                      <p className="text-gray-700 leading-relaxed text-base">{t(`TruShine is not liable for delays due to weather, supply issues, or other uncontrollable factors.`)}</p>
                     </div>
                     <div className="flex items-start">
                       <span className="text-600 mr-3 mt-1">•</span>
@@ -883,9 +845,7 @@ function TermsAndConditions() {
                     </div>
                     <div className="flex items-start">
                       <span className="text-600 mr-3 mt-1">•</span>
-                      <p className="text-gray-700 leading-relaxed text-base">
-                        Beyond 2 reschedules, TruShine may charge up to the full service amount to protect crew scheduling and reserved time.
-                      </p>
+                      <p className="text-gray-700 leading-relaxed text-base">{t(`Beyond 2 reschedules, TruShine may charge up to the full service amount to protect crew scheduling and reserved time.`)}</p>
                     </div>
                     <div className="flex items-start">
                       <span className="text-600 mr-3 mt-1">•</span>
@@ -910,9 +870,7 @@ function TermsAndConditions() {
                     </div>
                     <div className="flex items-start">
                       <span className="text-600 mr-3 mt-1">•</span>
-                      <p className="text-gray-700 leading-relaxed text-base">
-                        TruShine may require credit card info on file and/or a $100 deposit.
-                      </p>
+                      <p className="text-gray-700 leading-relaxed text-base">{t(`TruShine may require credit card info on file and/or a $100 deposit.`)}</p>
                     </div>
                     <div className="flex items-start">
                       <span className="text-600 mr-3 mt-1">•</span>
@@ -1027,9 +985,7 @@ function TermsAndConditions() {
                     </div>
                     <div className="flex items-start">
                       <span className="text-600 mr-3 mt-1">•</span>
-                      <p className="text-gray-700 leading-relaxed text-base">
-                        TruShine must be given a reasonable opportunity to inspect and/or correct any confirmed workmanship issues.
-                      </p>
+                      <p className="text-gray-700 leading-relaxed text-base">{t(`TruShine must be given a reasonable opportunity to inspect and/or correct any confirmed workmanship issues.`)}</p>
                     </div>
                     <div className="flex items-start">
                       <span className="text-600 mr-3 mt-1">•</span>
@@ -1058,9 +1014,7 @@ function TermsAndConditions() {
                     12) Cancellation Policy (One-Time / Non-Recurring)
                   </h2>
                   <div className="space-y-3">
-                    <p className="text-gray-700 leading-relaxed text-base">
-                      Client cancellation requests should be provided with as much notice as possible. For larger or reserved jobs, TruShine may require 14 days' written notice; shorter notice may result in a charge up to the full service amount, depending on crew scheduling and reserved time.
-                    </p>
+                    <p className="text-gray-700 leading-relaxed text-base">{t(`Client cancellation requests should be provided with as much notice as possible. For larger or reserved jobs, TruShine may require 14 days' written notice; shorter notice may result in a charge up to the full service amount, depending on crew scheduling and reserved time.`)}</p>
                   </div>
                 </section>
 
@@ -1070,9 +1024,7 @@ function TermsAndConditions() {
                     13) Liability Limits & Pre-Existing Damage
                   </h2>
                   <div className="space-y-3">
-                    <p className="text-gray-700 leading-relaxed text-base">
-                      TruShine is not responsible for pre-existing damage or deterioration including (but not limited to): aged gutters, rotted wood, failing seals, cracked panes, loose screens, or previously weakened/fragile items. Client must notify TruShine of known issues or safety concerns prior to service.
-                    </p>
+                    <p className="text-gray-700 leading-relaxed text-base">{t(`TruShine is not responsible for pre-existing damage or deterioration including (but not limited to): aged gutters, rotted wood, failing seals, cracked panes, loose screens, or previously weakened/fragile items. Client must notify TruShine of known issues or safety concerns prior to service.`)}</p>
                   </div>
                 </section>
 
@@ -1082,9 +1034,7 @@ function TermsAndConditions() {
                     14) Updates to Terms
                   </h2>
                   <div className="space-y-3">
-                    <p className="text-gray-700 leading-relaxed text-base">
-                      TruShine reserves the right to update these Terms & Conditions at any time. Updated terms apply prospectively.
-                    </p>
+                    <p className="text-gray-700 leading-relaxed text-base">{t(`TruShine reserves the right to update these Terms & Conditions at any time. Updated terms apply prospectively.`)}</p>
                   </div>
                 </section>
 
@@ -1118,9 +1068,7 @@ function TermsAndConditions() {
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-3">R1) Scope of Recurring Services</h3>
                       <div className="space-y-3 ml-4">
-                        <p className="text-gray-700 leading-relaxed text-base">
-                          TruShine will perform recurring window cleaning and/or gutter cleaning as selected:
-                        </p>
+                        <p className="text-gray-700 leading-relaxed text-base">{t(`TruShine will perform recurring window cleaning and/or gutter cleaning as selected:`)}</p>
                         <div className="ml-4 space-y-2">
                           <p className="text-gray-700 leading-relaxed text-base">
                             <strong>Window Cleaning:</strong> exterior window cleaning for all accessible glass; interior if included; add-ons available for additional fee.
@@ -1153,7 +1101,8 @@ function TermsAndConditions() {
                         <div className="flex items-start">
                           <span className="text-600 mr-3 mt-1">•</span>
                           <p className="text-gray-700 leading-relaxed text-base">
-                            <strong>Billing timing:</strong> For Recurring Plan Visits, Client authorizes TruShine to charge the card on file after completion of each Visit (same day), unless otherwise agreed in writing.
+                            <strong>Billing timing:</strong>{' '}
+                            {t('For Recurring Plan Visits, Client authorizes TruShine to charge the card on file after completion of each Visit (same day), unless otherwise agreed in writing.')}
                           </p>
                         </div>
                         <div className="flex items-start">
@@ -1234,9 +1183,7 @@ function TermsAndConditions() {
                         </div>
                         <div className="flex items-start">
                           <span className="text-600 mr-3 mt-1">•</span>
-                          <p className="text-gray-700 leading-relaxed text-base">
-                            Notify TruShine of pre-existing issues, fragile items, or safety concerns.
-                          </p>
+                          <p className="text-gray-700 leading-relaxed text-base">{t(`Notify TruShine of pre-existing issues, fragile items, or safety concerns.`)}</p>
                         </div>
                         <div className="flex items-start">
                           <span className="text-600 mr-3 mt-1">•</span>
@@ -1246,9 +1193,7 @@ function TermsAndConditions() {
                         </div>
                         <div className="flex items-start">
                           <span className="text-600 mr-3 mt-1">•</span>
-                          <p className="text-gray-700 leading-relaxed text-base">
-                            If TruShine arrives and cannot perform due to lack of access, the $75 trip fee applies, and rescheduling fees may also apply.
-                          </p>
+                          <p className="text-gray-700 leading-relaxed text-base">{t(`If TruShine arrives and cannot perform due to lack of access, the $75 trip fee applies, and rescheduling fees may also apply.`)}</p>
                         </div>
                       </div>
                     </div>
@@ -1256,18 +1201,14 @@ function TermsAndConditions() {
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-3">R8) Service Adjustments & Changes</h3>
                       <div className="space-y-3 ml-4">
-                        <p className="text-gray-700 leading-relaxed text-base">
-                          Pricing may be updated if property conditions change or the service scope is modified. Client may request upgrades, add-ons, or frequency changes with written notice. TruShine will provide advance notice of pricing updates.
-                        </p>
+                        <p className="text-gray-700 leading-relaxed text-base">{t(`Pricing may be updated if property conditions change or the service scope is modified. Client may request upgrades, add-ons, or frequency changes with written notice. TruShine will provide advance notice of pricing updates.`)}</p>
                       </div>
                     </div>
 
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-3">R9) Weather / Safety / Access Limitations</h3>
                       <div className="space-y-3 ml-4">
-                        <p className="text-gray-700 leading-relaxed text-base">
-                          TruShine may cancel or reschedule due to weather, safety concerns, or access limitations.
-                        </p>
+                        <p className="text-gray-700 leading-relaxed text-base">{t(`TruShine may cancel or reschedule due to weather, safety concerns, or access limitations.`)}</p>
                       </div>
                     </div>
                   </div>
@@ -1276,16 +1217,16 @@ function TermsAndConditions() {
                 {/* Checkbox Acceptance */}
                 {/* <section className="mt-8 p-6 bg-gray-50 rounded-lg border-2 border-gray-300">
                   <h3 className="text-lg font-semibold text-gray-900 mb-3">Checkbox Acceptance Line (Use on GHL Forms)</h3>
-                  <p className="text-gray-700 leading-relaxed text-base">
-                    By checking this box, I agree to TruShine Window Cleaning's Master Terms & Conditions and, if enrolled, the Recurring Service Addendum. I authorize TruShine to keep a card on file and charge for recurring services after each completed Visit according to these terms.
-                  </p>
+                  <p className="text-gray-700 leading-relaxed text-base">{t(`By checking this box, I agree to TruShine Window Cleaning's Master Terms & Conditions and, if enrolled, the Recurring Service Addendum. I authorize TruShine to keep a card on file and charge for recurring services after each completed Visit according to these terms.`)}</p>
                 </section> */}
+                </>
+                )}
               </div>
 
               <div className="mt-12 pt-8 border-t border-gray-200">
                 <div className="text-center">
                   <p className="text-gray-600 text-sm mb-2">
-                    For questions about these terms, please contact TruShine Window Cleaning
+                    {t('For questions about these terms, please contact TruShine Window Cleaning')}
                   </p>
                 </div>
               </div>

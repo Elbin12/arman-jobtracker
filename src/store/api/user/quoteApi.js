@@ -121,6 +121,13 @@ export const quoteApi = createApi({
     getGlobalPrice: builder.query({
         query: ()=>({url:'global-base-price/'}),
     }),
+    getAccountInfo: builder.query({
+      query: ({ location_id }) => ({
+        url: 'account-info/',
+        params: { location_id },
+        headers: location_id ? { 'X-Location-Id': location_id } : undefined,
+      }),
+    }),
     submitOnlyCustomProducts: builder.mutation({
       query: (submissionId) => ({
         url: `${submissionId}/customservices/responses/`,
@@ -229,7 +236,7 @@ export const quoteApi = createApi({
 export const { useGetInitialDataQuery, useGetServiceQuestionsQuery, useCreateSubmissionMutation, useUpdateSubmissionMutation, useCreateQuestionResponsesMutation,
   useCreateServiceToSubmissionMutation,   useGetQuoteDetailsQuery,useSubmitQuoteMutation, useGetAddressesByContactQuery, useSearchContactsQuery, useCreateCustomProductMutation,
   useUpdateCustomProductMutation, useDeleteCustomProductMutation, useGetServicesQuery, useCreateScheduleMutation, useDeleteServiceMutation, useGetGlobalPriceQuery,
-  useGetCalendarFreeSlotsQuery, useSubmitOnlyCustomProductsMutation, useRejectQuoteMutation, useUpdateAdditionalDataMutation, useUploadSubmissionImageMutation, useGetSubmissionImagesQuery,
+  useGetCalendarFreeSlotsQuery, useSubmitOnlyCustomProductsMutation, useRejectQuoteMutation, useUpdateAdditionalDataMutation, useGetAccountInfoQuery, useUploadSubmissionImageMutation, useGetSubmissionImagesQuery,
   useUpdateSubmissionImageMutation, useDeleteSubmissionImageMutation, useReplaceSubmissionImageMutation,
   useRescheduleQuoteFromJobMutation, useGetReschedulePendingSubmissionsQuery,
  } = quoteApi;

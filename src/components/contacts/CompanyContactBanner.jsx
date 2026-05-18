@@ -1,25 +1,13 @@
 import React from 'react';
 import { alpha, useTheme } from '@mui/material/styles';
-import { Box, Card, CardContent, Link as MuiLink, Stack, Typography } from '@mui/material';
+import { Box, Card, CardContent, Link as MuiLink, Skeleton, Stack, Typography } from '@mui/material';
 import Business from '@mui/icons-material/Business';
 import EmailOutlined from '@mui/icons-material/EmailOutlined';
 import PhoneOutlined from '@mui/icons-material/PhoneOutlined';
 import PlaceOutlined from '@mui/icons-material/PlaceOutlined';
 import LanguageOutlined from '@mui/icons-material/LanguageOutlined';
-
-function readBusinessProfile() {
-  return {
-    name: import.meta.env.VITE_COMPANY_NAME || 'TruShine Window Cleaning',
-    tagline: import.meta.env.VITE_COMPANY_TAGLINE || '',
-    phone: import.meta.env.VITE_COMPANY_PHONE || '+1 832-713-3545',
-    email: import.meta.env.VITE_COMPANY_EMAIL || 'trushinehouston@gmail.com',
-    address:
-      import.meta.env.VITE_COMPANY_ADDRESS ||
-      '3525 Murdock St, Houston, TX, 77047, United States',
-    website: import.meta.env.VITE_COMPANY_WEBSITE || '',
-    logoUrl: import.meta.env.VITE_COMPANY_LOGO_URL || '',
-  };
-}
+import { useAccountBranding } from '../../hooks/useAccountBranding';
+import CompanyLogoPlaceholder from '../CompanyLogoPlaceholder';
 
 function formatAddress(addr) {
   if (!addr) return '';
@@ -55,16 +43,11 @@ function Row({ icon: Icon, children, href, external }) {
   return content;
 }
 
-/**
- * @param {'business' | 'customer'} props.mode — `business`: env-based office info; `customer`: contact + optional address from CRM record.
- * @param {boolean} [props.invitePortal] — VIP Service Hub styling (business card only).
- */
-export function CompanyContactBanner({ mode = 'business', contact, primaryAddress, invitePortal }) {
+function BusinessContactCard({ business, invitePortal, isLoading }) {
   const theme = useTheme();
-  const business = readBusinessProfile();
 
   const businessCardSx =
-    invitePortal && mode === 'business'
+    invitePortal
       ? {
           borderRadius: 3,
           mb: 2.5,
@@ -81,7 +64,7 @@ export function CompanyContactBanner({ mode = 'business', contact, primaryAddres
       : { borderRadius: 2, border: 1, borderColor: 'divider', mb: 2.5 };
 
   const labelSx =
-    invitePortal && mode === 'business'
+    invitePortal
       ? {
           fontWeight: 700,
           letterSpacing: '0.1em',
@@ -99,93 +82,131 @@ export function CompanyContactBanner({ mode = 'business', contact, primaryAddres
           mb: 1.5,
         };
 
+  const websiteHref = business.website
+    ? /^https?:\/\//i.test(business.website)
+      ? business.website
+      : `https://${business.website}`
+  : null;
+
+  return (
+    <Card elevation={0} sx={businessCardSx}>
+      <CardContent sx={{ p: { xs: 2, sm: 2.5 }, '&:last-child': { pb: { xs: 2, sm: 2.5 } } }}>
+        <Typography variant="caption" sx={labelSx}>
+          Company contact
+        </Typography>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'flex-start' }}>
+          {isLoading ? (
+            <CompanyLogoPlaceholder maxHeight="56px" maxWidth="56px" rounded />
+          ) : business.logoUrl ? (
+            <Box
+              component="img"
+              src={business.logoUrl}
+              alt={business.name ? `${business.name} logo` : ''}
+              sx={{
+                width: 56,
+                height: 56,
+                objectFit: 'contain',
+                borderRadius: 2,
+                flexShrink: 0,
+                ...(invitePortal
+                  ? {
+                      boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.18)}`,
+                    }
+                  : {}),
+              }}
+            />
+          ) : (
+            <Box
+              sx={{
+                width: 56,
+                height: 56,
+                borderRadius: 2,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                ...(invitePortal
+                  ? {
+                      background: 'linear-gradient(135deg, #6366f1 0%, #3b82f6 100%)',
+                    }
+                  : { bgcolor: 'grey.100' }),
+              }}
+            >
+              <Business sx={{ color: invitePortal ? '#fff' : 'grey.600' }} />
+            </Box>
+          )}
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            {isLoading ? (
+              <>
+                <Skeleton variant="text" width="70%" height={28} />
+                <Skeleton variant="text" width="50%" height={20} sx={{ mt: 0.5 }} />
+                <Skeleton variant="text" width="85%" height={20} sx={{ mt: 1 }} />
+                <Skeleton variant="text" width="60%" height={20} sx={{ mt: 0.5 }} />
+              </>
+            ) : (
+              <>
+                <Typography variant="subtitle1" fontWeight={700}>
+                  {business.name}
+                </Typography>
+                {business.tagline ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    {business.tagline}
+                  </Typography>
+                ) : (
+                  <Box sx={{ mb: 0.5 }} />
+                )}
+                <Stack spacing={0.75}>
+                  {business.email ? (
+                    <Row icon={EmailOutlined} href={`mailto:${business.email}`}>
+                      {business.email}
+                    </Row>
+                  ) : null}
+                  {business.phone ? (
+                    <Row icon={PhoneOutlined} href={`tel:${business.phone.replace(/\s/g, '')}`}>
+                      {business.phone}
+                    </Row>
+                  ) : null}
+                  {business.address ? <Row icon={PlaceOutlined}>{business.address}</Row> : null}
+                  {websiteHref ? (
+                    <Row icon={LanguageOutlined} external href={websiteHref}>
+                      {business.website.replace(/^https?:\/\//i, '')}
+                    </Row>
+                  ) : null}
+                </Stack>
+              </>
+            )}
+          </Box>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * @param {'business' | 'customer'} props.mode — `business`: account-info for location; `customer`: contact + optional address from CRM record.
+ * @param {string} [props.locationId] — GHL location id for business branding (defaults to env / URL param).
+ * @param {boolean} [props.invitePortal] — VIP Service Hub styling (business card only).
+ */
+export function CompanyContactBanner({
+  mode = 'business',
+  contact,
+  primaryAddress,
+  invitePortal,
+  locationId: locationIdProp,
+}) {
+  const { profile, isLoading, isReady } = useAccountBranding({ locationId: locationIdProp });
+  const showLoading = isLoading || !isReady;
+
   if (mode === 'business') {
     return (
-      <Card elevation={0} sx={businessCardSx}>
-        <CardContent sx={{ p: { xs: 2, sm: 2.5 }, '&:last-child': { pb: { xs: 2, sm: 2.5 } } }}>
-          <Typography variant="caption" sx={labelSx}>
-            Company contact
-          </Typography>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'flex-start' }}>
-            {business.logoUrl ? (
-              <Box
-                component="img"
-                src={business.logoUrl}
-                alt=""
-                sx={{
-                  width: 56,
-                  height: 56,
-                  objectFit: 'cover',
-                  borderRadius: 2,
-                  flexShrink: 0,
-                  ...(invitePortal
-                    ? {
-                        boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.18)}`,
-                      }
-                    : {}),
-                }}
-              />
-            ) : (
-              <Box
-                sx={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: 2,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  ...(invitePortal
-                    ? {
-                        background: 'linear-gradient(135deg, #6366f1 0%, #3b82f6 100%)',
-                      }
-                    : { bgcolor: 'grey.100' }),
-                }}
-              >
-                <Business sx={{ color: invitePortal ? '#fff' : 'grey.600' }} />
-              </Box>
-            )}
-            <Box sx={{ minWidth: 0, flex: 1 }}>
-              <Typography variant="subtitle1" fontWeight={700}>
-                {business.name}
-              </Typography>
-              {business.tagline ? (
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  {business.tagline}
-                </Typography>
-              ) : (
-                <Box sx={{ mb: 0.5 }} />
-              )}
-              <Stack spacing={0.75}>
-                {business.email ? (
-                  <Row icon={EmailOutlined} href={`mailto:${business.email}`}>
-                    {business.email}
-                  </Row>
-                ) : null}
-                {business.phone ? (
-                  <Row icon={PhoneOutlined} href={`tel:${business.phone.replace(/\s/g, '')}`}>
-                    {business.phone}
-                  </Row>
-                ) : null}
-                {business.address ? <Row icon={PlaceOutlined}>{business.address}</Row> : null}
-                {business.website ? (
-                  <Row
-                    icon={LanguageOutlined}
-                    external
-                    href={/^https?:\/\//i.test(business.website) ? business.website : `https://${business.website}`}
-                  >
-                    {business.website.replace(/^https?:\/\//i, '')}
-                  </Row>
-                ) : null}
-              </Stack>
-            </Box>
-          </Stack>
-        </CardContent>
-      </Card>
+      <BusinessContactCard
+        business={profile}
+        invitePortal={invitePortal}
+        isLoading={showLoading}
+      />
     );
   }
 
-  // customer (record) view
   if (!contact) return null;
   const displayName =
     [contact.first_name, contact.last_name].filter(Boolean).join(' ').trim() ||

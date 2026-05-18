@@ -57,6 +57,7 @@ import { useNavigate, useLocation } from "react-router-dom"
 import { useDispatch, useSelector } from "react-redux"
 import { logoutUser } from "../../store/slices/authSlice"
 import AdminFooter from "../admin/AdminFooter"
+import CompanyLogo from "../CompanyLogo"
 
 // Navigation configuration based on roles
 const getNavItemsByRole = (role, fullAccessRoles, user_profile) => {
@@ -305,7 +306,12 @@ export const AdminLayout = ({ children }) => {
           )}
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mr: 3 }}>
-            <img src="/image.png" alt="Logo" className="h-9"/>
+            <CompanyLogo
+              fallbackSrc="/image.png"
+              maxHeight="36px"
+              maxWidth="160px"
+              sx={{ height: 36 }}
+            />
           </Box>
 
           {!isMobile && ( 

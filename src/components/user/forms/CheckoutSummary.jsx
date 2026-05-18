@@ -1,4 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import PoweredBy from '../../PoweredBy';
+import CompanyLogo from '../../CompanyLogo';
+import { useAccountBranding } from '../../../hooks/useAccountBranding';
 import { createPortal } from 'react-dom';
 import {
   Box,
@@ -82,6 +85,10 @@ const calculateTotalSelectedPrice = (selectedPackages, quoteData) => {
   };
 
 export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepted, additionalNotes, setAdditionalNotes, handleSignatureEnd, setSignature, signatureTimestamp, isStepComplete, handleNext, setActiveStep, setBookingData,initialBookingData }) => {
+  const { profile, locationId } = useAccountBranding();
+  const termsHref = locationId
+    ? `/terms?location_id=${encodeURIComponent(locationId)}`
+    : '/terms';
   const [selectedPackages, setSelectedPackages] = useState({});
   const [expandedServices, setExpandedServices] = useState({});
   const [customProducts, setCustomProducts] = useState([]);
@@ -620,15 +627,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
         {/* Quote Header */}
         <Box mb={4}>
           <Box display="flex" justifyContent="center">
-            <img
-              src={import.meta.env.VITE_COMPANY_LOGO_URL || 'https://storage.googleapis.com/msgsndr/b8qvo7VooP3JD3dIZU42/media/683efc8fd5817643ff8194f0.jpeg'}
-              alt="Company Logo"
-              style={{
-                maxHeight: "80px",
-                maxWidth: "200px",
-                objectFit: "contain",
-              }}
-            />
+            <CompanyLogo locationId={locationId} />
           </Box>
           <Typography variant="h4" gutterBottom fontWeight={300} sx={{ color: '#023c8f', textAlign: 'center', fontSize:{ xs: "1.8rem", sm: "1.9rem", md: "2.2rem"} }}>
             Quote Summary
@@ -681,7 +680,8 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                   globalPriceData,
                   additional_data,
                   house_sqft,
-                  custom_service_total
+                  profile,
+                  locationId
                 )
               }
               disabled={isGeneratingPDF}
@@ -712,26 +712,8 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
 
         {/* Customer Info */}
         <Card sx={{ mb: 2 }}>
-          {/* ✅ Powered by text in red-marked portion */}
           <Grid item xs={12} sm={6} paddingRight={2} textAlign="right">
-            <Typography
-              variant="caption"
-              sx={{ fontSize: {xs:"0.5rem", md:"0.7rem"}, color: "text.secondary" }}
-            >
-              Powered by{" "}
-              <a
-                href={import.meta.env.VITE_SERVICE_PILOT_WEBSITE_URL || 'https://theservicepilot.com/'}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  color: "#023c8f",
-                  textDecoration: "none",
-                  fontWeight: 500,
-                }}
-              >
-                The Service Pilot
-              </a>
-            </Typography>
+            <PoweredBy variant="text" />
           </Grid>
           <CardContent sx={{ px: {xs:2, md:3}, py: 0.5 }}>
             <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f', fontSize:{ xs: "1rem", sm: "1.2rem", md: "1.5rem"} }}>
@@ -1564,7 +1546,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                 }
                 label={
                   <Typography variant="body2">I agree to the{" "}
-                    <Link to="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "#023c8f", textDecoration: "underline" }}>
+                    <Link to={termsHref} target="_blank" rel="noopener noreferrer" style={{ color: "#023c8f", textDecoration: "underline" }}>
                       Terms & Conditions
                     </Link>
                   </Typography>

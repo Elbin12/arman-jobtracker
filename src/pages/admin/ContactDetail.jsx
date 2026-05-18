@@ -221,7 +221,7 @@ const ContactDetail = () => {
         )}
 
       {!isAdminRoute ? (
-        <CompanyContactBanner mode="business" invitePortal />
+        <CompanyContactBanner mode="business" invitePortal locationId={data.location_id} />
       ) : (
         <CompanyContactBanner mode="customer" contact={data} primaryAddress={addresses[0]} />
       )}

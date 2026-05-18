@@ -46,10 +46,14 @@ import {
 } from "../../store/api/user/quoteApi"
 import { Info, Plus } from "lucide-react"
 import { handleDownloadPDF } from "../../utils/handleDownloadPDF"
+import { useAccountBranding } from "../../hooks/useAccountBranding"
+import { applyCompanyNameToTermsText } from "../../utils/companyProfile"
+import CompanyLogo from "../../components/CompanyLogo"
 import { QuoteDetailsSkeleton } from "../../components/ui/skeletons"
 import { ImageViewer } from "../../components/ui/ImageViewer"
 import QuoteCalendarScheduler from "../../components/user/QuoteCalendarScheduler"
 import { slotWallClockAsUtcIso } from "../../utils/scheduleIso"
+import { buildBookingRedirectUrl } from "../../utils/bookingRedirect"
 
 const statusStyles = {
   pending: { bgcolor: "warning.light", color: "warning.dark" },
@@ -64,20 +68,6 @@ const formatYesNo = (val) => {
   if (val === true) return "Yes"
   if (val === false) return "No"
   return "N/A"
-}
-
-const buildBookingRedirectUrl = (contact) => {
-  const fullName =
-    contact?.full_name ||
-    [contact?.first_name, contact?.last_name].filter(Boolean).join(" ")
-
-  const params = new URLSearchParams({
-    full_name: fullName || "",
-    email: contact?.email || "",
-    phone: contact?.phone || "",
-  })
-
-  return `https://trushinewindowcleaning.theservicepilot.com/?${params.toString()}`
 }
 
 const QuoteDetailsPage = () => {
@@ -105,6 +95,15 @@ const QuoteDetailsPage = () => {
   const { data: globalPriceData } = useGetGlobalPriceQuery()
 
   const [createSchedule] = useCreateScheduleMutation()
+
+  const { profile, locationId, isReady, isLoading: isBrandingLoading } = useAccountBranding({ quote })
+  const termsCompanyLabel = (text) => {
+    if (!profile.name) return ''
+    return applyCompanyNameToTermsText(text, profile.name)
+  }
+  const termsHref = locationId
+    ? `/terms?location_id=${encodeURIComponent(locationId)}`
+    : '/terms'
 
   // Expand all services by default
   useEffect(() => {
@@ -143,7 +142,7 @@ const QuoteDetailsPage = () => {
     setIsScheduling(true)
     try {
       await createSchedule(payload).unwrap()
-      window.location.assign(buildBookingRedirectUrl(quote.contact))
+      window.location.assign(buildBookingRedirectUrl(quote.contact, locationId))
     } catch (err) {
       // Error handled by toast notification
     } finally {
@@ -292,7 +291,7 @@ const QuoteDetailsPage = () => {
           </Typography>
           <Box sx={{ color: "text.secondary", fontSize: "0.875rem", "& > *": { mb: 1.5 } }}>
             <Typography variant="body2">
-              This Recurring Service Agreement outlines the terms and conditions for ongoing window cleaning and/or gutter cleaning services provided by TruShine Window Cleaning.
+              {termsCompanyLabel(`This Recurring Service Agreement outlines the terms and conditions for ongoing window cleaning and/or gutter cleaning services provided by TruShine Window Cleaning.`)}
             </Typography>
           */}
           
@@ -309,7 +308,9 @@ const QuoteDetailsPage = () => {
             <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "text.primary" }}>
               R1) Scope of Recurring Services
             </Typography>
-            <Typography variant="body2" sx={{ mb: 1 }}>TruShine will perform recurring window cleaning and/or gutter cleaning as selected:</Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              {termsCompanyLabel('TruShine will perform recurring window cleaning and/or gutter cleaning as selected:')}
+            </Typography>
             <Box component="ul" sx={{ pl: 3, m: 0 }}>
               <Typography component="li" variant="body2">
                 <strong>Window Cleaning:</strong> exterior window cleaning for all accessible glass; interior if included; add-ons available for additional fee.
@@ -329,7 +330,10 @@ const QuoteDetailsPage = () => {
             <Box component="ul" sx={{ pl: 3, m: 0 }}>
               <Typography component="li" variant="body2">Recurring clients receive discounted pricing compared to one-time rates.</Typography>
               <Typography component="li" variant="body2">Pricing is based on property size, service scope, and access conditions.</Typography>
-              <Typography component="li" variant="body2"><strong>Billing timing:</strong> For Recurring Plan Visits, Client authorizes TruShine to charge the card on file after completion of each Visit (same day), unless otherwise agreed in writing.</Typography>
+              <Typography component="li" variant="body2">
+                <strong>Billing timing:</strong>{' '}
+                {termsCompanyLabel('For Recurring Plan Visits, Client authorizes TruShine to charge the card on file after completion of each Visit (same day), unless otherwise agreed in writing.')}
+              </Typography>
               <Typography component="li" variant="body2">A valid credit card must be kept on file for automated billing; receipts are sent via email after each charge.</Typography>
             </Box>
 
@@ -379,9 +383,13 @@ const QuoteDetailsPage = () => {
             </Typography>
             <Box component="ul" sx={{ pl: 3, m: 0 }}>
               <Typography component="li" variant="body2">Ensure access on scheduled dates (gates unlocked, pets secured, clear paths).</Typography>
-              <Typography component="li" variant="body2">Notify TruShine of pre-existing issues, fragile items, or safety concerns.</Typography>
+              <Typography component="li" variant="body2">
+                {termsCompanyLabel('Notify TruShine of pre-existing issues, fragile items, or safety concerns.')}
+              </Typography>
               <Typography component="li" variant="body2">Communicate promptly about scheduling changes or access restrictions.</Typography>
-              <Typography component="li" variant="body2">If TruShine arrives and cannot perform due to lack of access, the $75 trip fee applies, and rescheduling fees may also apply.</Typography>
+              <Typography component="li" variant="body2">
+                {termsCompanyLabel('If TruShine arrives and cannot perform due to lack of access, the $75 trip fee applies, and rescheduling fees may also apply.')}
+              </Typography>
             </Box>
 
             {/* R8) Service Adjustments */}
@@ -389,7 +397,7 @@ const QuoteDetailsPage = () => {
               R8) Service Adjustments & Changes
             </Typography>
             <Typography variant="body2">
-              Pricing may be updated if property conditions change or the service scope is modified. Client may request upgrades, add-ons, or frequency changes with written notice. TruShine will provide advance notice of pricing updates.
+              {termsCompanyLabel(`Pricing may be updated if property conditions change or the service scope is modified. Client may request upgrades, add-ons, or frequency changes with written notice. TruShine will provide advance notice of pricing updates.`)}
             </Typography>
 
             {/* R9) Weather / Safety / Access Limitations */}
@@ -397,7 +405,7 @@ const QuoteDetailsPage = () => {
               R9) Weather / Safety / Access Limitations
             </Typography>
             <Typography variant="body2">
-              TruShine may cancel or reschedule due to weather, safety concerns, or access limitations.
+             {termsCompanyLabel(`TruShine may cancel or reschedule due to weather, safety concerns, or access limitations.`)}
             </Typography>
           </Box>
         </Box>
@@ -423,7 +431,7 @@ const QuoteDetailsPage = () => {
           
           {/* NEW MASTER TERMS & CONDITIONS */}
           <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-            TruShine Window Cleaning
+            {profile.name}
           </Typography>
           <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
             Master Terms & Conditions + Recurring Service Addendum
@@ -432,7 +440,7 @@ const QuoteDetailsPage = () => {
             (Window Cleaning • Gutter Cleaning • Pressure Washing • Awning Cleaning)
           </Typography>
           <Typography variant="body2" sx={{ mb: 3, fontSize: "0.8rem", fontStyle: "italic" }}>
-            Written notice for anything in this agreement means email or SMS/text message to TruShine's official contact information on your invoice/estimate/website (or the number/email used to confirm your appointment).
+            {termsCompanyLabel("Written notice for anything in this agreement means email or SMS/text message to TruShine's official contact information on your invoice/estimate/website (or the number/email used to confirm your appointment).")}
           </Typography>
           <Box
             sx={{
@@ -447,7 +455,7 @@ const QuoteDetailsPage = () => {
             </Typography>
             <Box component="ul" sx={{ pl: 3, m: 0 }}>
               <Typography component="li" variant="body2">
-                <strong>"TruShine / TWC"</strong> = TruShine Window Cleaning.
+                <strong>"{profile.name} / TWC"</strong> = {profile.name}.
               </Typography>
               <Typography component="li" variant="body2">
                 <strong>"Client"</strong> = the person or entity booking services.
@@ -479,7 +487,7 @@ const QuoteDetailsPage = () => {
               3) Professional Standards, Codes, and Insurance
             </Typography>
             <Typography variant="body2">
-              All work is performed in a professional, workmanlike manner and in compliance with applicable local codes and regulations. TruShine is properly insured against injury to employees and losses resulting from employee actions.
+              {termsCompanyLabel(`All work is performed in a professional, workmanlike manner and in compliance with applicable local codes and regulations. TruShine is properly insured against injury to employees and losses resulting from employee actions.`)}
             </Typography>
 
             {/* 4) Scope of Work */}
@@ -497,10 +505,10 @@ const QuoteDetailsPage = () => {
                 <strong>B) Gutter Cleaning:</strong> Basic gutter cleaning includes clearing internal gutters only. Debris hauling and repairs are not included unless agreed in writing. Cleaning may be performed via leaf blower; downspouts may be flushed with hose. Exterior gutter surface cleaning is not included (available for additional cost).
               </Typography>
               <Typography component="li" variant="body2">
-                <strong>C) Pressure Washing:</strong> Removes most stains; some marks may remain. External water access is required. Client must cover/remove outdoor furniture. If TruShine must do it, a $150 fee may apply. TruShine is not liable for chemical damage to items not properly protected/removed.
+               {termsCompanyLabel(`<strong>C) Pressure Washing:</strong> Removes most stains; some marks may remain. External water access is required. Client must cover/remove outdoor furniture. If TruShine must do it, a $150 fee may apply. TruShine is not liable for chemical damage to items not properly protected/removed.`)}
               </Typography>
               <Typography component="li" variant="body2">
-                <strong>D) Awning Cleaning:</strong> TruShine is not liable for unexpected damage during awning cleaning. Service may be declined if material is over 5 years old or fails inspection.
+               {termsCompanyLabel(`<strong>D) Awning Cleaning:</strong> TruShine is not liable for unexpected damage during awning cleaning. Service may be declined if material is over 5 years old or fails inspection.`)}
               </Typography>
             </Box>
 
@@ -513,16 +521,16 @@ const QuoteDetailsPage = () => {
                 Client must provide full access to work areas (gates unlocked, pets secured, clear access).
               </Typography>
               <Typography component="li" variant="body2">
-                TruShine will not move obstacles/furniture for access (unless agreed).
+               {termsCompanyLabel(`TruShine will not move obstacles/furniture for access (unless agreed).`)}
               </Typography>
               <Typography component="li" variant="body2">
-                If TruShine arrives and cannot perform due to lack of access or unsafe conditions, a $75 trip fee applies.
+                {termsCompanyLabel(`If TruShine arrives and cannot perform due to lack of access or unsafe conditions, a $75 trip fee applies.`)}
               </Typography>
               <Typography component="li" variant="body2">
-                Client is responsible for ensuring items/structures are sound. TruShine may document or refuse questionable items.
+                {termsCompanyLabel(`Client is responsible for ensuring items/structures are sound. TruShine may document or refuse questionable items.`)}
               </Typography>
               <Typography component="li" variant="body2">
-                Any special accommodations must be reviewed and approved by TruShine management before accepting the proposal.
+                {termsCompanyLabel(`Any special accommodations must be reviewed and approved by TruShine management before accepting the proposal.`)}
               </Typography>
             </Box>
 
@@ -532,7 +540,7 @@ const QuoteDetailsPage = () => {
             </Typography>
             <Box component="ul" sx={{ pl: 3, m: 0 }}>
               <Typography component="li" variant="body2">
-                TruShine is not liable for delays due to weather, supply issues, or other uncontrollable factors.
+               {termsCompanyLabel(`TruShine is not liable for delays due to weather, supply issues, or other uncontrollable factors.`)}
               </Typography>
               <Typography component="li" variant="body2">
                 Each Client may reschedule up to two (2) times within 7 days of the original date.
@@ -544,7 +552,7 @@ const QuoteDetailsPage = () => {
                 Rescheduling more than 8 hours in advance: no fee for the first 2 reschedules.
               </Typography>
               <Typography component="li" variant="body2">
-                Beyond 2 reschedules, TruShine may charge up to the full service amount to protect crew scheduling and reserved time.
+                {termsCompanyLabel(`Beyond 2 reschedules, TruShine may charge up to the full service amount to protect crew scheduling and reserved time.`)}
               </Typography>
               <Typography component="li" variant="body2">
                 <strong>Important:</strong> These rescheduling rules apply to all Visits, including Recurring Plan Visits.
@@ -560,7 +568,7 @@ const QuoteDetailsPage = () => {
                 Payment is due upon completion unless otherwise agreed in writing.
               </Typography>
               <Typography component="li" variant="body2">
-                TruShine may require credit card info on file and/or a $100 deposit.
+               {termsCompanyLabel(`TruShine may require credit card info on file and/or a $100 deposit.`)}
               </Typography>
               <Typography component="li" variant="body2">
                 Jobs needing materials may require a 50% deposit.
@@ -626,7 +634,7 @@ const QuoteDetailsPage = () => {
                 Any service concerns must be reported within 48 hours of completion for review and resolution.
               </Typography>
               <Typography component="li" variant="body2">
-                TruShine must be given a reasonable opportunity to inspect and/or correct any confirmed workmanship issues.
+               {termsCompanyLabel(`TruShine must be given a reasonable opportunity to inspect and/or correct any confirmed workmanship issues.`)}
               </Typography>
               <Typography component="li" variant="body2">
                 If a complaint revisit finds the work satisfactory, a <strong>$75 trip fee</strong> applies.
@@ -646,7 +654,7 @@ const QuoteDetailsPage = () => {
               12) Cancellation Policy (One-Time / Non-Recurring)
             </Typography>
             <Typography variant="body2">
-              Client cancellation requests should be provided with as much notice as possible. For larger or reserved jobs, TruShine may require 14 days' written notice; shorter notice may result in a charge up to the full service amount, depending on crew scheduling and reserved time.
+              {termsCompanyLabel(`Client cancellation requests should be provided with as much notice as possible. For larger or reserved jobs, TruShine may require 14 days' written notice; shorter notice may result in a charge up to the full service amount, depending on crew scheduling and reserved time.`)}
             </Typography>
 
             {/* 13) Liability Limits */}
@@ -654,7 +662,7 @@ const QuoteDetailsPage = () => {
               13) Liability Limits & Pre-Existing Damage
             </Typography>
             <Typography variant="body2">
-              TruShine is not responsible for pre-existing damage or deterioration including (but not limited to): aged gutters, rotted wood, failing seals, cracked panes, loose screens, or previously weakened/fragile items. Client must notify TruShine of known issues or safety concerns prior to service.
+              {termsCompanyLabel(`TruShine is not responsible for pre-existing damage or deterioration including (but not limited to): aged gutters, rotted wood, failing seals, cracked panes, loose screens, or previously weakened/fragile items. Client must notify TruShine of known issues or safety concerns prior to service.`)}
             </Typography>
 
             {/* 14) Updates to Terms */}
@@ -662,7 +670,7 @@ const QuoteDetailsPage = () => {
               14) Updates to Terms
             </Typography>
             <Typography variant="body2">
-              TruShine reserves the right to update these Terms & Conditions at any time. Updated terms apply prospectively.
+             {termsCompanyLabel(`TruShine reserves the right to update these Terms & Conditions at any time. Updated terms apply prospectively.`)}
             </Typography>
 
             {/* 15) Order of Priority */}
@@ -739,10 +747,9 @@ const QuoteDetailsPage = () => {
         >
           {/* Left side - Logo & Quote Info */}
           <Box display="flex" alignItems={"center"} flexDirection="row" gap={{xs:1, sm:2}}>
-            <Box
-              component="img"
-              src={import.meta.env.VITE_COMPANY_LOGO_URL || 'https://storage.googleapis.com/msgsndr/b8qvo7VooP3JD3dIZU42/media/683efc8fd5817643ff8194f0.jpeg'}
-              alt="Company Logo"
+            <CompanyLogo
+              locationId={locationId}
+              quote={quote}
               sx={{
                 height: { xs: 55, sm: 75 },
                 width: "auto",
@@ -800,7 +807,8 @@ const QuoteDetailsPage = () => {
                   globalPriceData,
                   additional_data,
                   house_sqft,
-                  custom_service_total
+                  profile,
+                  locationId
                 )
               }
               disabled={isGeneratingPDF}

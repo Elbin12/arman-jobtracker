@@ -1,3 +1,10 @@
+import {
+  applyCompanyNameToTermsText,
+  fetchCompanyProfileByLocationId,
+  getCompanyContactLines,
+  getDefaultCompanyProfile,
+} from './companyProfile'
+
 export const handleDownloadPDF = async (
   setIsGeneratingPDF,
   quote,
@@ -8,7 +15,9 @@ export const handleDownloadPDF = async (
   custom_products,
   globalPriceData,
   additional_data,
-  house_sqft
+  house_sqft,
+  companyProfile,
+  locationId
 ) => {
   setIsGeneratingPDF(true)
   try {
@@ -22,13 +31,20 @@ export const handleDownloadPDF = async (
     const lineHeight = 6
     const maxLineWidth = pageWidth - margin * 2
 
-    const COMPANY = {
-      name: import.meta.env.VITE_COMPANY_NAME || "TruShine Window Cleaning",
-      address: import.meta.env.VITE_COMPANY_ADDRESS || "3525 Murdock St, Houston, TX 77047",
-      phone: import.meta.env.VITE_COMPANY_PHONE || "832-713-3545",
-      email: import.meta.env.VITE_COMPANY_EMAIL || "trushinehouston@gmail.com",
-      website: import.meta.env.VITE_COMPANY_WEBSITE || "www.trushinewindowcleaning.com",
+    const defaults = getDefaultCompanyProfile()
+    const resolvedLocationId = locationId || companyProfile?.locationId
+
+    let COMPANY = companyProfile || defaults
+    if (resolvedLocationId) {
+      try {
+        COMPANY = await fetchCompanyProfileByLocationId(resolvedLocationId)
+      } catch {
+        COMPANY = companyProfile?.fromAccountInfo ? companyProfile : COMPANY
+      }
     }
+
+    const t = (text) => applyCompanyNameToTermsText(text, COMPANY.name)
+    const companyContactLines = getCompanyContactLines(COMPANY)
 
     const rgb = {
       green: [46, 125, 50],
@@ -119,13 +135,12 @@ export const handleDownloadPDF = async (
     // ------------------------
     // 1. Company logo and information (page 1 only)
     // ------------------------
-    const logoBase64 = await getBase64FromUrl(
-      import.meta.env.VITE_COMPANY_LOGO_URL ||
-        "https://storage.googleapis.com/msgsndr/b8qvo7VooP3JD3dIZU42/media/683efc8fd5817643ff8194f0.jpeg"
-    )
+    const logoUrl = COMPANY.logoUrl || defaults.logoUrl
+    const logoBase64 = await getBase64FromUrl(logoUrl)
+    const logoFormat = String(logoBase64).includes('data:image/png') ? 'PNG' : 'JPEG'
     const logoW = 38
     const logoH = 38
-    doc.addImage(logoBase64, "JPEG", (pageWidth - logoW) / 2, yPosition, logoW, logoH)
+    doc.addImage(logoBase64, logoFormat, (pageWidth - logoW) / 2, yPosition, logoW, logoH)
     yPosition += logoH + 10
 
     doc.setTextColor(0, 0, 0)
@@ -135,7 +150,7 @@ export const handleDownloadPDF = async (
     doc.setFontSize(9)
     doc.setFont(undefined, "normal")
     doc.setTextColor(...rgb.muted)
-    ;[COMPANY.address, COMPANY.phone, COMPANY.email, COMPANY.website].forEach((line) => {
+    companyContactLines.forEach((line) => {
       checkPageBreak(1)
       centerText(line, yPosition, 9)
       yPosition += 5
@@ -657,7 +672,7 @@ export const handleDownloadPDF = async (
       doc.setFontSize(6.5) // Further reduced from 7
       doc.setFont(undefined, "italic")
       doc.setTextColor("#374151")
-      const noticeText = "Written notice for anything in this agreement means email or SMS/text message to TruShine's official contact information on your invoice/estimate/website (or the number/email used to confirm your appointment)."
+      const noticeText = t("Written notice for anything in this agreement means email or SMS/text message to TruShine's official contact information on your invoice/estimate/website (or the number/email used to confirm your appointment).")
       const noticeLines = doc.splitTextToSize(noticeText, termsMaxLineWidth)
       doc.text(noticeLines, termsMargin, yPosition)
       yPosition += noticeLines.length * termsLineHeight + 1.5 // Further reduced spacing
@@ -673,7 +688,7 @@ export const handleDownloadPDF = async (
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
       const definitions = [
-        "\"TruShine / TWC\" = TruShine Window Cleaning.",
+        t("\"TruShine / TWC\" = TruShine Window Cleaning."),
         "\"Client\" = the person or entity booking services.",
         "\"Services\" = work listed in the estimate/proposal/work order/invoice.",
         "\"Visit\" = a scheduled service appointment date.",
@@ -715,7 +730,7 @@ export const handleDownloadPDF = async (
       doc.setFontSize(7) // Reduced from 9
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
-      const standardsText = "All work is performed in a professional, workmanlike manner and in compliance with applicable local codes and regulations. TruShine is properly insured against injury to employees and losses resulting from employee actions."
+      const standardsText = t("All work is performed in a professional, workmanlike manner and in compliance with applicable local codes and regulations. TruShine is properly insured against injury to employees and losses resulting from employee actions.")
         const standardsLines = doc.splitTextToSize(standardsText, termsMaxLineWidth - 3)
         doc.text(standardsLines, termsMargin + 3, yPosition)
       yPosition += standardsLines.length * termsLineHeight + 2 // Reduced spacing
@@ -739,8 +754,8 @@ export const handleDownloadPDF = async (
       const scopeTerms = [
         "A) Window Cleaning: All windows must be securely closed on the day of service. Unsafe/inaccessible windows will not be cleaned. Exterior glass may be cleaned using a water-fed pole with pure water and left to dry naturally. \"Window\" includes frame, sill, sash, and glass (wood, aluminum, steel, UPVC). Brick/tile/stone sills are excluded. Add-ons (extra fee unless included): screen cleaning, track detailing, hard water removal, etc.",
         "B) Gutter Cleaning: Basic gutter cleaning includes clearing internal gutters only. Debris hauling and repairs are not included unless agreed in writing. Cleaning may be performed via leaf blower; downspouts may be flushed with hose. Exterior gutter surface cleaning is not included (available for additional cost).",
-        "C) Pressure Washing: Removes most stains; some marks may remain. External water access is required. Client must cover/remove outdoor furniture. If TruShine must do it, a $150 fee may apply. TruShine is not liable for chemical damage to items not properly protected/removed.",
-        "D) Awning Cleaning: TruShine is not liable for unexpected damage during awning cleaning. Service may be declined if material is over 5 years old or fails inspection."
+        t("C) Pressure Washing: Removes most stains; some marks may remain. External water access is required. Client must cover/remove outdoor furniture. If TruShine must do it, a $150 fee may apply. TruShine is not liable for chemical damage to items not properly protected/removed."),
+        t("D) Awning Cleaning: TruShine is not liable for unexpected damage during awning cleaning. Service may be declined if material is over 5 years old or fails inspection.")
       ]
       scopeTerms.forEach(term => {
         checkTermsPageBreak(4)
@@ -763,10 +778,10 @@ export const handleDownloadPDF = async (
       doc.setTextColor("#374151")
       const accessTerms = [
         "• Client must provide full access to work areas (gates unlocked, pets secured, clear access).",
-        "• TruShine will not move obstacles/furniture for access (unless agreed).",
-        "• If TruShine arrives and cannot perform due to lack of access or unsafe conditions, a $75 trip fee applies.",
-        "• Client is responsible for ensuring items/structures are sound. TruShine may document or refuse questionable items.",
-        "• Any special accommodations must be reviewed and approved by TruShine management before accepting the proposal."
+        t("• TruShine will not move obstacles/furniture for access (unless agreed)."),
+        t("• If TruShine arrives and cannot perform due to lack of access or unsafe conditions, a $75 trip fee applies."),
+        t("• Client is responsible for ensuring items/structures are sound. TruShine may document or refuse questionable items."),
+        t("• Any special accommodations must be reviewed and approved by TruShine management before accepting the proposal.")
       ]
       accessTerms.forEach(term => {
         checkTermsPageBreak(3)
@@ -788,11 +803,11 @@ export const handleDownloadPDF = async (
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
       const schedulingTerms = [
-        "• TruShine is not liable for delays due to weather, supply issues, or other uncontrollable factors.",
+        t("• TruShine is not liable for delays due to weather, supply issues, or other uncontrollable factors."),
         "• Each Client may reschedule up to two (2) times within 7 days of the original date.",
         "• Rescheduling/cancellation requested within 8 hours of a scheduled Visit: $35 fee.",
         "• Rescheduling more than 8 hours in advance: no fee for the first 2 reschedules.",
-        "• Beyond 2 reschedules, TruShine may charge up to the full service amount to protect crew scheduling and reserved time.",
+        t("• Beyond 2 reschedules, TruShine may charge up to the full service amount to protect crew scheduling and reserved time."),
         "• Important: These rescheduling rules apply to all Visits, including Recurring Plan Visits."
       ]
       schedulingTerms.forEach(term => {
@@ -816,10 +831,12 @@ export const handleDownloadPDF = async (
       doc.setTextColor("#374151")
       const paymentTerms = [
         "• Payment is due upon completion unless otherwise agreed in writing.",
-        "• TruShine may require credit card info on file and/or a $100 deposit.",
+        t("• TruShine may require credit card info on file and/or a $100 deposit."),
         "• Jobs needing materials may require a 50% deposit.",
         "• Accepted: cash, check, credit card (in person, by phone, or online).",
-        "• Commercial payments may be mailed to: 3525 Murdock St, Houston, TX 77047.",
+        COMPANY.address
+          ? t(`• Commercial payments may be mailed to: ${COMPANY.address}.`)
+          : t('• Commercial payments may be mailed to the address shown on your invoice.'),
         "• Clients with unpaid balances may be denied further service.",
         "• Disputed payments are Client's responsibility; late/recovery fees may apply.",
         "• All services are subject to applicable Texas state tax."
@@ -894,7 +911,7 @@ export const handleDownloadPDF = async (
       doc.setTextColor("#374151")
       const complaintTerms = [
         "• Any service concerns must be reported within 48 hours of completion for review and resolution.",
-        "• TruShine must be given a reasonable opportunity to inspect and/or correct any confirmed workmanship issues.",
+        t("• TruShine must be given a reasonable opportunity to inspect and/or correct any confirmed workmanship issues."),
         "• If a complaint revisit finds the work satisfactory, a $75 trip fee applies."
       ]
       complaintTerms.forEach(term => {
@@ -932,7 +949,7 @@ export const handleDownloadPDF = async (
       doc.setFontSize(7) // Reduced from 9
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
-      const cancellationText = "Client cancellation requests should be provided with as much notice as possible. For larger or reserved jobs, TruShine may require 14 days' written notice; shorter notice may result in a charge up to the full service amount, depending on crew scheduling and reserved time."
+      const cancellationText = t("Client cancellation requests should be provided with as much notice as possible. For larger or reserved jobs, TruShine may require 14 days' written notice; shorter notice may result in a charge up to the full service amount, depending on crew scheduling and reserved time.")
         const cancellationLines = doc.splitTextToSize(cancellationText, termsMaxLineWidth - 3)
         doc.text(cancellationLines, termsMargin + 3, yPosition)
       yPosition += cancellationLines.length * termsLineHeight + 2
@@ -948,7 +965,7 @@ export const handleDownloadPDF = async (
       doc.setFontSize(7) // Reduced from 9
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
-      const liabilityText = "TruShine is not responsible for pre-existing damage or deterioration including (but not limited to): aged gutters, rotted wood, failing seals, cracked panes, loose screens, or previously weakened/fragile items. Client must notify TruShine of known issues or safety concerns prior to service."
+      const liabilityText = t("TruShine is not responsible for pre-existing damage or deterioration including (but not limited to): aged gutters, rotted wood, failing seals, cracked panes, loose screens, or previously weakened/fragile items. Client must notify TruShine of known issues or safety concerns prior to service.")
         const liabilityLines = doc.splitTextToSize(liabilityText, termsMaxLineWidth - 3)
         doc.text(liabilityLines, termsMargin + 3, yPosition)
       yPosition += liabilityLines.length * termsLineHeight + 2
@@ -964,7 +981,7 @@ export const handleDownloadPDF = async (
       doc.setFontSize(7) // Reduced from 9
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
-      const updatesText = "TruShine reserves the right to update these Terms & Conditions at any time. Updated terms apply prospectively."
+      const updatesText = t("TruShine reserves the right to update these Terms & Conditions at any time. Updated terms apply prospectively.")
         const updatesLines = doc.splitTextToSize(updatesText, termsMaxLineWidth - 3)
         doc.text(updatesLines, termsMargin + 3, yPosition)
       yPosition += updatesLines.length * termsLineHeight + 2
@@ -1018,7 +1035,7 @@ export const handleDownloadPDF = async (
       doc.setFontSize(6.5) // Further reduced from 7
       doc.setFont(undefined, "normal")
       doc.setTextColor("#374151")
-      const recurringScopeText = "TruShine will perform recurring window cleaning and/or gutter cleaning as selected: Window Cleaning: exterior window cleaning for all accessible glass; interior if included; add-ons available for additional fee. Gutter Cleaning: removal of debris; flushing downspouts; light roof debris removal near gutter lines when safely accessible. Services occur on the chosen frequency: monthly, bi-monthly, quarterly, semi-annual, or annual, and continue until canceled per this Addendum."
+      const recurringScopeText = t("TruShine will perform recurring window cleaning and/or gutter cleaning as selected: Window Cleaning: exterior window cleaning for all accessible glass; interior if included; add-ons available for additional fee. Gutter Cleaning: removal of debris; flushing downspouts; light roof debris removal near gutter lines when safely accessible. Services occur on the chosen frequency: monthly, bi-monthly, quarterly, semi-annual, or annual, and continue until canceled per this Addendum.")
         const recurringScopeLines = doc.splitTextToSize(recurringScopeText, termsMaxLineWidth - 3)
         doc.text(recurringScopeLines, termsMargin + 3, yPosition)
       yPosition += recurringScopeLines.length * termsLineHeight + 1.5 // Further reduced
@@ -1037,7 +1054,7 @@ export const handleDownloadPDF = async (
       const recurringPaymentTerms = [
         "• Recurring clients receive discounted pricing compared to one-time rates.",
         "• Pricing is based on property size, service scope, and access conditions.",
-        "• Billing timing: For Recurring Plan Visits, Client authorizes TruShine to charge the card on file after completion of each Visit (same day), unless otherwise agreed in writing.",
+        t("• Billing timing: For Recurring Plan Visits, Client authorizes TruShine to charge the card on file after completion of each Visit (same day), unless otherwise agreed in writing."),
         "• A valid credit card must be kept on file for automated billing; receipts are sent via email after each charge."
       ]
       recurringPaymentTerms.forEach(term => {
@@ -1077,9 +1094,9 @@ export const handleDownloadPDF = async (
         { title: "R4) Renewal & Post-Term Continuation", text: "After the minimum commitment is met, the plan continues automatically at the same recurring rate unless Client cancels with written notice (as defined at the top). No price increases apply without Client approval or advance written notice." },
         { title: "R5) Cancellation After Minimum Term", text: "After the minimum commitment is met, either party may terminate with at least 14 days' written notice." },
         { title: "R6) Early Cancellation Policy (Before Minimum Term)", text: "If Client cancels before fulfilling the minimum service term, a cancellation fee applies equal to: the difference between the discounted recurring rate and the standard one-time rate (plus tax) for all completed Visits to date. This fee will be charged to the card on file on the day of cancellation." },
-        { title: "R7) Client Responsibilities (Recurring)", text: "Ensure access on scheduled dates (gates unlocked, pets secured, clear paths). Notify TruShine of pre-existing issues, fragile items, or safety concerns. Communicate promptly about scheduling changes or access restrictions. If TruShine arrives and cannot perform due to lack of access, the $75 trip fee applies, and rescheduling fees may also apply." },
-        { title: "R8) Service Adjustments & Changes", text: "Pricing may be updated if property conditions change or the service scope is modified. Client may request upgrades, add-ons, or frequency changes with written notice. TruShine will provide advance notice of pricing updates." },
-        { title: "R9) Weather / Safety / Access Limitations", text: "TruShine may cancel or reschedule due to weather, safety concerns, or access limitations." }
+        { title: "R7) Client Responsibilities (Recurring)", text: t("Ensure access on scheduled dates (gates unlocked, pets secured, clear paths). Notify TruShine of pre-existing issues, fragile items, or safety concerns. Communicate promptly about scheduling changes or access restrictions. If TruShine arrives and cannot perform due to lack of access, the $75 trip fee applies, and rescheduling fees may also apply.") },
+        { title: "R8) Service Adjustments & Changes", text: t("Pricing may be updated if property conditions change or the service scope is modified. Client may request upgrades, add-ons, or frequency changes with written notice. TruShine will provide advance notice of pricing updates.") },
+        { title: "R9) Weather / Safety / Access Limitations", text: t("TruShine may cancel or reschedule due to weather, safety concerns, or access limitations.") }
       ]
       
       recurringSections.forEach(section => {
@@ -1168,8 +1185,7 @@ export const handleDownloadPDF = async (
     }
 
     const timestamp = new Date().toISOString().split("T")[0]
-    const companyName = import.meta.env.VITE_COMPANY_NAME || 'TruShine Window Cleaning'
-    doc.save(`${companyName.replace(/\s+/g, '-')}-Quote-${quote.id}-${timestamp}.pdf`)
+    doc.save(`${COMPANY.name.replace(/\s+/g, '-')}-Quote-${quote.id}-${timestamp}.pdf`)
   } catch (error) {
     alert("Failed to generate PDF. Please try again.")
     console.error('Error generating PDF:', error)

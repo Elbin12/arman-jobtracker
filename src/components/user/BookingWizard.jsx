@@ -15,7 +15,8 @@ import ImageUploadForm from "./forms/ImageUploadForm"
 import { useCreateQuestionResponsesMutation, useCreateServiceToSubmissionMutation, useCreateSubmissionMutation, useGetQuoteDetailsQuery, useSubmitOnlyCustomProductsMutation, useSubmitQuoteMutation, useUpdateSubmissionMutation } from "../../store/api/user/quoteApi"
 import { useDispatch } from "react-redux"
 import { resetBookingData } from "../../store/slices/bookingSlice"
-import { Box, Typography,Card, CardContent } from "@mui/material"
+import { Box, Typography, Card, CardContent } from "@mui/material"
+import PoweredBy from "../PoweredBy"
 
 import SignatureCanvas from "react-signature-canvas";
 import { AdminPanelSettings, PostAdd } from "@mui/icons-material"
@@ -760,32 +761,7 @@ export const BookingWizard = () => {
               </Button>
 
               <div className="justify-self-center">
-                <Typography
-                  variant="caption"
-                  display={"flex"}
-                  sx={{ fontSize: {xs:"0.5rem", md:"1rem"}, color: "text.secondary", alignItems: "center"}}
-                >
-                  Powered by{" "}
-                  <a
-                    href={import.meta.env.VITE_SERVICE_PILOT_WEBSITE_URL || 'https://theservicepilot.com/'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      color: "#023c8f",
-                      textDecoration: "none",
-                      fontWeight: 500,
-                    }}
-                  >
-                    <img
-                      src="/servicepilot.jpg"
-                      alt="Company Logo"
-                      className="object-contain max-h-[20px] md:max-h-[40px]"
-                      style={{
-                        objectFit: "contain",
-                      }}
-                    />
-                  </a>
-                </Typography>
+                <PoweredBy />
               </div>
 
               <div className="flex items-center justify-end w-full gap-3">
