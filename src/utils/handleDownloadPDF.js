@@ -4,6 +4,8 @@ import {
   getCompanyContactLines,
   getDefaultCompanyProfile,
 } from './companyProfile'
+import { DEFAULT_ACCOUNT_CURRENCY } from './accountCurrency'
+import { formatMoneyOrZero } from './formatMoney'
 
 export const handleDownloadPDF = async (
   setIsGeneratingPDF,
@@ -67,10 +69,8 @@ export const handleDownloadPDF = async (
       }
     }
 
-    const formatPrice = (price) => {
-      const num = Number(price)
-      return isNaN(num) ? "$0.00" : `$${num.toFixed(2)}`
-    }
+    const pdfCurrency = COMPANY.currency || DEFAULT_ACCOUNT_CURRENCY
+    const formatPrice = (price) => formatMoneyOrZero(price, pdfCurrency)
 
     const addWrappedText = (text, x, y) => {
       const split = doc.splitTextToSize(String(text || ""), maxLineWidth)

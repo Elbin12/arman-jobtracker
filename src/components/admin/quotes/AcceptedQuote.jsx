@@ -2,8 +2,11 @@ import { LocationOnOutlined, MailOutline, PhoneAndroid, CalendarToday, AttachMon
 import { Avatar, Box, Card, CardContent, CardHeader, Typography, Chip, Divider, Grid, Button, IconButton } from '@mui/material'
 import { User } from 'lucide-react'
 import React from 'react'
+import { useMoneyFormatter } from '@/hooks/useMoneyFormatter'
 
 const AcceptedQuote = ({ quote, handleEdit, handleDelete }) => {
+  const { formatMoney: formatPrice } = useMoneyFormatter()
+
   const formatDate = (dateString) => {
     if (!dateString) return 'Not scheduled';
 
@@ -29,13 +32,6 @@ const AcceptedQuote = ({ quote, handleEdit, handleDelete }) => {
 
     return `${weekday}, ${monthName} ${day}, ${year} ${hour}:${minute} ${ampm}`;
   };
-
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(price)
-  }
 
   const getStatusColor = (status) => {
     const statusColors = {

@@ -1,3 +1,5 @@
+import { DEFAULT_ACCOUNT_CURRENCY } from './accountCurrency';
+
 /**
  * CSV with UTF-8 BOM opens cleanly in Excel.
  * @param {Array<Record<string, unknown>>} invoices
@@ -43,7 +45,7 @@ export function exportInvoicesToCsv(invoices, contactLabel = '') {
       inv.total ?? '',
       inv.amount_paid ?? '',
       inv.amount_due ?? '',
-      inv.currency ?? 'USD',
+      inv.currency ?? DEFAULT_ACCOUNT_CURRENCY,
       inv.is_overdue ? 'Yes' : 'No',
     ].map(escape),
   );

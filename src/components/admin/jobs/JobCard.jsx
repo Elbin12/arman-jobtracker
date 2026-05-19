@@ -10,6 +10,7 @@ import QuoteCalendarScheduler from "../../user/QuoteCalendarScheduler"
 import { jobSurchargeAmount, overlayJobDetail } from "../../../utils/jobPricing"
 import { useToast } from "@/hooks/use-toast"
 import { useAccountTimezone } from "@/hooks/useAccountTimezone"
+import { useMoneyFormatter } from "@/hooks/useMoneyFormatter"
 import {
   Card,
   CardContent,
@@ -107,6 +108,7 @@ export function JobCard({
   const accountTimezone = useAccountTimezone(
     accountTimezoneProp ?? jobDetailsData?.account_timezone ?? job?.account_timezone,
   )
+  const { formatMoney: formatPrice, currencySymbol } = useMoneyFormatter()
   /** Merge detail query without losing list-only pricing (detail often nulls/omits total_surcharge). */
   const pricingJob = useMemo(() => {
     if (!job) return null
@@ -190,14 +192,6 @@ export function JobCard({
     if (!dateString) return "Not scheduled"
     const m = moment.utc(dateString)
     return m.format("MMM D, YYYY · h:mm A")
-  }
-
-  const formatPrice = (price) => {
-    if (!price) return "$0.00"
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price)
   }
 
   // Normalize name to Title Case
@@ -963,7 +957,7 @@ export function JobCard({
                     </SelectTrigger>
                     <SelectContent className="z-[1300]">
                       <SelectItem value="none">None</SelectItem>
-                      <SelectItem value="amount">Amount ($)</SelectItem>
+                      <SelectItem value="amount">Amount ({currencySymbol})</SelectItem>
                       <SelectItem value="percentage">Percentage (%)</SelectItem>
                     </SelectContent>
                   </Select>

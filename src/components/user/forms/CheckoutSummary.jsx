@@ -85,7 +85,7 @@ const calculateTotalSelectedPrice = (selectedPackages, quoteData) => {
   };
 
 export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepted, additionalNotes, setAdditionalNotes, handleSignatureEnd, setSignature, signatureTimestamp, isStepComplete, handleNext, setActiveStep, setBookingData,initialBookingData }) => {
-  const { profile, locationId } = useAccountBranding();
+  const { profile, locationId, formatPrice } = useAccountBranding();
   const termsHref = locationId
     ? `/terms?location_id=${encodeURIComponent(locationId)}`
     : '/terms';
@@ -198,14 +198,14 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
     if (allPackagesSelected) {
       if (total < globalBase) {
         setBasePriceApplied(true);
-        setFinalTotal(formatPrice(globalBase));
+        setFinalTotal(globalBase);
       } else {
         setBasePriceApplied(false);
-        setFinalTotal(formatPrice(total));
+        setFinalTotal(total);
       }
     } else {
       setBasePriceApplied(false);
-      setFinalTotal(formatPrice(total));
+      setFinalTotal(total);
     }
   }, [selectedPackages, customProducts, quoteData, globalPriceData]);
 
@@ -590,11 +590,6 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
     );
   }
 
-  const formatPrice = (price) => {
-    const numPrice = typeof price === "string" ? parseFloat(price) : price;
-    return isNaN(numPrice) ? "0.00" : numPrice.toFixed(2);
-  };
-
   const renderQuestionResponse = (response) => {
     switch (response.question_type) {
       case "yes_no":
@@ -964,7 +959,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                                     fontSize: { xs: "1.5rem", sm: "1.8rem", md: "2rem" },
                                   }}
                                 >
-                                  ${formatPrice(packageQuote.total_price)}
+                                  {formatPrice(packageQuote.total_price)}
                                 </Typography>
 
                                 {/* Features List */}
@@ -1086,7 +1081,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                           {product.description}
                         </Typography>
                         <Typography variant="h6" sx={{ color: "#42bd3f", fontWeight: 700 }}>
-                          ${formatPrice(product.price)}
+                          {formatPrice(product.price)}
                         </Typography>
                       </CardContent>
                     </Card>
@@ -1382,7 +1377,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                             </Typography>
                           </Box>
                           <Typography variant="body1" fontWeight={600}>
-                            ${formatPrice(pkg.total_price)}
+                            {formatPrice(pkg.total_price)}
                           </Typography>
                         </Box>
                       </Box>
@@ -1417,7 +1412,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                         </Typography>
                       </Box>
                       <Typography variant="body1" fontWeight={600}>
-                        ${formatPrice(product.price)}
+                        {formatPrice(product.price)}
                       </Typography>
                     </Box>
                   </Box>
@@ -1428,7 +1423,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
             {surchargeAmount > 0 && (
               <Box display="flex" justifyContent="space-between" mb={1}>
                 <Typography variant="body2">Trip Surcharge</Typography>
-                <Typography variant="body2">${formatPrice(surchargeAmount)}</Typography>
+                <Typography variant="body2">{formatPrice(surchargeAmount)}</Typography>
               </Box>
             )}
 
@@ -1441,7 +1436,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
 
               <Box textAlign="right">
                 <Typography variant="h6" fontWeight={700} color="success.main">
-                  ${finalTotal}
+                  {formatPrice(finalTotal)}
                 </Typography>
 
                 {basePriceApplied && (
@@ -1450,7 +1445,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                     component="div"
                     sx={{ color: "warning.main", fontStyle: "italic", mt: 0.5 }}
                   >
-                    Note: The total has been adjusted to meet base price of ${formatPrice(globalPriceData?.base_price)}.
+                    Note: The total has been adjusted to meet base price of {formatPrice(globalPriceData?.base_price)}.
                   </Typography>
                 )}
               </Box>

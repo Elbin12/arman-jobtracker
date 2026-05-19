@@ -52,6 +52,7 @@ import {
 } from '../../../store/api/payrollApi';
 import { TableSkeleton } from '../../../components/ui/skeletons';
 import { useSelector } from 'react-redux';
+import { useMoneyFormatter } from '../../../hooks/useMoneyFormatter';
 
 function formatYmd(date) {
   const y = date.getFullYear();
@@ -478,13 +479,7 @@ const PayrollReports = () => {
     });
   };
 
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(value || 0);
-  };
+  const { formatMoney: formatCurrency } = useMoneyFormatter();
 
   const formatTime = (dateString) => {
     if (!dateString) return 'N/A';

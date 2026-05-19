@@ -71,6 +71,7 @@ const parseLocalDate = (dateStr) => {
   return new Date(s);
 };
 import { useGetEmployeesQuery } from '../../store/api/payrollApi';
+import { useMoneyFormatter } from '../../hooks/useMoneyFormatter';
 import { AlertCircle, AlertTriangle, CheckCircle, Clock, File, FileText, PersonStandingIcon } from 'lucide-react';
 
 const STATUS_COLORS = {
@@ -195,11 +196,7 @@ export const AdminDashboard = () => {
   const activeAssigneeCount = assigneesData?.results?.length ?? 0;
   const leadFunnelAssigneeRows = assigneesData?.results || [];
 
-  const formatCurrency = (amount) =>
-    new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
+  const { formatMoney: formatCurrency, formatMoneyCompact } = useMoneyFormatter();
 
   const formatSignedCurrency = (value) => {
     if (value == null || Number.isNaN(Number(value))) return '—';
@@ -1854,7 +1851,7 @@ export const AdminDashboard = () => {
                                     {day.job_count}
                                   </Typography>
                                   <Typography variant="caption" color="success.main" fontWeight="700" sx={{ fontSize: { xs: 8, sm: 9 } }}>
-                                    ${day.total_value.toFixed(0)}
+                                    {formatCurrency(day.total_value)}
                                   </Typography>
                                 </>
                               )}
@@ -1911,7 +1908,7 @@ export const AdminDashboard = () => {
                         </TableCell>
                       )}
                       <TableCell align="right" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                        {isMobile ? `$${(customer.total_invoiced / 1000).toFixed(1)}k` : formatCurrency(customer.total_invoiced)}
+                        {isMobile ? formatMoneyCompact(customer.total_invoiced) : formatCurrency(customer.total_invoiced)}
                       </TableCell>
                       <TableCell align="right">
                         <Chip 
@@ -1924,7 +1921,7 @@ export const AdminDashboard = () => {
                         />
                       </TableCell>
                       <TableCell align="right" sx={{ color: 'success.main', fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                        {isMobile ? `$${(customer.total_paid / 1000).toFixed(1)}k` : formatCurrency(customer.total_paid)}
+                        {isMobile ? formatMoneyCompact(customer.total_paid) : formatCurrency(customer.total_paid)}
                       </TableCell>
                     </TableRow>
                   ))}

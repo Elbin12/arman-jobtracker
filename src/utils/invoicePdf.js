@@ -1,4 +1,6 @@
 import { format, parseISO } from 'date-fns';
+import { DEFAULT_ACCOUNT_CURRENCY } from './accountCurrency';
+import { formatMoney as formatMoneyUtil } from './formatMoney';
 
 const BLUE = [20, 90, 180];
 const BLUE_DARK = [15, 70, 150];
@@ -19,14 +21,8 @@ const COMPANY = () => ({
     'https://storage.googleapis.com/msgsndr/b8qvo7VooP3JD3dIZU42/media/683efc8fd5817643ff8194f0.jpeg',
 });
 
-function formatMoney(amount, currency = 'USD') {
-  const n = typeof amount === 'string' ? parseFloat(amount) : Number(amount);
-  if (Number.isNaN(n)) return '—';
-  try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(n);
-  } catch {
-    return `$${n.toFixed(2)}`;
-  }
+function formatMoney(amount, currency = DEFAULT_ACCOUNT_CURRENCY) {
+  return formatMoneyUtil(amount, currency);
 }
 
 function formatLongDate(iso) {
@@ -153,7 +149,7 @@ export async function buildInvoicePdf(invoice, contact, billToAddress) {
     : '—';
   const invNo = invoice.invoice_number ?? invoice.invoice_id ?? invoice.id ?? '—';
   const invNoDisplay = String(invNo).startsWith('#') ? String(invNo) : `#${invNo}`;
-  const currency = invoice.currency || 'USD';
+  const currency = invoice.currency || DEFAULT_ACCOUNT_CURRENCY;
   const amountDue = Number(invoice.amount_due ?? invoice.total ?? 0);
   const lines = normalizeLineItems(invoice);
   const computed = sumLineItems(lines);

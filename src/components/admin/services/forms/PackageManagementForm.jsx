@@ -11,6 +11,7 @@ import { useCreateFeatureMutation, useDeleteFeatureMutation, useUpdateFeatureMut
 import { useCreatePackageFeatureMutation, useUpdatePackageFeatureMutation } from '../../../../store/api/packageFeaturesApi';
 import { servicesApi, useGetServiceByIdQuery } from '../../../../store/api/servicesApi';
 import { useDispatch } from 'react-redux';
+import { useMoneyFormatter } from '../../../../hooks/useMoneyFormatter';
 
 // Custom Modal Component
 const CustomModal = ({ isOpen, onClose, title, children }) => {
@@ -45,6 +46,7 @@ const PackageManagementForm = ({
   data,
   onUpdate,
 }) => {
+  const { formatMoney, currencySymbol } = useMoneyFormatter();
   const [packages, setPackages] = useState(data.packages || []);
   const [features, setFeatures] = useState(data.features || []);
 
@@ -505,7 +507,7 @@ const PackageManagementForm = ({
                             ) : (
                               <div className="flex items-center gap-1">
                                 <span className="text-sm text-muted-foreground">
-                                  Base Price ${pkg.base_price}
+                                  Base Price {formatMoney(pkg.base_price)}
                                 </span>
                                 <Button
                                   variant="ghost"
@@ -731,7 +733,7 @@ const PackageManagementForm = ({
             {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
           </div>
           <div>
-            <Label htmlFor="base-price">Base Price ($)</Label>
+            <Label htmlFor="base-price">Base Price ({currencySymbol})</Label>
             <Input
               id="base-price"
               type="number"

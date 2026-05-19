@@ -110,7 +110,7 @@ const PackageCarousel = ({
                         fontSize: { xs: "1.8rem", sm: "2rem", md: "2.2rem" },
                       }}
                     >
-                      ${formatPrice(packageQuote.total_price)}
+                      {formatPrice(packageQuote.total_price)}
                     </Typography>
 
                     {/* Features List */}

@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAccountTimezone } from "@/hooks/useAccountTimezone";
+import { useMoneyFormatter } from "@/hooks/useMoneyFormatter";
 import { DayByTechnicianView } from "./DayByTechnicianView";
 // FullCalendar v6 injects CSS via JS – no manual import. Overrides below for design + mobile.
 
@@ -1147,6 +1148,7 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
   const user = useSelector((state) => state.auth.user)
   const userRole = user?.role || "worker"
   const accountTimezone = useAccountTimezone();
+  const { formatMoney: formatPrice } = useMoneyFormatter();
   
   // Check if user can see staff section (admin, manager, supervisor)
   const canViewStaff = ["admin", "manager", "supervisor"].includes(userRole);
@@ -1772,19 +1774,6 @@ appointmentsParams.search = filterParams.appointment_search;
       })),
     [displayEvents]
   );
-
-  // Format price as currency (memoized to avoid dependency issues)
-  const formatPrice = useMemo(() => {
-    return (price) => {
-      if (!price || isNaN(price)) return "$0.00";
-      return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(price);
-    };
-  }, []);
 
   // Check if jobs category is enabled (used for totals display)
   const showJobs = selectedCategories.jobs !== false;

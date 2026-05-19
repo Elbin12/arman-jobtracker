@@ -18,6 +18,7 @@ import {
   Grid,
 } from "@mui/material"
 import { jobGrandTotalAmount } from "../../../utils/jobPricing"
+import { useMoneyFormatter } from "@/hooks/useMoneyFormatter"
 import {
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
@@ -105,13 +106,7 @@ export function JobCalendar({ jobs = [], statusFilter = "all", assigneeFilter = 
     return colors[status] || "#6b7280"
   }
 
-  const formatPrice = (price) => {
-    if (!price) return null
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price)
-  }
+  const { formatMoney: formatPrice } = useMoneyFormatter()
 
   const formatDate = (dateString) => {
     if (!dateString) return "Not scheduled"

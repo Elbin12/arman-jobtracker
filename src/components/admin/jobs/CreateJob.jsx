@@ -19,9 +19,11 @@ import ContactSearchableSelect from "./ContactSearchableSelect";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { useAccountTimezone } from "@/hooks/useAccountTimezone";
+import { useMoneyFormatter } from "@/hooks/useMoneyFormatter";
 
 export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, onJobCreatedError }) {
   const accountTimezone = useAccountTimezone();
+  const { formatMoney, currencySymbol } = useMoneyFormatter();
   const [loading, setLoading] = useState(false);
   const [customServices, setCustomServices] = useState([]);
   const [showCustomServiceForm, setShowCustomServiceForm] = useState(false);
@@ -817,7 +819,7 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
                           <div className="text-xs text-muted-foreground mt-1">
                             {service.hours && `${service.hours}h`}
                             {service.hours && service.price && " • "}
-                            {service.price && `$${service.price}`}
+                            {service.price != null && service.price !== '' && formatMoney(service.price)}
                           </div>
                           {isServiceSelected(service.id) && (
                             <div className="mt-2">
@@ -870,7 +872,7 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
                                 </Button>
                               </div>
                               <div className="text-xs text-muted-foreground mt-1">
-                                {service.duration}h • ${service.price}
+                                {service.duration}h • {formatMoney(service.price)}
                               </div>
                               {isServiceSelected(service.id) && (
                                 <div className="mt-2">
@@ -1017,7 +1019,7 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
         {/* Price */}
         <TextField
           id="price"
-          label="Price ($)"
+          label={`Price (${currencySymbol})`}
           type="number"
           size="small"
           fullWidth

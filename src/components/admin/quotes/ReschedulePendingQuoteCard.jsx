@@ -11,6 +11,7 @@ import { Avatar, Box, Card, CardContent, CardHeader, Typography, Chip, Divider, 
 import { User } from 'lucide-react'
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useMoneyFormatter } from '@/hooks/useMoneyFormatter'
 
 const formatDateUtcParts = (dateString) => {
   if (!dateString || typeof dateString !== 'string') return 'Not scheduled'
@@ -33,15 +34,6 @@ const formatDateUtcParts = (dateString) => {
   const monthName = months[month - 1]
 
   return `${weekday}, ${monthName} ${day}, ${year} ${hour}:${minute} ${ampm}`
-}
-
-const formatPrice = (price) => {
-  const n = typeof price === 'string' ? Number.parseFloat(price) : price
-  if (price === null || price === undefined || Number.isNaN(n)) return '—'
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(n)
 }
 
 const getJobTypeLabel = (jobType) => {
@@ -68,6 +60,7 @@ const getJobTypeColor = (jobType) => {
  * - Legacy: nested source_job, quote_schedule, service_selections
  */
 const ReschedulePendingQuoteCard = ({ row: quote, onConvertToJob }) => {
+  const { formatMoney: formatPrice } = useMoneyFormatter()
   const navigate = useNavigate()
 
   const sourceJob = quote?.source_job

@@ -96,7 +96,7 @@ const QuoteDetailsPage = () => {
 
   const [createSchedule] = useCreateScheduleMutation()
 
-  const { profile, locationId, isReady, isLoading: isBrandingLoading } = useAccountBranding({ quote })
+  const { profile, locationId, formatPrice, isReady, isLoading: isBrandingLoading } = useAccountBranding({ quote })
   const termsCompanyLabel = (text) => {
     if (!profile.name) return ''
     return applyCompanyNameToTermsText(text, profile.name, profile.abbreviation)
@@ -196,11 +196,6 @@ const QuoteDetailsPage = () => {
     quoted_by_details,
     images,
   } = quote
-
-  const formatPrice = (price) => {
-    const numPrice = typeof price === "string" ? Number.parseFloat(price) : price
-    return numPrice.toFixed(2)
-  }
 
   const renderQuestionResponse = (response) => {
     switch (response.question_type) {
@@ -1066,7 +1061,7 @@ const QuoteDetailsPage = () => {
                               </Box>
 
                               <Typography variant="h4" sx={{ color: "#42bd3f", fontWeight: 700, mb: 2 }}>
-                                ${formatPrice(selection.final_total_price)}
+                                {formatPrice(selection.final_total_price)}
                               </Typography>
 
                               {/* Features List */}
@@ -1195,7 +1190,7 @@ const QuoteDetailsPage = () => {
                         </Box>
                         <Box sx={{ textAlign: "right", flexShrink: 0 }}>
                           <Typography variant="h6" fontWeight={700} sx={{ color: "#42bd3f" }}>
-                            ${formatPrice(product.price)}
+                            {formatPrice(product.price)}
                           </Typography>
                         </Box>
                       </Box>
@@ -1514,7 +1509,7 @@ const QuoteDetailsPage = () => {
                         sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
                       >
                         <Typography variant="body2">{service.service_details?.name}</Typography>
-                        <Typography variant="subtitle2">${formatPrice(service.final_total_price)}</Typography>
+                        <Typography variant="subtitle2">{formatPrice(service.final_total_price)}</Typography>
                       </Box>
                     ))}
 
@@ -1522,7 +1517,7 @@ const QuoteDetailsPage = () => {
                     {custom_service_total && Number.parseFloat(custom_service_total) > 0 && (
                       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <Typography variant="body2">Custom Services</Typography>
-                        <Typography variant="subtitle2">${formatPrice(custom_service_total)}</Typography>
+                        <Typography variant="subtitle2">{formatPrice(custom_service_total)}</Typography>
                       </Box>
                     )}
 
@@ -1531,7 +1526,7 @@ const QuoteDetailsPage = () => {
                       total_surcharges > 0 && (
                         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <Typography variant="body2">Trip Surcharge</Typography>
-                          <Typography variant="subtitle2">${formatPrice(total_surcharges)}</Typography>
+                          <Typography variant="subtitle2">{formatPrice(total_surcharges)}</Typography>
                         </Box>
                       )
                     }
@@ -1544,30 +1539,29 @@ const QuoteDetailsPage = () => {
                       const subtotal = totalServicePrice+Number(custom_service_total)
 
 
-                      const final = formatPrice(final_total + custom_service_total); // numeric addition
-                      // const final = formatPrice(final_total) + formatPrice(custom_service_total)
+                      const finalNumeric = Number(final_total || 0) + Number(custom_service_total || 0)
                       const taxRate = parseFloat(import.meta.env.VITE_TAX_RATE) || 0.0825
-                      const taxAmount = final * taxRate
-                      const finalWithTax = Number(final) + taxAmount
+                      const taxAmount = finalNumeric * taxRate
+                      const finalWithTax = finalNumeric + taxAmount
 
                       return (
                         <>
                           {/* Adjustments */}
                           {/* <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <Typography variant="body2">Adjustments</Typography>
-                            <Typography variant="subtitle2">${formatPrice(adjustment)}</Typography>
+                            <Typography variant="subtitle2">{formatPrice(adjustment)}</Typography>
                           </Box> */}
 
                           {/* Tax */}
                           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <Typography variant="body2">Tax ({(taxRate * 100).toFixed(2)}%)</Typography>
-                            <Typography variant="subtitle2">${formatPrice(taxAmount)}</Typography>
+                            <Typography variant="subtitle2">{formatPrice(taxAmount)}</Typography>
                           </Box>
 
                           {/* Note if subtotal < base price */}
                           {subtotal < (globalPriceData?.base_price || 0) && (
                             <Typography variant="caption" color="error">
-                              Note: Minimum base price is ${formatPrice(globalPriceData?.base_price || 0)}
+                              Note: Minimum base price is {formatPrice(globalPriceData?.base_price || 0)}
                             </Typography>
                           )}
 
@@ -1589,7 +1583,7 @@ const QuoteDetailsPage = () => {
                             </Typography>
                             <div className="flex flex-col">
                               <Typography variant="h5" fontWeight="500" color="#42bd3f">
-                                ${finalWithTax.toFixed(2)}
+                                {formatPrice(finalWithTax)}
                               </Typography>
                               <Typography variant="caption" color="text.secondary" align="center">
                                 Tax included

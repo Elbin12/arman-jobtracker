@@ -5,13 +5,8 @@ import OpenInNew from '@mui/icons-material/OpenInNew';
 import Person from '@mui/icons-material/Person';
 import PictureAsPdf from '@mui/icons-material/PictureAsPdf';
 import { downloadInvoicePdf } from '../../../utils/invoicePdf';
-
-const money = (v, currency = 'USD') => {
-  if (v == null || v === '') return '—';
-  const n = typeof v === 'string' ? parseFloat(v) : Number(v);
-  if (Number.isNaN(n)) return String(v);
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(n);
-};
+import { useMoneyFormatter } from '../../../hooks/useMoneyFormatter';
+import { formatMoney } from '../../../utils/formatMoney';
 
 function When({ iso }) {
   if (!iso) return '—';
@@ -42,6 +37,7 @@ function Field({ label, children }) {
 }
 
 export function ContactQuotePanel({ submission }) {
+  const { formatMoney: money } = useMoneyFormatter();
   if (!submission) return null;
   return (
     <Card elevation={0} sx={{ bgcolor: 'transparent' }}>
@@ -115,9 +111,9 @@ export function ContactInvoicePanel({ invoice, contact, billToAddress }) {
             {busy ? 'Preparing…' : 'Download Invoice'}
           </Button>
         </Stack>
-        <Field label="Total">{money(invoice.total, invoice.currency)}</Field>
-        <Field label="Amount paid">{money(invoice.amount_paid, invoice.currency)}</Field>
-        <Field label="Balance due">{money(invoice.amount_due, invoice.currency)}</Field>
+        <Field label="Total">{formatMoney(invoice.total, invoice.currency)}</Field>
+        <Field label="Amount paid">{formatMoney(invoice.amount_paid, invoice.currency)}</Field>
+        <Field label="Balance due">{formatMoney(invoice.amount_due, invoice.currency)}</Field>
         <Field label="Issue date">
           <When iso={invoice.issue_date} />
         </Field>

@@ -1,5 +1,6 @@
 import { axiosInstance, BASE_URL } from '../store/axios/axios';
 import { ALL_DAY_PROJECTS_LOCATION_ID } from './bookingRedirect';
+import { DEFAULT_ACCOUNT_CURRENCY, resolveAccountCurrency } from './accountCurrency';
 
 const DEFAULT_COMPANY_NAME = import.meta.env.VITE_COMPANY_NAME || 'TruShine Window Cleaning';
 const DEFAULT_ABBREVIATION = 'TWC';
@@ -71,6 +72,7 @@ export function getDefaultCompanyProfile() {
     email: import.meta.env.VITE_COMPANY_EMAIL || 'trushinehouston@gmail.com',
     locationName: null,
     domain: null,
+    currency: DEFAULT_ACCOUNT_CURRENCY,
     fromAccountInfo: false,
   };
 }
@@ -133,6 +135,7 @@ export function mapAccountInfoToCompanyProfile(accountInfo) {
     locationName,
     domain: pickAccountField(accountInfo, ['domain']) || null,
     locationId: accountInfo.location_id || null,
+    currency: resolveAccountCurrency({ accountCurrency: accountInfo.currency }),
     fromAccountInfo: true,
   };
 }
@@ -182,6 +185,7 @@ export function getLoadingCompanyProfile() {
     email: '',
     locationName: null,
     domain: null,
+    currency: DEFAULT_ACCOUNT_CURRENCY,
     isPlaceholder: true,
     fromAccountInfo: false,
   };

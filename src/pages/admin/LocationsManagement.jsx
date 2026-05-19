@@ -41,6 +41,7 @@ import {
 } from "../../store/api/locationsApi"
 import { setDialogOpen, setEditingLocation, setFormData, resetFormData } from "../../store/slices/locationsSlice"
 import { TableSkeleton } from "../../components/ui/skeletons"
+import { useMoneyFormatter } from "../../hooks/useMoneyFormatter"
 
 // Custom Google Places Autocomplete Component
 const PlacesAutocomplete = ({ value, onChange, error, helperText }) => {
@@ -233,6 +234,7 @@ const PlacesAutocomplete = ({ value, onChange, error, helperText }) => {
 }
 
 const LocationsManagement = () => {
+  const { formatMoney } = useMoneyFormatter();
   const dispatch = useDispatch()
   const { dialogOpen, editingLocation, formData } = useSelector((state) => state.locations)
 
@@ -423,11 +425,7 @@ const LocationsManagement = () => {
                     </TableCell>
                     <TableCell>
                       <Chip
-                        label={`$${
-                          typeof location?.trip_surcharge === "number"
-                            ? location?.trip_surcharge.toFixed(2)
-                            : location?.trip_surcharge
-                        }`}
+                        label={formatMoney(location?.trip_surcharge)}
                         size="small"
                         color="primary"
                         variant="outlined"

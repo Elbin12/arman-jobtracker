@@ -35,6 +35,7 @@ import { Select as ShadcnSelect, SelectContent, SelectItem, SelectTrigger, Selec
 import { Loader2 } from "lucide-react";
 import { jobGrandTotalAmount, jobSurchargeAmount } from "../../../utils/jobPricing";
 import { useAccountTimezone } from "@/hooks/useAccountTimezone";
+import { useMoneyFormatter } from "@/hooks/useMoneyFormatter";
 
 export function EditJobDialog({
   job,
@@ -47,6 +48,7 @@ export function EditJobDialog({
   convertQueryFilter = "status=to_convert",
 }) {
   const accountTimezone = useAccountTimezone(accountTimezoneProp);
+  const { formatMoney, currencySymbol } = useMoneyFormatter();
   const [updateJob, { isLoading, error }] = useUpdateJobMutation();
   const [convertJobToSeries, { isLoading: isConvertingToSeries, error: convertToSeriesError }] = useConvertJobToSeriesMutation();
   const [customServices, setCustomServices] = useState([]);
@@ -702,7 +704,7 @@ export function EditJobDialog({
                               <div className="text-xs text-muted-foreground mt-1">
                                 {service.hours && `${service.hours}h`}
                                 {service.hours && service.price && " • "}
-                                {service.price && `$${service.price}`}
+                                {service.price != null && service.price !== '' && formatMoney(service.price)}
                               </div>
                               {isServiceSelected(service.id) && (
                                 <div className="mt-2">
@@ -755,7 +757,7 @@ export function EditJobDialog({
                                   </Button>
                                 </div>
                                 <div className="text-xs text-muted-foreground mt-1">
-                                  {service.duration}h • ${service.price}
+                                  {service.duration}h • {formatMoney(service.price)}
                                 </div>
                                 {isServiceSelected(service.id) && (
                                   <div className="mt-2">
@@ -917,7 +919,7 @@ export function EditJobDialog({
 
                 <TextField
                   id="price"
-                  label="Price ($)"
+                  label={`Price (${currencySymbol})`}
                   type="number"
                   size="small"
                   fullWidth
@@ -930,13 +932,9 @@ export function EditJobDialog({
               {jobSurchargeAmount(job) > 0 && (
                 <p className="text-xs text-muted-foreground px-0.5">
                   Surcharge:{" "}
-                  {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
-                    jobSurchargeAmount(job)
-                  )}{" "}
+                  {formatMoney(jobSurchargeAmount(job))}{" "}
                   · Total with surcharge:{" "}
-                  {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
-                    jobGrandTotalAmount({ ...job, total_price: formData.total_price })
-                  )}
+                  {formatMoney(jobGrandTotalAmount({ ...job, total_price: formData.total_price }))}
                 </p>
               )}
             </div>

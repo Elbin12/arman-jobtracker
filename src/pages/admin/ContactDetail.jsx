@@ -43,13 +43,8 @@ import { contactsPageSx, portalInviteSx, PORTAL_INSIGHT_AVATAR_GRADIENTS } from 
 import { exportInvoicesToCsv } from '../../utils/exportInvoicesCsv';
 import { jobGrandTotalAmount } from '../../utils/jobPricing';
 import { CompanyContactBanner } from '../../components/contacts/CompanyContactBanner';
-
-const money = (v, currency = 'USD') => {
-  if (v == null || v === '') return '—';
-  const n = typeof v === 'string' ? parseFloat(v) : Number(v);
-  if (Number.isNaN(n)) return String(v);
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(n);
-};
+import { useMoneyFormatter } from '../../hooks/useMoneyFormatter';
+import { formatMoney } from '../../utils/formatMoney';
 
 const when = (iso) => {
   if (!iso) return '—';
@@ -88,6 +83,7 @@ function parseContactDetailParam(raw) {
 }
 
 const ContactDetail = () => {
+  const { formatMoney: money } = useMoneyFormatter();
   const { id: idParam } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -617,7 +613,7 @@ const ContactDetail = () => {
                       <Chip size="small" variant="outlined" label={inv.status || '—'} />
                     </Stack>
                     <Typography variant="body2" sx={{ mt: 0.5 }}>
-                      {money(inv.total, inv.currency)}
+                      {formatMoney(inv.total, inv.currency)}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
                       Due {when(inv.due_date)}
