@@ -34,6 +34,7 @@ import ContactSearchableSelect from "./ContactSearchableSelect";
 import { Select as ShadcnSelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { jobGrandTotalAmount, jobSurchargeAmount } from "../../../utils/jobPricing";
+import { useAccountTimezone } from "@/hooks/useAccountTimezone";
 
 export function EditJobDialog({
   job,
@@ -41,10 +42,11 @@ export function EditJobDialog({
   onClose,
   objective,
   handleJobUpdate,
-  accountTimezone = "America/Chicago",
+  accountTimezone: accountTimezoneProp,
   /** Query string for PATCH when objective is convert (default: accepted-quotes `to_convert`). */
   convertQueryFilter = "status=to_convert",
 }) {
+  const accountTimezone = useAccountTimezone(accountTimezoneProp);
   const [updateJob, { isLoading, error }] = useUpdateJobMutation();
   const [convertJobToSeries, { isLoading: isConvertingToSeries, error: convertToSeriesError }] = useConvertJobToSeriesMutation();
   const [customServices, setCustomServices] = useState([]);

@@ -9,6 +9,7 @@ import { slotWallClockAsUtcIso } from "../../../utils/scheduleIso"
 import QuoteCalendarScheduler from "../../user/QuoteCalendarScheduler"
 import { jobSurchargeAmount, overlayJobDetail } from "../../../utils/jobPricing"
 import { useToast } from "@/hooks/use-toast"
+import { useAccountTimezone } from "@/hooks/useAccountTimezone"
 import {
   Card,
   CardContent,
@@ -71,7 +72,7 @@ export function JobCard({
   onEdit,
   onDelete,
   users = [],
-  accountTimezone = "America/Chicago",
+  accountTimezone: accountTimezoneProp,
   embeddedInDialog = false,
   /** When true: view-only (e.g. contact CRM). No status edits, discount, delete, or completion uploads. */
   readOnly = false,
@@ -103,6 +104,9 @@ export function JobCard({
 
   const jobId = job?.job_id || job?.id
   const { data: jobDetailsData } = useGetJobDetailsQuery(jobId, { skip: !jobId || skipJobDetailsQuery })
+  const accountTimezone = useAccountTimezone(
+    accountTimezoneProp ?? jobDetailsData?.account_timezone ?? job?.account_timezone,
+  )
   /** Merge detail query without losing list-only pricing (detail often nulls/omits total_surcharge). */
   const pricingJob = useMemo(() => {
     if (!job) return null

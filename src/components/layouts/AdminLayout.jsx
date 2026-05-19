@@ -156,7 +156,7 @@ const getManagementItemsByRole = (role, fullAccessRoles) => {
     { text: "Service Management", path: "/admin/services", icon: BusinessCenter },
     { text: "Location Management", path: "/admin/locations", icon: LocationOn },
     { text: "Subaccount Management", path: "/admin/subaccounts", icon: AccountTree },
-    { text: "House Size Info", path: "/admin/house-size-info", icon: Home },
+    // { text: "House Size Info", path: "/admin/house-size-info", icon: Home },
   ]
 }
 

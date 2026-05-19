@@ -16,6 +16,7 @@ import {
   useDeleteEstimateMutation,
 } from "../../../store/api/jobsApi";
 import { getEstimateAddress } from "../../../utils/geocode";
+import { useAccountTimezone } from "@/hooks/useAccountTimezone";
 
 export function EstimateDetailsDialog({
   estimate,
@@ -25,6 +26,7 @@ export function EstimateDetailsDialog({
   user,
   onDeleted,
 }) {
+  const accountTimezone = useAccountTimezone();
   const [deleteEstimateDialogOpen, setDeleteEstimateDialogOpen] = useState(false);
   const [localEstimate, setLocalEstimate] = useState(estimate);
   const dispatch = useDispatch();
@@ -297,7 +299,7 @@ export function EstimateDetailsDialog({
                   <Label className="text-sm font-semibold">Start Time</Label>
                   <div className="text-sm">
                     {displayEstimate.start_time
-                      ? moment.utc(displayEstimate.start_time).tz("America/Chicago").format("MMMM D, YYYY h:mm A")
+                      ? moment.utc(displayEstimate.start_time).tz(accountTimezone).format("MMMM D, YYYY h:mm A")
                       : "N/A"}
                   </div>
                 </div>
@@ -305,7 +307,7 @@ export function EstimateDetailsDialog({
                   <Label className="text-sm font-semibold">End Time</Label>
                   <div className="text-sm">
                     {displayEstimate.end_time
-                      ? moment.utc(displayEstimate.end_time).tz("America/Chicago").format("MMMM D, YYYY h:mm A")
+                      ? moment.utc(displayEstimate.end_time).tz(accountTimezone).format("MMMM D, YYYY h:mm A")
                       : "N/A"}
                   </div>
                 </div>

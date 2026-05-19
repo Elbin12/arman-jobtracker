@@ -4,6 +4,7 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { cn } from "@/lib/utils";
 import { useUpdateJobMutation } from "../../../store/api/jobsApi";
 import { TimelineSidebar } from "./TimelineSidebar";
+import { useAccountTimezone } from "@/hooks/useAccountTimezone";
 
 const DAY_WIDTH = 40; // Width of each day column in pixels (base, responsive)
 const ROW_HEIGHT = 60; // Height of each staff row
@@ -14,11 +15,12 @@ export function TimelineView({
   users = [],
   currentDate,
   monthsToShow = 12,
-  accountTimezone = "America/Chicago",
+  accountTimezone,
   onJobClick,
   onJobUpdate,
   onDateChange,
 }) {
+  const resolvedAccountTimezone = useAccountTimezone(accountTimezone);
   const [selectedCategories, setSelectedCategories] = useState({});
   const [selectedAssignees, setSelectedAssignees] = useState({});
   const [showSidebar, setShowSidebar] = useState(true);
@@ -381,7 +383,7 @@ export function TimelineView({
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [resizingJob, resizeStartX, resizeStartWidth, accountTimezone, onJobUpdate, updateJob]);
+  }, [resizingJob, resizeStartX, resizeStartWidth, resolvedAccountTimezone, onJobUpdate, updateJob]);
 
   // Responsive sidebar width
   const responsiveSidebarWidth = typeof window !== 'undefined' && window.innerWidth < 640 ? 100 : SIDEBAR_WIDTH;

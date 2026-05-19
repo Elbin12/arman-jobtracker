@@ -22,6 +22,7 @@ import {
 } from "../../../store/api/jobsApi";
 import { getEstimateAddress } from "../../../utils/geocode";
 import { useToast } from "@/hooks/use-toast";
+import { useAccountTimezone } from "@/hooks/useAccountTimezone";
 
 const STATUS_OPTIONS = [
   { value: "confirmed", label: "Confirmed" },
@@ -40,6 +41,7 @@ export function MapEstimateDetailsContent({
   user,
   onDeleted,
 }) {
+  const accountTimezone = useAccountTimezone();
   const [localEstimate, setLocalEstimate] = useState(estimate);
   const dispatch = useDispatch();
   const { toast } = useToast();
@@ -248,7 +250,7 @@ export function MapEstimateDetailsContent({
           <Typography variant="body2" color="text.secondary">Start Time</Typography>
           <Typography variant="body2">
             {displayEstimate.start_time
-              ? moment.utc(displayEstimate.start_time).tz("America/Chicago").format("MMMM D, YYYY h:mm A")
+              ? moment.utc(displayEstimate.start_time).tz(accountTimezone).format("MMMM D, YYYY h:mm A")
               : "N/A"}
           </Typography>
         </Box>
@@ -256,7 +258,7 @@ export function MapEstimateDetailsContent({
           <Typography variant="body2" color="text.secondary">End Time</Typography>
           <Typography variant="body2">
             {displayEstimate.end_time
-              ? moment.utc(displayEstimate.end_time).tz("America/Chicago").format("MMMM D, YYYY h:mm A")
+              ? moment.utc(displayEstimate.end_time).tz(accountTimezone).format("MMMM D, YYYY h:mm A")
               : "N/A"}
           </Typography>
         </Box>

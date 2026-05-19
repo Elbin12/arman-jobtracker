@@ -7,12 +7,14 @@ const access = localStorage.getItem('access');
 const refresh = localStorage.getItem('refresh');
 const user_profile = localStorage.getItem('user_profile');
 const user = localStorage.getItem('user');
+const ghl_account = localStorage.getItem('ghl_account');
 
 const initialState = {
   admin: null,
   access: access,
   refresh: refresh,
   user_profile: user_profile ? JSON.parse(user_profile) : null,
+  account: ghl_account ? JSON.parse(ghl_account) : null,
   user: user ? JSON.parse(user) : null,
   error: null,
   isAuthenticated: false,
@@ -94,10 +96,16 @@ const authSlice = createSlice({
         // Use employee_profile if available, otherwise fallback to user_profile
         const profileData = action.payload.employee_profile || action.payload.user_profile;
         state.user_profile = profileData;
+        state.account = action.payload.account || null;
         localStorage.setItem('access', action.payload.access);
         localStorage.setItem('refresh', action.payload.refresh);
         localStorage.setItem('user_profile', JSON.stringify(profileData));
         localStorage.setItem('user', JSON.stringify(action.payload.user));
+        if (action.payload.account) {
+          localStorage.setItem('ghl_account', JSON.stringify(action.payload.account));
+        } else {
+          localStorage.removeItem('ghl_account');
+        }
 
         state.isAuthenticated = true;
         state.error = null;
@@ -112,6 +120,7 @@ const authSlice = createSlice({
       // Logout User
       .addCase(logoutUser.fulfilled, (state) => {
         state.user_profile = null;
+        state.account = null;
         state.user = null;
         state.access = null;
         state.refresh = null;
@@ -121,6 +130,7 @@ const authSlice = createSlice({
         localStorage.removeItem('access');
         localStorage.removeItem('refresh');
         localStorage.removeItem('user_profile');
+        localStorage.removeItem('ghl_account');
         localStorage.removeItem('user');
       })
       .addCase(logoutUser.rejected, (state) => {

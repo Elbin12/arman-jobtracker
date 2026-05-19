@@ -18,8 +18,10 @@ import { useGetServicesQuery } from "../../../store/api/servicesApi";
 import ContactSearchableSelect from "./ContactSearchableSelect";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+import { useAccountTimezone } from "@/hooks/useAccountTimezone";
 
 export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, onJobCreatedError }) {
+  const accountTimezone = useAccountTimezone();
   const [loading, setLoading] = useState(false);
   const [customServices, setCustomServices] = useState([]);
   const [showCustomServiceForm, setShowCustomServiceForm] = useState(false);
@@ -208,7 +210,7 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
       // Parse scheduled date
       let parsedTimeData = { date: "", hour: "12", minute: "00", period: "PM" };
       if (initialData.scheduled_date) {
-        const m = moment.parseZone(initialData.scheduled_date).tz("America/Chicago", true);
+        const m = moment.parseZone(initialData.scheduled_date).tz(accountTimezone, true);
         const dateStr = m.format("YYYY-MM-DD");
         
         let hours = m.hour();
@@ -237,7 +239,7 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
         title: initialData.jobs_selected?.map(job => job.title || job.name).join(", ") || prev.title,
       }));
     }
-  }, [initialData]);
+  }, [initialData, accountTimezone]);
 
   useEffect(() => {
     if (initialData && services.length > 0) {

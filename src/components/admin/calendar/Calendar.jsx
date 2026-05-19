@@ -19,6 +19,7 @@ import { Calendar as DatePicker } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useAccountTimezone } from "@/hooks/useAccountTimezone";
 import { DayByTechnicianView } from "./DayByTechnicianView";
 // FullCalendar v6 injects CSS via JS – no manual import. Overrides below for design + mobile.
 
@@ -1143,10 +1144,9 @@ export function NewCalendar({ users = [], isLoadingUsers = false }) {
     isInternalUpdate.current = false;
   }, [filterParams.assignee_ids, users.length]);
 
-  const user_profile = useSelector((state) => state.auth.user_profile)
   const user = useSelector((state) => state.auth.user)
   const userRole = user?.role || "worker"
-  const accountTimezone = user_profile?.account?.timezone || "America/Chicago";
+  const accountTimezone = useAccountTimezone();
   
   // Check if user can see staff section (admin, manager, supervisor)
   const canViewStaff = ["admin", "manager", "supervisor"].includes(userRole);
@@ -1587,8 +1587,8 @@ appointmentsParams.search = filterParams.appointment_search;
             return true;
           })
           .map((appointment) => {
-            const startM = moment.utc(appointment.start_time).tz("America/Chicago");
-            const endM = moment.utc(appointment.end_time).tz("America/Chicago");
+            const startM = moment.utc(appointment.start_time).tz(accountTimezone);
+            const endM = moment.utc(appointment.end_time).tz(accountTimezone);
             const startDate = new Date(startM.year(), startM.month(), startM.date(), startM.hour(), startM.minute(), startM.second());
             const endDate = new Date(endM.year(), endM.month(), endM.date(), endM.hour(), endM.minute(), endM.second());
             const timeStr = startM.minute() === 0 ? startM.format("h A") : startM.format("h:mm A");
@@ -1626,8 +1626,8 @@ appointmentsParams.search = filterParams.appointment_search;
             return true;
           })
           .map((estimate) => {
-            const startM = moment.utc(estimate.start_time).tz("America/Chicago");
-            const endM = moment.utc(estimate.end_time).tz("America/Chicago");
+            const startM = moment.utc(estimate.start_time).tz(accountTimezone);
+            const endM = moment.utc(estimate.end_time).tz(accountTimezone);
             const startDate = new Date(startM.year(), startM.month(), startM.date(), startM.hour(), startM.minute(), startM.second());
             const endDate = new Date(endM.year(), endM.month(), endM.date(), endM.hour(), endM.minute(), endM.second());
             const timeStr = startM.minute() === 0 ? startM.format("h A") : startM.format("h:mm A");
@@ -3768,7 +3768,7 @@ appointmentsParams.search = filterParams.appointment_search;
                   <Label className="text-sm font-semibold">Start Time</Label>
                   <div className="text-sm">
                     {selectedAppointment.start_time 
-                      ? moment.utc(selectedAppointment.start_time).tz("America/Chicago").format("MMMM D, YYYY h:mm A")
+                      ? moment.utc(selectedAppointment.start_time).tz(accountTimezone).format("MMMM D, YYYY h:mm A")
                       : "N/A"}
                   </div>
                 </div>
@@ -3776,7 +3776,7 @@ appointmentsParams.search = filterParams.appointment_search;
                   <Label className="text-sm font-semibold">End Time</Label>
                   <div className="text-sm">
                     {selectedAppointment.end_time 
-                      ? moment.utc(selectedAppointment.end_time).tz("America/Chicago").format("MMMM D, YYYY h:mm A")
+                      ? moment.utc(selectedAppointment.end_time).tz(accountTimezone).format("MMMM D, YYYY h:mm A")
                       : "N/A"}
                   </div>
                 </div>
@@ -4091,7 +4091,7 @@ appointmentsParams.search = filterParams.appointment_search;
                   <Label className="text-sm font-semibold">Start Time</Label>
                   <div className="text-sm">
                     {selectedEstimate.start_time 
-                      ? moment.utc(selectedEstimate.start_time).tz("America/Chicago").format("MMMM D, YYYY h:mm A")
+                      ? moment.utc(selectedEstimate.start_time).tz(accountTimezone).format("MMMM D, YYYY h:mm A")
                       : "N/A"}
                   </div>
                 </div>
@@ -4099,7 +4099,7 @@ appointmentsParams.search = filterParams.appointment_search;
                   <Label className="text-sm font-semibold">End Time</Label>
                   <div className="text-sm">
                     {selectedEstimate.end_time 
-                      ? moment.utc(selectedEstimate.end_time).tz("America/Chicago").format("MMMM D, YYYY h:mm A")
+                      ? moment.utc(selectedEstimate.end_time).tz(accountTimezone).format("MMMM D, YYYY h:mm A")
                       : "N/A"}
                   </div>
                 </div>
