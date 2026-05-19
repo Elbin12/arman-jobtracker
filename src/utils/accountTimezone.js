@@ -8,7 +8,7 @@ export const DEFAULT_ACCOUNT_TIMEZONE = 'America/Chicago';
  * @param {{ timezone?: string | null, location_id?: string | null } | null} [options.ghlAccount]
  *   From auth `account` (login) or job API.
  * @param {string | null | undefined} [options.locationTimezone]
- *   From account-info API when `location_id` is in the URL.
+ *   Explicit timezone override (e.g. user-side account-info).
  * @returns {string} IANA timezone name
  */
 export function resolveBusinessTimezone({ ghlAccount, locationTimezone } = {}) {

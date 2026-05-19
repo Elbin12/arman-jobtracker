@@ -477,7 +477,7 @@ const PackageManagementForm = ({
                           <div className="flex items-center justify-center gap-1">
                             {editingPackage === pkg.id && editingField === 'base_price' ? (
                               <div className="flex items-center gap-1">
-                                <span className="text-sm">$</span>
+                                <span className="text-sm">{currencySymbol}</span>
                                 <input
                                   type="number"
                                   value={editValue}

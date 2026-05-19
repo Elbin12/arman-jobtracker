@@ -5,7 +5,7 @@ import {
   getDefaultCompanyProfile,
 } from './companyProfile'
 import { DEFAULT_ACCOUNT_CURRENCY } from './accountCurrency'
-import { formatMoneyOrZero } from './formatMoney'
+import { formatMoneyForPdf, formatMoneyOrZeroForPdf } from './formatMoney'
 
 export const handleDownloadPDF = async (
   setIsGeneratingPDF,
@@ -70,7 +70,9 @@ export const handleDownloadPDF = async (
     }
 
     const pdfCurrency = COMPANY.currency || DEFAULT_ACCOUNT_CURRENCY
-    const formatPrice = (price) => formatMoneyOrZero(price, pdfCurrency)
+    const formatPrice = (price) => formatMoneyOrZeroForPdf(price, pdfCurrency)
+    /** Fixed policy fees in terms (trip fee, deposit, etc.) */
+    const fee = (amount) => formatMoneyForPdf(amount, pdfCurrency)
 
     const addWrappedText = (text, x, y) => {
       const split = doc.splitTextToSize(String(text || ""), maxLineWidth)
@@ -754,7 +756,7 @@ export const handleDownloadPDF = async (
       const scopeTerms = [
         "A) Window Cleaning: All windows must be securely closed on the day of service. Unsafe/inaccessible windows will not be cleaned. Exterior glass may be cleaned using a water-fed pole with pure water and left to dry naturally. \"Window\" includes frame, sill, sash, and glass (wood, aluminum, steel, UPVC). Brick/tile/stone sills are excluded. Add-ons (extra fee unless included): screen cleaning, track detailing, hard water removal, etc.",
         "B) Gutter Cleaning: Basic gutter cleaning includes clearing internal gutters only. Debris hauling and repairs are not included unless agreed in writing. Cleaning may be performed via leaf blower; downspouts may be flushed with hose. Exterior gutter surface cleaning is not included (available for additional cost).",
-        t("C) Pressure Washing: Removes most stains; some marks may remain. External water access is required. Client must cover/remove outdoor furniture. If TruShine must do it, a $150 fee may apply. TruShine is not liable for chemical damage to items not properly protected/removed."),
+        t(`C) Pressure Washing: Removes most stains; some marks may remain. External water access is required. Client must cover/remove outdoor furniture. If TruShine must do it, a ${fee(150)} fee may apply. TruShine is not liable for chemical damage to items not properly protected/removed.`),
         t("D) Awning Cleaning: TruShine is not liable for unexpected damage during awning cleaning. Service may be declined if material is over 5 years old or fails inspection.")
       ]
       scopeTerms.forEach(term => {
@@ -779,7 +781,7 @@ export const handleDownloadPDF = async (
       const accessTerms = [
         "• Client must provide full access to work areas (gates unlocked, pets secured, clear access).",
         t("• TruShine will not move obstacles/furniture for access (unless agreed)."),
-        t("• If TruShine arrives and cannot perform due to lack of access or unsafe conditions, a $75 trip fee applies."),
+        t(`• If TruShine arrives and cannot perform due to lack of access or unsafe conditions, a ${fee(75)} trip fee applies.`),
         t("• Client is responsible for ensuring items/structures are sound. TruShine may document or refuse questionable items."),
         t("• Any special accommodations must be reviewed and approved by TruShine management before accepting the proposal.")
       ]
@@ -805,7 +807,7 @@ export const handleDownloadPDF = async (
       const schedulingTerms = [
         t("• TruShine is not liable for delays due to weather, supply issues, or other uncontrollable factors."),
         "• Each Client may reschedule up to two (2) times within 7 days of the original date.",
-        "• Rescheduling/cancellation requested within 8 hours of a scheduled Visit: $35 fee.",
+        `• Rescheduling/cancellation requested within 8 hours of a scheduled Visit: ${fee(35)} fee.`,
         "• Rescheduling more than 8 hours in advance: no fee for the first 2 reschedules.",
         t("• Beyond 2 reschedules, TruShine may charge up to the full service amount to protect crew scheduling and reserved time."),
         "• Important: These rescheduling rules apply to all Visits, including Recurring Plan Visits."
@@ -831,7 +833,7 @@ export const handleDownloadPDF = async (
       doc.setTextColor("#374151")
       const paymentTerms = [
         "• Payment is due upon completion unless otherwise agreed in writing.",
-        t("• TruShine may require credit card info on file and/or a $100 deposit."),
+        t(`• TruShine may require credit card info on file and/or a ${fee(100)} deposit.`),
         "• Jobs needing materials may require a 50% deposit.",
         "• Accepted: cash, check, credit card (in person, by phone, or online).",
         COMPANY.address
@@ -912,7 +914,7 @@ export const handleDownloadPDF = async (
       const complaintTerms = [
         "• Any service concerns must be reported within 48 hours of completion for review and resolution.",
         t("• TruShine must be given a reasonable opportunity to inspect and/or correct any confirmed workmanship issues."),
-        "• If a complaint revisit finds the work satisfactory, a $75 trip fee applies."
+        `• If a complaint revisit finds the work satisfactory, a ${fee(75)} trip fee applies.`
       ]
       complaintTerms.forEach(term => {
         checkTermsPageBreak(3)
@@ -1094,7 +1096,7 @@ export const handleDownloadPDF = async (
         { title: "R4) Renewal & Post-Term Continuation", text: "After the minimum commitment is met, the plan continues automatically at the same recurring rate unless Client cancels with written notice (as defined at the top). No price increases apply without Client approval or advance written notice." },
         { title: "R5) Cancellation After Minimum Term", text: "After the minimum commitment is met, either party may terminate with at least 14 days' written notice." },
         { title: "R6) Early Cancellation Policy (Before Minimum Term)", text: "If Client cancels before fulfilling the minimum service term, a cancellation fee applies equal to: the difference between the discounted recurring rate and the standard one-time rate (plus tax) for all completed Visits to date. This fee will be charged to the card on file on the day of cancellation." },
-        { title: "R7) Client Responsibilities (Recurring)", text: t("Ensure access on scheduled dates (gates unlocked, pets secured, clear paths). Notify TruShine of pre-existing issues, fragile items, or safety concerns. Communicate promptly about scheduling changes or access restrictions. If TruShine arrives and cannot perform due to lack of access, the $75 trip fee applies, and rescheduling fees may also apply.") },
+        { title: "R7) Client Responsibilities (Recurring)", text: t(`Ensure access on scheduled dates (gates unlocked, pets secured, clear paths). Notify TruShine of pre-existing issues, fragile items, or safety concerns. Communicate promptly about scheduling changes or access restrictions. If TruShine arrives and cannot perform due to lack of access, the ${fee(75)} trip fee applies, and rescheduling fees may also apply.`) },
         { title: "R8) Service Adjustments & Changes", text: t("Pricing may be updated if property conditions change or the service scope is modified. Client may request upgrades, add-ons, or frequency changes with written notice. TruShine will provide advance notice of pricing updates.") },
         { title: "R9) Weather / Safety / Access Limitations", text: t("TruShine may cancel or reschedule due to weather, safety concerns, or access limitations.") }
       ]

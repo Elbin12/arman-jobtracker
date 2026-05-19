@@ -1,6 +1,6 @@
 import { format, parseISO } from 'date-fns';
 import { DEFAULT_ACCOUNT_CURRENCY } from './accountCurrency';
-import { formatMoney as formatMoneyUtil } from './formatMoney';
+import { formatMoneyForPdf } from './formatMoney';
 
 const BLUE = [20, 90, 180];
 const BLUE_DARK = [15, 70, 150];
@@ -22,7 +22,7 @@ const COMPANY = () => ({
 });
 
 function formatMoney(amount, currency = DEFAULT_ACCOUNT_CURRENCY) {
-  return formatMoneyUtil(amount, currency);
+  return formatMoneyForPdf(amount, currency);
 }
 
 function formatLongDate(iso) {

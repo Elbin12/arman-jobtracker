@@ -30,6 +30,7 @@ import { useCreateOptionPricingMutation } from "../../../../store/api/optionPric
 import { servicesApi } from "../../../../store/api/servicesApi"
 import { useDispatch } from "react-redux"
 import { useCreateSubQuestionPricingMutation } from "../../../../store/api/questionSubQuestionsApi"
+import { useMoneyFormatter } from "../../../../hooks/useMoneyFormatter"
 
 // Returns { priceType, amountType }. amountType: "dollar" | "percent" (percent only for percent-of-total types)
 const mapFromApiPricingType = (apiType) => {
@@ -66,6 +67,7 @@ const flattenQuestions = (questionsArray) => {
 }
 
 const PriceSetupForm = ({ data, onUpdate }) => {
+  const { currencySymbol } = useMoneyFormatter()
   const packages = data.packages || []
   const topLevelQuestions = data.questions || []
 
@@ -583,7 +585,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
                                           sx={{ fontSize: "0.8rem", height: 32 }}
                                           label={null}
                                         >
-                                          <MenuItem value="dollar" sx={{ fontSize: "0.8rem" }}>$</MenuItem>
+                                          <MenuItem value="dollar" sx={{ fontSize: "0.8rem" }}>{currencySymbol}</MenuItem>
                                           <MenuItem value="percent" sx={{ fontSize: "0.8rem" }}>%</MenuItem>
                                         </Select>
                                       </FormControl>
@@ -641,7 +643,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
                                         sx={{ fontSize: "0.75rem", height: 32 }}
                                         label={null}
                                       >
-                                        <MenuItem value="dollar" sx={{ fontSize: "0.75rem" }}>$</MenuItem>
+                                        <MenuItem value="dollar" sx={{ fontSize: "0.75rem" }}>{currencySymbol}</MenuItem>
                                         <MenuItem value="percent" sx={{ fontSize: "0.75rem" }}>%</MenuItem>
                                       </Select>
                                     </FormControl>
@@ -701,7 +703,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
                                           sx={{ fontSize: "0.8rem", height: 32 }}
                                           label={null}
                                         >
-                                          <MenuItem value="dollar" sx={{ fontSize: "0.8rem" }}>$</MenuItem>
+                                          <MenuItem value="dollar" sx={{ fontSize: "0.8rem" }}>{currencySymbol}</MenuItem>
                                           <MenuItem value="percent" sx={{ fontSize: "0.8rem" }}>%</MenuItem>
                                         </Select>
                                       </FormControl>
@@ -759,7 +761,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
                                         sx={{ fontSize: "0.75rem", height: 32 }}
                                         label={null}
                                       >
-                                        <MenuItem value="dollar" sx={{ fontSize: "0.75rem" }}>$</MenuItem>
+                                        <MenuItem value="dollar" sx={{ fontSize: "0.75rem" }}>{currencySymbol}</MenuItem>
                                         <MenuItem value="percent" sx={{ fontSize: "0.75rem" }}>%</MenuItem>
                                       </Select>
                                     </FormControl>
@@ -837,7 +839,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
         Price Setup
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Set values per option and package. Use the $/% selector to the left of each price input (default $). For $, the value is a fixed amount; for %, it is a percentage of total (upcharge or discount). Under &quot;Add to price&quot;: choose $ or %, enter the amount, then Apply. Save to update the backend.
+        {`Set values per option and package. Use the ${currencySymbol}/% selector to the left of each price input (default ${currencySymbol}). For ${currencySymbol}, the value is a fixed amount; for %, it is a percentage of total (upcharge or discount). Under "Add to price": choose ${currencySymbol} or %, enter the amount, then Apply. Save to update the backend.`}
       </Typography>
       {topLevelQuestions.map((question) => renderQuestionTable(question))}
       <Popover

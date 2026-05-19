@@ -479,7 +479,7 @@ const PayrollReports = () => {
     });
   };
 
-  const { formatMoney: formatCurrency } = useMoneyFormatter();
+  const { formatMoney: formatCurrency, currencySymbol } = useMoneyFormatter();
 
   const formatTime = (dateString) => {
     if (!dateString) return 'N/A';
@@ -1196,7 +1196,7 @@ const PayrollReports = () => {
                 error={!!formErrors.amount}
                 helperText={formErrors.amount}
                 InputProps={{
-                  startAdornment: <Typography sx={{ mr: 1 }}>$</Typography>,
+                  startAdornment: <Typography sx={{ mr: 1 }}>{currencySymbol}</Typography>,
                 }}
                 inputProps={{ min: 0, step: 0.01 }}
                 required
@@ -1233,7 +1233,7 @@ const PayrollReports = () => {
                 error={!!formErrors.project_value}
                 helperText={formErrors.project_value || 'Optional'}
                 InputProps={{
-                  startAdornment: <Typography sx={{ mr: 1 }}>$</Typography>,
+                  startAdornment: <Typography sx={{ mr: 1 }}>{currencySymbol}</Typography>,
                 }}
                 inputProps={{ min: 0, step: 0.01 }}
               />

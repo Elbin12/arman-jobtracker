@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, Clock, DollarSign, Calendar, X } from 'lucide-react';
+import { MapPin, Clock, Calendar, X } from 'lucide-react';
+import { useMoneyFormatter } from '@/hooks/useMoneyFormatter';
 import { jobsApi, useGetJobsByLocationQuery } from '../../../store/api/jobsApi';
 import { EditJobDialog } from './EditJobDialog';
 import { jobGrandTotalAmount } from '../../../utils/jobPricing';
@@ -8,6 +9,7 @@ import { Box, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitl
 import { useDispatch } from 'react-redux';
 
 export const LocationGroupCard = ({ locationInfo, users }) => {
+  const { formatMoney } = useMoneyFormatter();
   const {
     address,
     job_count,
@@ -201,12 +203,13 @@ export const LocationGroupCard = ({ locationInfo, users }) => {
           {/* Price and Hours */}
           <div className="flex justify-between mb-4 items-center">
             <div className="flex items-center gap-1">
-              <DollarSign className="text-gray-400" size={18} />
               <span className="font-semibold text-gray-900">
-                {jobGrandTotalAmount({
-                  total_price,
-                  total_surcharge,
-                }).toFixed(2)}
+                {formatMoney(
+                  jobGrandTotalAmount({
+                    total_price,
+                    total_surcharge,
+                  }),
+                )}
               </span>
             </div>
             <div className="flex items-center gap-1">

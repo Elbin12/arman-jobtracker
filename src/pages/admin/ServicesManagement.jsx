@@ -48,8 +48,11 @@ import {
 } from '../../store/slices/servicesSlice';
 import { useCreateGlobalBasePriceMutation, useGetGlobalBasePriceQuery, useUpdateGlobalBasePriceMutation } from '../../store/api/globalPriceApi.js';
 import { TableSkeleton } from '../../components/ui/skeletons';
+import { useMoneyFormatter } from '../../hooks/useMoneyFormatter';
+import { InputAdornment } from '@mui/material';
 
 const ServicesManagement = () => {
+  const { currencySymbol } = useMoneyFormatter();
   const dispatch = useDispatch();
   const { 
     wizardOpen, 
@@ -264,11 +267,14 @@ const ServicesManagement = () => {
         mb={3}
       >
         <TextField
-          label="Global Base Price"
+          label={`Global Base Price (${currencySymbol})`}
           type="number"
           value={basePrice}
           onChange={(e) => setBasePrice(e.target.value)}
           disabled={basePriceLoading}
+          InputProps={{
+            startAdornment: <InputAdornment position="start">{currencySymbol}</InputAdornment>,
+          }}
         />
         <Button 
           variant="contained" 

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { useUploadJobImageMutation, useUpdateJobPaymentMethodMutation, useGetJobDetailsQuery, useDeleteJobImageMutation } from "@/store/api/jobsApi"
 import { useToast } from "@/hooks/use-toast"
-import { Upload, X, Loader2, CheckCircle2, DollarSign, Image as ImageIcon, Trash2 } from "lucide-react"
+import { Upload, X, Loader2, CheckCircle2, ClipboardCheck, Image as ImageIcon, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Box, Typography, Divider } from "@mui/material"
 
@@ -251,7 +251,7 @@ export function JobCompletionDetails({ job, onUpdate, onImageClick }) {
       {isCompleted && (
       <Box sx={{ mb: 2 }}>
         <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <DollarSign size={18} />
+          <ClipboardCheck size={18} />
           Completion Details
         </Typography>
       </Box>

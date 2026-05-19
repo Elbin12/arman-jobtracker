@@ -40,8 +40,10 @@ import {
 } from '../../../store/api/payrollApi';
 import { useGetSettingsQuery } from '../../../store/api/payrollApi';
 import { EmployeeListSkeleton } from '../../../components/ui/skeletons';
+import { useMoneyFormatter } from '../../../hooks/useMoneyFormatter';
 
 const PayrollCalculator = () => {
+  const { currencySymbol } = useMoneyFormatter();
   const [calculationType, setCalculationType] = useState('project');
   const [projectTitle, setProjectTitle] = useState('');
   const [jobDate, setJobDate] = useState(new Date().toISOString().split('T')[0]);
@@ -513,7 +515,7 @@ const PayrollCalculator = () => {
                     InputProps={{
                       startAdornment: (
                         <Box sx={{ mr: 1, color: 'text.secondary', fontWeight: 500 }}>
-                          $
+                          {currencySymbol}
                         </Box>
                       ),
                     }}

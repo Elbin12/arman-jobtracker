@@ -50,7 +50,6 @@ import {
   FileText,
   ExternalLink,
   Percent,
-  DollarSign,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import DeleteJobDialog from "./DeleteJobDialog"
@@ -975,7 +974,18 @@ export function JobCard({
                     <>
                       <Box sx={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
                         {discountType === "amount" && (
-                          <DollarSign size={14} style={{ position: 'absolute', left: 10, color: 'rgba(0,0,0,0.5)', pointerEvents: 'none' }} />
+                          <span
+                            style={{
+                              position: 'absolute',
+                              left: 10,
+                              color: 'rgba(0,0,0,0.5)',
+                              pointerEvents: 'none',
+                              fontSize: 13,
+                              fontWeight: 500,
+                            }}
+                          >
+                            {currencySymbol}
+                          </span>
                         )}
                         {discountType === "percentage" && (
                           <Percent size={14} style={{ position: 'absolute', right: 10, color: 'rgba(0,0,0,0.5)', pointerEvents: 'none' }} />

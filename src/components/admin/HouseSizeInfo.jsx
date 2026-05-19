@@ -25,6 +25,7 @@ import {
   useDeleteHouseSizeMutation,
   useUpdateHouseSizesMutation,
 } from "../../store/api/houseSizesApi"
+import { useMoneyFormatter } from "../../hooks/useMoneyFormatter"
 
 const parseNumber = (v) => {
   const n = Number.parseInt(v, 10)
@@ -32,6 +33,7 @@ const parseNumber = (v) => {
 }
 
 const HouseSizeInfo = () => {
+  const { currencySymbol } = useMoneyFormatter()
   const { data: fetched, isLoading: isFetching, isError, error } = useGetHouseSizesQuery()
   const [createHouseSizes, { isLoading: isSaving }] = useCreateHouseSizesMutation()
   const [updateHouseSizes] = useUpdateHouseSizesMutation()
@@ -415,7 +417,7 @@ const HouseSizeInfo = () => {
                         onChange={(e) => handlePackageValueChange(index, pkg, e.target.value)}
                         sx={{ width: 100 }}
                         InputProps={{
-                          startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                          startAdornment: <InputAdornment position="start">{currencySymbol}</InputAdornment>,
                         }}
                       />
                     </TableCell>

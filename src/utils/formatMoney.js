@@ -53,6 +53,69 @@ export function getCurrencySymbol(currency = DEFAULT_ACCOUNT_CURRENCY) {
   }
 }
 
+/**
+ * ASCII-safe currency strings for jsPDF (Helvetica / WinAnsi only).
+ * Unicode symbols like ₹ render as wrong glyphs (often "1") in PDFs.
+ */
+const PDF_CURRENCY_PREFIX = {
+  USD: '$',
+  CAD: 'CA$',
+  AUD: 'A$',
+  NZD: 'NZ$',
+  MXN: 'MX$',
+  INR: 'Rs.',
+  GBP: 'GBP',
+  EUR: 'EUR',
+  CHF: 'CHF',
+  JPY: 'JPY',
+  CNY: 'CNY',
+  SGD: 'SGD',
+  HKD: 'HKD',
+  AED: 'AED',
+  SAR: 'SAR',
+};
+
+const PDF_PREFIX_NO_SPACE = new Set(['$', 'CA$', 'A$', 'NZ$', 'MX$']);
+
+function formatPdfAmountNumber(n) {
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Math.abs(n));
+}
+
+function pdfCurrencyPrefix(currency = DEFAULT_ACCOUNT_CURRENCY) {
+  const code = String(currency || DEFAULT_ACCOUNT_CURRENCY).trim().toUpperCase();
+  return PDF_CURRENCY_PREFIX[code] ?? code;
+}
+
+function joinPdfPrefixAndAmount(prefix, formatted, sign) {
+  if (PDF_PREFIX_NO_SPACE.has(prefix) || prefix.endsWith('$')) {
+    return `${sign}${prefix}${formatted}`;
+  }
+  return `${sign}${prefix} ${formatted}`;
+}
+
+/**
+ * Format money for jsPDF — use instead of formatMoney() in PDF generators.
+ * INR → "Rs. 270.63", USD → "$270.63"
+ */
+export function formatMoneyForPdf(amount, currency = DEFAULT_ACCOUNT_CURRENCY) {
+  const n = typeof amount === 'string' ? Number.parseFloat(amount) : Number(amount);
+  if (amount == null || amount === '' || Number.isNaN(n)) return '—';
+  const prefix = pdfCurrencyPrefix(currency);
+  const sign = n < 0 ? '-' : '';
+  return joinPdfPrefixAndAmount(prefix, formatPdfAmountNumber(n), sign);
+}
+
+export function formatMoneyOrZeroForPdf(amount, currency = DEFAULT_ACCOUNT_CURRENCY) {
+  const n = typeof amount === 'string' ? Number.parseFloat(amount) : Number(amount);
+  if (amount == null || amount === '' || Number.isNaN(n)) {
+    return formatMoneyForPdf(0, currency);
+  }
+  return formatMoneyForPdf(n, currency);
+}
+
 /** Compact amount for tight UI (e.g. mobile dashboard): $12.5k */
 export function formatMoneyCompact(amount, currency = DEFAULT_ACCOUNT_CURRENCY) {
   const n = typeof amount === 'string' ? Number.parseFloat(amount) : Number(amount);

@@ -50,9 +50,10 @@ import {
   useDeleteEmployeeMutation,
 } from '../../../store/api/payrollApi';
 import { CardGridSkeleton } from '../../../components/ui/skeletons';
+import { useMoneyFormatter } from '../../../hooks/useMoneyFormatter';
 
 const PayrollTeamManagement = () => {
-
+  const { formatMoney, currencySymbol } = useMoneyFormatter();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
@@ -492,7 +493,7 @@ const PayrollTeamManagement = () => {
                   {employee.pay_scale_type === 'project' ? (
                     <>Project-based • {employee.collaboration_rates?.[0]?.percentage || 'N/A'}% (solo)</>
                   ) : (
-                    <>${employee.hourly_rate}/hour</>
+                    <>{formatMoney(employee.hourly_rate)}/hour</>
                   )}
                 </Typography>
               </Box>
@@ -841,7 +842,7 @@ const PayrollTeamManagement = () => {
                 error={!!getFieldError('hourly_rate')}
                 helperText={getFieldError('hourly_rate')}
                 InputProps={{
-                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                  startAdornment: <InputAdornment position="start">{currencySymbol}</InputAdornment>,
                   endAdornment: <InputAdornment position="end">/hr</InputAdornment>,
                 }}
                 sx={{

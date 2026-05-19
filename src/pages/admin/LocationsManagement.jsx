@@ -234,7 +234,7 @@ const PlacesAutocomplete = ({ value, onChange, error, helperText }) => {
 }
 
 const LocationsManagement = () => {
-  const { formatMoney } = useMoneyFormatter();
+  const { formatMoney, currencySymbol } = useMoneyFormatter();
   const dispatch = useDispatch()
   const { dialogOpen, editingLocation, formData } = useSelector((state) => state.locations)
 
@@ -502,7 +502,7 @@ const LocationsManagement = () => {
 
             <TextField
               fullWidth
-              label="Trip Surcharge ($)"
+              label={`Trip Surcharge (${currencySymbol})`}
               type="number"
               value={formData.trip_surcharge}
               onChange={(e) => handleFormChange("trip_surcharge", e.target.value)}
