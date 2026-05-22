@@ -1189,6 +1189,12 @@ export function EditJobDialog({
                   employees={employees}
                   employeesLoading={employeesLoading}
                   jobDateYmd={timeData.date?.trim() || null}
+                  jobScheduleTime={{
+                    hour: timeData.hour,
+                    minute: timeData.minute,
+                    period: timeData.period,
+                  }}
+                  jobDurationHours={formData.duration_hours}
                   isUserAssigned={isUserAssigned}
                   onToggleUser={handleUserAssignment}
                 />

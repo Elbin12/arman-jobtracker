@@ -50,6 +50,14 @@ import {
   useDeleteTimeOffMutation,
 } from '../../../store/api/payrollApi';
 import { useToast } from '@/hooks/use-toast';
+import TimeOffCoverageFields from './TimeOffCoverageFields';
+import {
+  DEFAULT_COVERAGE_FORM,
+  buildCoveragePayload,
+  coverageStateFromRow,
+  formatEquivalentDays,
+  formatTimeOffScheduleSummary,
+} from './timeOffCoverage';
 
 /** Matches payroll sub-nav bar (AdminLayout) */
 const PAYROLL_NAVY = '#073D7F';
@@ -135,6 +143,7 @@ function buildTimeOffRequestBody({
   start,
   end,
   notes,
+  coverageState,
 }) {
   if (start > end) {
     return {
@@ -143,10 +152,18 @@ function buildTimeOffRequestBody({
       description: 'End date must be on or after start date.',
     };
   }
+  const coverageBuilt = buildCoveragePayload({
+    startDate: start,
+    endDate: end,
+    ...coverageState,
+  });
+  if (!coverageBuilt.ok) return coverageBuilt;
+
   const body = {
     start_date: start,
     end_date: end,
     kind,
+    ...coverageBuilt.fields,
   };
   const trimmedNotes = (notes ?? '').trim();
   if (trimmedNotes) body.notes = trimmedNotes;
@@ -180,7 +197,7 @@ function buildTimeOffRequestBody({
 }
 
 /** Update payload only — employee stays fixed on the server (standard for PTO / absence edits). */
-function buildTimeOffUpdateBody({ kind, start, end, notes }) {
+function buildTimeOffUpdateBody({ kind, start, end, notes, coverageState }) {
   if (start > end) {
     return {
       ok: false,
@@ -188,10 +205,18 @@ function buildTimeOffUpdateBody({ kind, start, end, notes }) {
       description: 'End date must be on or after start date.',
     };
   }
+  const coverageBuilt = buildCoveragePayload({
+    startDate: start,
+    endDate: end,
+    ...coverageState,
+  });
+  if (!coverageBuilt.ok) return coverageBuilt;
+
   const body = {
     start_date: start,
     end_date: end,
     kind,
+    ...coverageBuilt.fields,
   };
   const trimmedNotes = (notes ?? '').trim();
   if (trimmedNotes) body.notes = trimmedNotes;
@@ -233,6 +258,13 @@ const TimeOffSection = ({ hideHero = false }) => {
   const [formStart, setFormStart] = useState(() => formatYmd(new Date()));
   const [formEnd, setFormEnd] = useState(() => formatYmd(new Date()));
   const [formNotes, setFormNotes] = useState('');
+  const [formCoverage, setFormCoverage] = useState(DEFAULT_COVERAGE_FORM.coverage);
+  const [formStartDayCoverage, setFormStartDayCoverage] = useState(DEFAULT_COVERAGE_FORM.startDayCoverage);
+  const [formEndDayCoverage, setFormEndDayCoverage] = useState(DEFAULT_COVERAGE_FORM.endDayCoverage);
+  const [formStartTime, setFormStartTime] = useState(DEFAULT_COVERAGE_FORM.startTime);
+  const [formEndTime, setFormEndTime] = useState(DEFAULT_COVERAGE_FORM.endTime);
+  const [formEndStartTime, setFormEndStartTime] = useState(DEFAULT_COVERAGE_FORM.endStartTime);
+  const [formEndEndTime, setFormEndEndTime] = useState(DEFAULT_COVERAGE_FORM.endEndTime);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -242,6 +274,33 @@ const TimeOffSection = ({ hideHero = false }) => {
   const [editStart, setEditStart] = useState(() => formatYmd(new Date()));
   const [editEnd, setEditEnd] = useState(() => formatYmd(new Date()));
   const [editNotes, setEditNotes] = useState('');
+  const [editCoverage, setEditCoverage] = useState(DEFAULT_COVERAGE_FORM.coverage);
+  const [editStartDayCoverage, setEditStartDayCoverage] = useState(DEFAULT_COVERAGE_FORM.startDayCoverage);
+  const [editEndDayCoverage, setEditEndDayCoverage] = useState(DEFAULT_COVERAGE_FORM.endDayCoverage);
+  const [editStartTime, setEditStartTime] = useState(DEFAULT_COVERAGE_FORM.startTime);
+  const [editEndTime, setEditEndTime] = useState(DEFAULT_COVERAGE_FORM.endTime);
+  const [editEndStartTime, setEditEndStartTime] = useState(DEFAULT_COVERAGE_FORM.endStartTime);
+  const [editEndEndTime, setEditEndEndTime] = useState(DEFAULT_COVERAGE_FORM.endEndTime);
+
+  const formCoverageState = {
+    coverage: formCoverage,
+    startDayCoverage: formStartDayCoverage,
+    endDayCoverage: formEndDayCoverage,
+    startTime: formStartTime,
+    endTime: formEndTime,
+    endStartTime: formEndStartTime,
+    endEndTime: formEndEndTime,
+  };
+
+  const editCoverageState = {
+    coverage: editCoverage,
+    startDayCoverage: editStartDayCoverage,
+    endDayCoverage: editEndDayCoverage,
+    startTime: editStartTime,
+    endTime: editEndTime,
+    endStartTime: editEndStartTime,
+    endEndTime: editEndEndTime,
+  };
 
   /** Row pending deletion in the confirmation dialog (same shape as list `results` items). */
   const [deleteConfirmRow, setDeleteConfirmRow] = useState(null);
@@ -288,6 +347,14 @@ const TimeOffSection = ({ hideHero = false }) => {
     setEditStart(row.start_date || formatYmd(new Date()));
     setEditEnd(row.end_date || row.start_date || formatYmd(new Date()));
     setEditNotes(row.notes || '');
+    const cov = coverageStateFromRow(row);
+    setEditCoverage(cov.coverage);
+    setEditStartDayCoverage(cov.startDayCoverage);
+    setEditEndDayCoverage(cov.endDayCoverage);
+    setEditStartTime(cov.startTime);
+    setEditEndTime(cov.endTime);
+    setEditEndStartTime(cov.endStartTime);
+    setEditEndEndTime(cov.endEndTime);
     setEditOpen(true);
   };
 
@@ -309,6 +376,7 @@ const TimeOffSection = ({ hideHero = false }) => {
       start: formStart,
       end: formEnd,
       notes: formNotes,
+      coverageState: formCoverageState,
     });
     if (!built.ok) {
       toast({ variant: 'destructive', title: built.title, description: built.description });
@@ -338,6 +406,7 @@ const TimeOffSection = ({ hideHero = false }) => {
       start: editStart,
       end: editEnd,
       notes: editNotes,
+      coverageState: editCoverageState,
     });
     if (!built.ok) {
       toast({ variant: 'destructive', title: built.title, description: built.description });
@@ -444,15 +513,25 @@ const TimeOffSection = ({ hideHero = false }) => {
         <Box sx={{ p: { xs: 2.5, sm: 3 } }}>
           {canManageTimeOff ? (
             <>
-              <Typography variant="subtitle1" fontWeight={600} color="#0f172a" sx={{ mb: 2 }}>
+              <Typography variant="subtitle1" fontWeight={600} color="#0f172a" sx={{ mb: 1.5 }}>
                 Add time off
               </Typography>
 
-              <Box component="form" onSubmit={handleSubmit}>
-                <Stack spacing={2.5}>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} md={6}>
-                      <FormControl fullWidth>
+              <Box
+                component="form"
+                onSubmit={handleSubmit}
+                sx={{
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 2,
+                  bgcolor: 'white',
+                  overflow: 'hidden',
+                }}
+              >
+                <Box sx={{ p: { xs: 1.5, sm: 2 } }}>
+                  <Grid container spacing={1.5} alignItems="center">
+                    <Grid item xs={12} lg={4}>
+                      <FormControl fullWidth size="small">
                         <InputLabel id="timeoff-employee-label" shrink>
                           Employee
                         </InputLabel>
@@ -468,7 +547,7 @@ const TimeOffSection = ({ hideHero = false }) => {
                           renderValue={(selected) => {
                             if (!selected) {
                               return (
-                                <Typography component="span" color="text.secondary">
+                                <Typography component="span" color="text.secondary" fontSize="0.875rem">
                                   Select employee
                                 </Typography>
                               );
@@ -476,34 +555,30 @@ const TimeOffSection = ({ hideHero = false }) => {
                             const emp = employees.find(
                               (e) => getEmployeeOptionKey(e) === String(selected)
                             );
-                            if (!emp) {
-                              return String(selected);
-                            }
+                            if (!emp) return String(selected);
                             return (
-                              <Box display="flex" alignItems="center" gap={1.5}>
-                                <Avatar
-                                  sx={{ width: 32, height: 32, fontSize: '0.875rem' }}
-                                >
+                              <Box display="flex" alignItems="center" gap={1}>
+                                <Avatar sx={{ width: 24, height: 24, fontSize: '0.65rem' }}>
                                   {getInitials(emp.full_name)}
                                 </Avatar>
-                                {emp.full_name}
+                                <Typography noWrap fontSize="0.875rem">
+                                  {emp.full_name}
+                                </Typography>
                               </Box>
                             );
                           }}
-                          sx={{ borderRadius: 2 }}
+                          sx={{ borderRadius: 1.5 }}
                         >
-                          <MenuItem value="">
+                          <MenuItem value="" dense>
                             <em>Select employee</em>
                           </MenuItem>
                           {employees.map((emp) => {
                             const optKey = getEmployeeOptionKey(emp);
                             if (!optKey) return null;
                             return (
-                              <MenuItem key={optKey} value={optKey}>
-                                <Box display="flex" alignItems="center" gap={1.5}>
-                                  <Avatar
-                                    sx={{ width: 32, height: 32, fontSize: '0.875rem' }}
-                                  >
+                              <MenuItem key={optKey} value={optKey} dense>
+                                <Box display="flex" alignItems="center" gap={1}>
+                                  <Avatar sx={{ width: 24, height: 24, fontSize: '0.65rem' }}>
                                     {getInitials(emp.full_name)}
                                   </Avatar>
                                   {emp.full_name}
@@ -514,83 +589,111 @@ const TimeOffSection = ({ hideHero = false }) => {
                         </Select>
                       </FormControl>
                     </Grid>
-                    <Grid item xs={12} sm={6} md={6}>
-                      <FormControl fullWidth>
+                    <Grid item xs={6} sm={4} lg={2}>
+                      <FormControl fullWidth size="small">
                         <InputLabel id="timeoff-kind-label">Type</InputLabel>
                         <Select
                           labelId="timeoff-kind-label"
                           value={formKind}
                           label="Type"
                           onChange={(e) => setFormKind(e.target.value)}
-                          sx={{ borderRadius: 2 }}
+                          sx={{ borderRadius: 1.5 }}
                         >
                           {KIND_OPTIONS.map((opt) => (
-                            <MenuItem key={opt.value} value={opt.value}>
+                            <MenuItem key={opt.value} value={opt.value} dense>
                               {opt.label}
                             </MenuItem>
                           ))}
                         </Select>
                       </FormControl>
                     </Grid>
-                    <Grid item xs={12} sm={6} md={4}>
+                    <Grid item xs={6} sm={4} lg={3}>
                       <TextField
                         fullWidth
+                        size="small"
                         type="date"
-                        label="Start date"
+                        label="Start"
                         value={formStart}
                         onChange={(e) => setFormStart(e.target.value)}
                         InputLabelProps={{ shrink: true }}
-                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, bgcolor: '#f8fafc' } }}
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
                       />
                     </Grid>
-                    <Grid item xs={12} sm={6} md={4}>
+                    <Grid item xs={12} sm={4} lg={3}>
                       <TextField
                         fullWidth
+                        size="small"
                         type="date"
-                        label="End date"
+                        label="End"
                         value={formEnd}
                         onChange={(e) => setFormEnd(e.target.value)}
                         InputLabelProps={{ shrink: true }}
-                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, bgcolor: '#f8fafc' } }}
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TimeOffCoverageFields
+                        startDate={formStart}
+                        endDate={formEnd}
+                        coverage={formCoverage}
+                        startDayCoverage={formStartDayCoverage}
+                        endDayCoverage={formEndDayCoverage}
+                        startTime={formStartTime}
+                        endTime={formEndTime}
+                        endStartTime={formEndStartTime}
+                        endEndTime={formEndEndTime}
+                        onCoverageChange={setFormCoverage}
+                        onStartDayCoverageChange={setFormStartDayCoverage}
+                        onEndDayCoverageChange={setFormEndDayCoverage}
+                        onStartTimeChange={setFormStartTime}
+                        onEndTimeChange={setFormEndTime}
+                        onEndStartTimeChange={setFormEndStartTime}
+                        onEndEndTimeChange={setFormEndEndTime}
                       />
                     </Grid>
                     <Grid item xs={12}>
                       <TextField
                         fullWidth
-                        multiline
-                        rows={2}
-                        label="Notes (optional)"
+                        size="small"
+                        placeholder="Notes (optional)"
                         value={formNotes}
                         onChange={(e) => setFormNotes(e.target.value)}
-                        placeholder="e.g. Approved PTO, doctor appointment…"
-                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, bgcolor: '#f8fafc' } }}
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
                       />
                     </Grid>
                   </Grid>
+                </Box>
 
+                <Box
+                  sx={{
+                    px: { xs: 1.5, sm: 2 },
+                    py: 1.25,
+                    borderTop: '1px solid',
+                    borderColor: 'divider',
+                    bgcolor: '#fafbfc',
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                  }}
+                >
                   <Button
                     type="submit"
                     variant="contained"
+                    size="small"
                     disabled={creating}
-                    startIcon={creating ? <CircularProgress size={20} color="inherit" /> : null}
+                    startIcon={creating ? <CircularProgress size={16} color="inherit" /> : null}
                     sx={{
-                      alignSelf: { xs: 'stretch', sm: 'flex-start' },
                       bgcolor: PAYROLL_NAVY,
                       textTransform: 'none',
                       fontWeight: 600,
-                      px: 3,
-                      py: 1.25,
-                      borderRadius: 2,
-                      boxShadow: `0 4px 12px ${alpha(PAYROLL_NAVY, 0.35)}`,
-                      '&:hover': {
-                        bgcolor: '#062e63',
-                        boxShadow: `0 6px 16px ${alpha(PAYROLL_NAVY, 0.4)}`,
-                      },
+                      px: 2.5,
+                      borderRadius: 1.5,
+                      boxShadow: 'none',
+                      '&:hover': { bgcolor: '#062e63', boxShadow: 'none' },
                     }}
                   >
-                    {creating ? 'Saving…' : 'Record time off'}
+                    {creating ? 'Saving…' : 'Save time off'}
                   </Button>
-                </Stack>
+                </Box>
               </Box>
             </>
           ) : (
@@ -690,8 +793,9 @@ const TimeOffSection = ({ hideHero = false }) => {
                           <TableCell sx={{ fontWeight: 600, color: '#64748b', fontSize: '0.8125rem' }}>Employee</TableCell>
                         )}
                         <TableCell sx={{ fontWeight: 600, color: '#64748b', fontSize: '0.8125rem' }}>Type</TableCell>
-                        <TableCell sx={{ fontWeight: 600, color: '#64748b', fontSize: '0.8125rem' }}>Start</TableCell>
-                        <TableCell sx={{ fontWeight: 600, color: '#64748b', fontSize: '0.8125rem' }}>End</TableCell>
+                        <TableCell sx={{ fontWeight: 600, color: '#64748b', fontSize: '0.8125rem' }}>Dates</TableCell>
+                        <TableCell sx={{ fontWeight: 600, color: '#64748b', fontSize: '0.8125rem' }}>Schedule</TableCell>
+                        <TableCell sx={{ fontWeight: 600, color: '#64748b', fontSize: '0.8125rem' }}>Days</TableCell>
                         <TableCell sx={{ fontWeight: 600, color: '#64748b', fontSize: '0.8125rem' }}>Notes</TableCell>
                         {canManageTimeOff && (
                           <TableCell
@@ -744,14 +848,37 @@ const TimeOffSection = ({ hideHero = false }) => {
                               />
                             </TableCell>
                             <TableCell>
-                              <Typography variant="body2" fontWeight={500}>
+                              <Typography variant="body2" fontWeight={500} color="#0f172a">
                                 {formatDisplayDate(row.start_date)}
+                              </Typography>
+                              {row.start_date !== row.end_date && (
+                                <Typography variant="caption" color="text.secondary" display="block">
+                                  → {formatDisplayDate(row.end_date)}
+                                </Typography>
+                              )}
+                            </TableCell>
+                            <TableCell sx={{ maxWidth: 220 }}>
+                              <Typography variant="body2" color="#334155">
+                                {formatTimeOffScheduleSummary(row)}
                               </Typography>
                             </TableCell>
                             <TableCell>
-                              <Typography variant="body2" fontWeight={500}>
-                                {formatDisplayDate(row.end_date)}
-                              </Typography>
+                              {formatEquivalentDays(row.equivalent_days) ? (
+                                <Chip
+                                  label={formatEquivalentDays(row.equivalent_days)}
+                                  size="small"
+                                  sx={{
+                                    fontWeight: 600,
+                                    bgcolor: alpha(PAYROLL_NAVY, 0.08),
+                                    color: PAYROLL_NAVY,
+                                    border: `1px solid ${alpha(PAYROLL_NAVY, 0.2)}`,
+                                  }}
+                                />
+                              ) : (
+                                <Typography variant="body2" color="text.secondary">
+                                  —
+                                </Typography>
+                              )}
                             </TableCell>
                             <TableCell sx={{ maxWidth: 280 }}>
                               <Typography variant="body2" color="text.secondary" sx={{ wordBreak: 'break-word' }}>
@@ -891,8 +1018,26 @@ const TimeOffSection = ({ hideHero = false }) => {
                         }}
                       />
                       <Typography variant="caption" color="text.secondary" display="block">
-                        {formatDisplayDate(row.start_date)} → {formatDisplayDate(row.end_date)}
+                        {formatDisplayDate(row.start_date)}
+                        {row.start_date !== row.end_date
+                          ? ` → ${formatDisplayDate(row.end_date)}`
+                          : ''}
                       </Typography>
+                      <Typography variant="body2" color="#334155" sx={{ mt: 0.75 }}>
+                        {formatTimeOffScheduleSummary(row)}
+                      </Typography>
+                      {formatEquivalentDays(row.equivalent_days) && (
+                        <Chip
+                          label={formatEquivalentDays(row.equivalent_days)}
+                          size="small"
+                          sx={{
+                            mt: 1,
+                            fontWeight: 600,
+                            bgcolor: alpha(PAYROLL_NAVY, 0.08),
+                            color: PAYROLL_NAVY,
+                          }}
+                        />
+                      )}
                       {row.notes && (
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                           {row.notes}
@@ -912,100 +1057,126 @@ const TimeOffSection = ({ hideHero = false }) => {
             if (!updating) closeEditDialog();
           }}
           fullWidth
-          maxWidth="sm"
+          maxWidth="md"
           PaperProps={{ sx: { borderRadius: 3 } }}
         >
-          <DialogTitle sx={{ fontWeight: 700, color: '#0f172a', pb: 1 }}>Edit time off</DialogTitle>
-          <DialogContent>
-            <Stack spacing={2.5} sx={{ pt: 1 }}>
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <Box
-                    sx={{
-                      p: 2,
-                      borderRadius: 2,
-                      bgcolor: '#f8fafc',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 2,
-                    }}
+          <DialogTitle sx={{ fontWeight: 700, color: '#0f172a', py: 1.5, pb: 0.5 }}>
+            Edit time off
+          </DialogTitle>
+          <DialogContent sx={{ pt: 1, pb: 1.5 }}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                py: 1,
+                px: 1.5,
+                mb: 1.5,
+                borderRadius: 1.5,
+                bgcolor: '#f8fafc',
+                border: '1px solid',
+                borderColor: 'divider',
+              }}
+            >
+              <Avatar sx={{ width: 32, height: 32, bgcolor: PAYROLL_NAVY, fontSize: '0.75rem' }}>
+                {getInitials(editEmployeeDisplay?.name)}
+              </Avatar>
+              <Box minWidth={0}>
+                <Typography variant="body2" fontWeight={600} color="#0f172a" noWrap>
+                  {editEmployeeDisplay?.name || 'Employee'}
+                </Typography>
+                {editEmployeeDisplay?.email ? (
+                  <Typography variant="caption" color="text.secondary" noWrap display="block">
+                    {editEmployeeDisplay.email}
+                  </Typography>
+                ) : null}
+              </Box>
+            </Box>
+
+            <Grid container spacing={1.5} alignItems="center">
+              <Grid item xs={12} sm={4}>
+                <FormControl fullWidth size="small">
+                  <InputLabel id="timeoff-edit-kind-label">Type</InputLabel>
+                  <Select
+                    labelId="timeoff-edit-kind-label"
+                    value={editKind}
+                    label="Type"
+                    onChange={(e) => setEditKind(e.target.value)}
+                    sx={{ borderRadius: 1.5 }}
                   >
-                    <Avatar sx={{ width: 44, height: 44, bgcolor: PAYROLL_NAVY, fontSize: '1rem' }}>
-                      {getInitials(editEmployeeDisplay?.name)}
-                    </Avatar>
-                    <Box minWidth={0}>
-                      <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                        Employee
-                      </Typography>
-                      <Typography variant="body1" fontWeight={600} color="#0f172a" noWrap>
-                        {editEmployeeDisplay?.name || 'Employee'}
-                      </Typography>
-                      {editEmployeeDisplay?.email ? (
-                        <Typography variant="caption" color="text.secondary" noWrap display="block">
-                          {editEmployeeDisplay.email}
-                        </Typography>
-                      ) : null}
-                    </Box>
-                  </Box>
-                </Grid>
-                <Grid item xs={12}>
-                  <FormControl fullWidth>
-                    <InputLabel id="timeoff-edit-kind-label">Type</InputLabel>
-                    <Select
-                      labelId="timeoff-edit-kind-label"
-                      value={editKind}
-                      label="Type"
-                      onChange={(e) => setEditKind(e.target.value)}
-                      sx={{ borderRadius: 2 }}
-                    >
-                      {KIND_OPTIONS.map((opt) => (
-                        <MenuItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    type="date"
-                    label="Start date"
-                    value={editStart}
-                    onChange={(e) => setEditStart(e.target.value)}
-                    InputLabelProps={{ shrink: true }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, bgcolor: '#f8fafc' } }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    type="date"
-                    label="End date"
-                    value={editEnd}
-                    onChange={(e) => setEditEnd(e.target.value)}
-                    InputLabelProps={{ shrink: true }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, bgcolor: '#f8fafc' } }}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    multiline
-                    rows={2}
-                    label="Notes (optional)"
-                    value={editNotes}
-                    onChange={(e) => setEditNotes(e.target.value)}
-                    placeholder="e.g. Approved PTO, doctor appointment…"
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, bgcolor: '#f8fafc' } }}
-                  />
-                </Grid>
+                    {KIND_OPTIONS.map((opt) => (
+                      <MenuItem key={opt.value} value={opt.value} dense>
+                        {opt.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </Grid>
-            </Stack>
+              <Grid item xs={6} sm={4}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="date"
+                  label="Start"
+                  value={editStart}
+                  onChange={(e) => setEditStart(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+                />
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="date"
+                  label="End"
+                  value={editEnd}
+                  onChange={(e) => setEditEnd(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TimeOffCoverageFields
+                  startDate={editStart}
+                  endDate={editEnd}
+                  coverage={editCoverage}
+                  startDayCoverage={editStartDayCoverage}
+                  endDayCoverage={editEndDayCoverage}
+                  startTime={editStartTime}
+                  endTime={editEndTime}
+                  endStartTime={editEndStartTime}
+                  endEndTime={editEndEndTime}
+                  onCoverageChange={setEditCoverage}
+                  onStartDayCoverageChange={setEditStartDayCoverage}
+                  onEndDayCoverageChange={setEditEndDayCoverage}
+                  onStartTimeChange={setEditStartTime}
+                  onEndTimeChange={setEditEndTime}
+                  onEndStartTimeChange={setEditEndStartTime}
+                  onEndEndTimeChange={setEditEndEndTime}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Notes (optional)"
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+                />
+              </Grid>
+            </Grid>
           </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 2.5, pt: 0, gap: 1 }}>
+          <DialogActions
+            sx={{
+              px: 2,
+              py: 1.25,
+              borderTop: '1px solid',
+              borderColor: 'divider',
+              gap: 1,
+            }}
+          >
             <Button onClick={closeEditDialog} disabled={updating} color="inherit" sx={{ textTransform: 'none' }}>
               Cancel
             </Button>
@@ -1080,7 +1251,13 @@ const TimeOffSection = ({ hideHero = false }) => {
                   ) : null}
                   <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
                     {(kindMeta[deleteConfirmRow.kind] || kindMeta.other).label} ·{' '}
-                    {formatDisplayDate(deleteConfirmRow.start_date)} — {formatDisplayDate(deleteConfirmRow.end_date)}
+                    {formatDisplayDate(deleteConfirmRow.start_date)}
+                    {deleteConfirmRow.start_date !== deleteConfirmRow.end_date
+                      ? ` — ${formatDisplayDate(deleteConfirmRow.end_date)}`
+                      : ''}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    {formatTimeOffScheduleSummary(deleteConfirmRow)}
                   </Typography>
                 </Box>
               </Box>

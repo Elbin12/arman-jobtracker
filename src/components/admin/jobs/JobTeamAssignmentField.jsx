@@ -11,6 +11,10 @@ import {
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useGetAvailableEmployeesForDateQuery } from "../../../store/api/payrollApi";
+import {
+  buildAvailableEmployeesQueryParams,
+  describeAvailabilityWindow,
+} from "../../../utils/availableEmployeesQuery";
 
 export function getEmployeeAssignmentUserId(employee) {
   const v = employee.user_id ?? employee.id;
@@ -31,24 +35,55 @@ function formatJobDateLabel(ymd) {
 }
 
 /**
- * Full team list with PTO / unavailable badges for jobDateYmd.
- * — No job date: everyone is shown; all checkboxes disabled until a date is set.
- * — With date: availability loads; unavailable users cannot be selected (checkbox disabled).
- * — If someone is already assigned but becomes unavailable, they can still be unchecked.
+ * Full team list with PTO / unavailable badges for a job date (and optional time slot).
+ *
+ * Availability uses GET /payroll/time-off/available-employees/:
+ * - date only → full-day overlap (legacy)
+ * - date + job time + duration → from_time / to_time (half-day PTO can still be assignable)
  */
 export function JobTeamAssignmentField({
   employees = [],
   employeesLoading,
   jobDateYmd,
+  /** { hour, minute, period: 'AM'|'PM' } from job schedule */
+  jobScheduleTime,
+  /** Estimated job length in hours (default 2) */
+  jobDurationHours = 2,
   isUserAssigned,
   onToggleUser,
 }) {
-  const dateParam = jobDateYmd?.trim() || null;
-  const noJobDateYet = !dateParam;
+  const availabilityParams = useMemo(
+    () =>
+      buildAvailableEmployeesQueryParams({
+        date: jobDateYmd?.trim() || undefined,
+        hour: jobScheduleTime?.hour,
+        minute: jobScheduleTime?.minute,
+        ampm: jobScheduleTime?.period,
+        duration_hours: jobDurationHours,
+      }),
+    [
+      jobDateYmd,
+      jobScheduleTime?.hour,
+      jobScheduleTime?.minute,
+      jobScheduleTime?.period,
+      jobDurationHours,
+    ]
+  );
+
+  const noJobDateYet = !availabilityParams?.date;
 
   const { data, isFetching, isError } = useGetAvailableEmployeesForDateQuery(
-    dateParam,
-    { skip: !dateParam }
+    availabilityParams,
+    { skip: !availabilityParams }
+  );
+
+  const windowLabel = useMemo(
+    () => describeAvailabilityWindow(availabilityParams),
+    [availabilityParams]
+  );
+
+  const usesTimeSlot = Boolean(
+    availabilityParams?.from_time && availabilityParams?.to_time
   );
 
   const availableUserIds = useMemo(() => {
@@ -56,15 +91,16 @@ export function JobTeamAssignmentField({
     return new Set(list.map((e) => Number(e.id)));
   }, [data]);
 
-  const availabilityResolved = Boolean(dateParam) && !isFetching && !isError;
-  const waitingOnAvailability = Boolean(dateParam) && isFetching;
+  const dateParam = availabilityParams?.date;
+  const availabilityResolved = Boolean(availabilityParams) && !isFetching && !isError;
+  const waitingOnAvailability = Boolean(availabilityParams) && isFetching;
 
   const describeAvailability = (userId) => {
     const n = Number(userId);
     if (!Number.isFinite(n)) {
       return { showUnavailable: false, unknown: true };
     }
-    if (!dateParam || isError) {
+    if (!availabilityParams || isError) {
       return { showUnavailable: false, unknown: true };
     }
     if (isFetching) {
@@ -103,7 +139,7 @@ export function JobTeamAssignmentField({
           {waitingOnAvailability && (
             <span className="inline-flex items-center gap-1.5">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Checking availability for {formatJobDateLabel(dateParam)}…
+              Checking availability…
             </span>
           )}
           {dateParam && availabilityResolved && (
@@ -112,15 +148,23 @@ export function JobTeamAssignmentField({
               <span className="font-medium text-foreground">
                 {formatJobDateLabel(dateParam)}
               </span>
-              . People marked unavailable cannot be assigned.
+              {usesTimeSlot ? (
+                <>
+                  {" "}
+                  ·{" "}
+                  <span className="font-medium text-foreground">{windowLabel}</span>
+                </>
+              ) : null}
+              . People marked unavailable cannot be assigned
+              {usesTimeSlot ? " for that time" : " that day"}.
             </span>
           )}
         </div>
 
         {isError && dateParam ? (
           <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200/80 rounded-md px-3 py-2">
-            Could not load availability for this date. Everyone is shown without PTO
-            indicators; assignment is allowed once loading finishes or try again.
+            Could not load availability. Everyone is shown without PTO indicators; try
+            again or continue with caution.
           </p>
         ) : null}
 
@@ -201,24 +245,34 @@ export function JobTeamAssignmentField({
                       <>
                         <p className="font-medium">Assignment locked</p>
                         <p className="text-muted-foreground text-xs mt-1">
-                          Choose a job date (and time) above. Then you can assign team
-                          members based on availability.
+                          Choose a job date and time above. Then you can assign team
+                          members based on PTO and availability.
                         </p>
                       </>
                     ) : showWaitTooltip ? (
                       <>
                         <p className="font-medium">One moment</p>
                         <p className="text-muted-foreground text-xs mt-1">
-                          Loading who is available for {formatJobDateLabel(dateParam)}…
+                          Loading who is available for {formatJobDateLabel(dateParam)}
+                          {usesTimeSlot ? ` (${windowLabel})` : ""}…
                         </p>
                       </>
                     ) : (
                       <>
-                        <p className="font-medium">Not available this day</p>
+                        <p className="font-medium">
+                          {usesTimeSlot ? "Not available at job time" : "Not available this day"}
+                        </p>
                         <p className="text-muted-foreground text-xs mt-1">
-                          {employee.full_name} is not on the available list for{" "}
-                          {formatJobDateLabel(dateParam)} (may include PTO or other time
-                          off). They cannot be assigned unless you change the date.
+                          {employee.full_name} has time off that overlaps{" "}
+                          {usesTimeSlot ? (
+                            <>
+                              the scheduled window ({windowLabel}) on{" "}
+                              {formatJobDateLabel(dateParam)}
+                            </>
+                          ) : (
+                            <>all of {formatJobDateLabel(dateParam)}</>
+                          )}
+                          . They cannot be newly assigned unless you change the schedule.
                         </p>
                         {assigned ? (
                           <p className="text-xs mt-2 text-foreground">

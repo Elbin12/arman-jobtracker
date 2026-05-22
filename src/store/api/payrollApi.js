@@ -160,9 +160,12 @@ export const payrollApi = createApi({
       invalidatesTags: ['TimeOff'],
     }),
     getAvailableEmployeesForDate: builder.query({
-      query: (date) => ({
+      query: (params) => ({
         url: 'time-off/available-employees/',
-        params: { date },
+        params:
+          typeof params === 'string'
+            ? { date: params }
+            : params,
       }),
     }),
   }),

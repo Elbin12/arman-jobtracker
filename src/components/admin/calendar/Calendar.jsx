@@ -578,6 +578,10 @@ const calendarStyles = `
 import { JobCard } from "../jobs/JobCard";
 import { jobsApi, useGetCalendarJobsQuery, useGetAppointmentsCalendarQuery, useGetEstimateAppointmentsCalendarQuery, useGetJobDetailsQuery, useUpdateAppointmentMutation, useDeleteAppointmentMutation, useUpdateEstimateStatusMutation, useDeleteEstimateMutation } from "../../../store/api/jobsApi";
 import { useGetTimeOffListQuery, useGetEmployeesQuery } from "../../../store/api/payrollApi";
+import {
+  formatEquivalentDays,
+  formatTimeOffScheduleSummary,
+} from "../payroll/timeOffCoverage";
 import { useSelector, useDispatch } from "react-redux";
 import { EditJobDialog } from "../jobs/EditJobDialog";
 import { TimelineSidebar } from "./TimelineSidebar";
@@ -3889,6 +3893,20 @@ appointmentsParams.search = filterParams.appointment_search;
                 <span className="text-muted-foreground">To</span>
                 <span>{selectedTimeOff.end_date}</span>
               </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">Schedule</span>
+                <span className="font-medium text-right">
+                  {formatTimeOffScheduleSummary(selectedTimeOff)}
+                </span>
+              </div>
+              {formatEquivalentDays(selectedTimeOff.equivalent_days) && (
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">Equivalent</span>
+                  <span className="font-medium">
+                    {formatEquivalentDays(selectedTimeOff.equivalent_days)}
+                  </span>
+                </div>
+              )}
               {selectedTimeOff.employee_email && (
                 <div className="flex justify-between gap-2 min-w-0">
                   <span className="text-muted-foreground shrink-0">Email</span>
