@@ -1536,10 +1536,15 @@ const QuoteDetailsPage = () => {
                       const totalServicePrice =
                         service_selections?.reduce((sum, s) => sum + Number(s.final_total_price || 0), 0) || 0
 
-                      const subtotal = totalServicePrice+Number(custom_service_total)
+                      const subtotal = totalServicePrice + Number(custom_service_total || 0)
 
-
-                      const finalNumeric = Number(final_total || 0) + Number(custom_service_total || 0)
+                      // final_total already includes custom services, surcharges, and minimum-price floor
+                      const lineSubtotal =
+                        totalServicePrice +
+                        Number(custom_service_total || 0) +
+                        Number(total_surcharges || 0)
+                      const storedFinal = Number(final_total || 0)
+                      const finalNumeric = storedFinal > 0 ? storedFinal : lineSubtotal
                       const taxRate = parseFloat(import.meta.env.VITE_TAX_RATE) || 0.0825
                       const taxAmount = finalNumeric * taxRate
                       const finalWithTax = finalNumeric + taxAmount
