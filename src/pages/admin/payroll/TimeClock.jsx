@@ -44,6 +44,7 @@ import {
 } from '../../../store/api/payrollApi';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import { canAccessPayrollTimeClock } from '../../../utils/payrollAccess';
 
 const TimeClock = () => {
   const [selectedEmployee, setSelectedEmployee] = useState('');
@@ -51,6 +52,7 @@ const TimeClock = () => {
   
   const user = useSelector((state) => state.auth.user);
   const user_profile = useSelector((state) => state.auth.user_profile);
+  const normalizedRole = String(user?.role ?? 'worker').toLowerCase();
   const { data: employeesData } = useGetEmployeesQuery({ pay_scale_type: 'hourly', is_active: true });
   const { data: todayEntries, refetch: refetchToday } = useGetTodayTimeEntriesQuery();
   const { data: activeSession, refetch: refetchActive } = useGetActiveSessionQuery();
@@ -62,15 +64,20 @@ const TimeClock = () => {
   const activeEntries = todayEntries?.entries?.filter((entry) => entry.status === 'checked_in') || [];
   const completedEntries = todayEntries?.entries?.filter((entry) => entry.status === 'checked_out') || [];
 
-  const isManagerOrSupervisor = user?.role === 'manager' || user?.role === 'supervisor' || user?.role === 'admin';
+  const isManagerOrSupervisor = normalizedRole === 'manager' || normalizedRole === 'supervisor' || normalizedRole === 'admin';
 
   const navigate = useNavigate();
 
   useEffect(() => {
-    if(user?.role === 'worker' && user_profile?.pay_scale_type === 'project') {
-      navigate('/admin/payroll/reports');
+    const needsPayScaleType = normalizedRole === 'worker' || normalizedRole === 'manager';
+    if (needsPayScaleType && !user_profile) {
+      return;
     }
-  }, [user]);
+
+    if (!canAccessPayrollTimeClock(user?.role, user_profile)) {
+      navigate('/admin/payroll/reports', { replace: true });
+    }
+  }, [navigate, normalizedRole, user, user_profile]);
   
   // Calculate elapsed hours for an entry if not provided
   const calculateElapsedHours = (entry) => {

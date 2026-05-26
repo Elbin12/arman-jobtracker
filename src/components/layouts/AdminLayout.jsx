@@ -59,6 +59,10 @@ import { useDispatch, useSelector } from "react-redux"
 import { logoutUser } from "../../store/slices/authSlice"
 import AdminFooter from "../admin/AdminFooter"
 import CompanyLogo from "../CompanyLogo"
+import {
+  canAccessPayrollAdminSections,
+  canAccessPayrollTimeClock,
+} from "../../utils/payrollAccess"
 
 // Navigation configuration based on roles
 const getNavItemsByRole = (role, fullAccessRoles, user_profile) => {
@@ -108,18 +112,16 @@ const getNavItemsByRole = (role, fullAccessRoles, user_profile) => {
   return []
 }
 
-const getPayrollSubNavByRole = (role, fullAccessRoles, user_profile) => {
-  // Time Clock: Always show for admins, only show for workers if pay_scale_type is hourly
+const getPayrollSubNavByRole = (role, user_profile) => {
+  const canSeeTimeClock = canAccessPayrollTimeClock(role, user_profile)
+  const canSeeAdminSections = canAccessPayrollAdminSections(role)
+
   const timeClockItem = {
     text: "Time Clock",
     path: "/admin/payroll",
     icon: AccessTime,
     roles: ["admin", "worker"],
   }
-
-  const shouldShowTimeClock = 
-    fullAccessRoles.includes(role) || // Always show for admins
-    (role === "worker" && user_profile?.pay_scale_type === "hourly") // Show for workers only if hourly
 
   const timeOffItem = {
     text: "Time Off",
@@ -129,8 +131,7 @@ const getPayrollSubNavByRole = (role, fullAccessRoles, user_profile) => {
   }
 
   const commonPayrollItems = [
-    // { text: "Payroll Home", path: "/admin/payroll", icon: AttachMoney, roles: ["admin", "worker"] },
-    ...(shouldShowTimeClock ? [timeClockItem] : []),
+    ...(canSeeTimeClock ? [timeClockItem] : []),
     timeOffItem,
     { text: "Reports", path: "/admin/payroll/reports", icon: Assessment, roles: ["admin", "worker"] },
   ]
@@ -141,7 +142,7 @@ const getPayrollSubNavByRole = (role, fullAccessRoles, user_profile) => {
     // { text: "Team Management", path: "/admin/payroll/team", icon: PeopleAlt, roles: ["admin"] },
   ]
 
-  if (fullAccessRoles.includes(role)) {
+  if (canSeeAdminSections) {
     return [...commonPayrollItems, ...adminOnlyPayrollItems]
   }
 
@@ -193,8 +194,8 @@ export const AdminLayout = ({ children }) => {
   )
   
   const payrollSubNavItems = useMemo(() => 
-    getPayrollSubNavByRole(userRole, fullAccessRoles, user_profile),
-    [userRole, user_profile, fullAccessRoles]
+    getPayrollSubNavByRole(userRole, user_profile),
+    [userRole, user_profile]
   )
   
   const managementItems = useMemo(() => {

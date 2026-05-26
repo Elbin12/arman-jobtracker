@@ -53,6 +53,7 @@ import {
 import { TableSkeleton } from '../../../components/ui/skeletons';
 import { useSelector } from 'react-redux';
 import { useMoneyFormatter } from '../../../hooks/useMoneyFormatter';
+import { canAccessPayrollAdminSections } from '../../../utils/payrollAccess';
 
 function formatYmd(date) {
   const y = date.getFullYear();
@@ -64,7 +65,7 @@ function formatYmd(date) {
 const PayrollReports = () => {
   const user = useSelector((state) => state.auth.user);
   const userRole = user?.role || 'worker';
-  const canEditDelete = ['admin', 'supervisor', "manager"].includes(userRole);
+  const canEditDelete = canAccessPayrollAdminSections(userRole);
 
   // Default date range: month-to-date (first day of this month – today).
   const getDefaultDateRange = () => {

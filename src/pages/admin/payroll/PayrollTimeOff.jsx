@@ -2,12 +2,11 @@ import React from 'react';
 import { Box, Typography } from '@mui/material';
 import { useSelector } from 'react-redux';
 import TimeOffSection from '../../../components/admin/payroll/TimeOffSection';
+import { canManagePayrollTimeOff } from '../../../utils/payrollAccess';
 
 const PayrollTimeOff = () => {
   const user = useSelector((state) => state.auth.user);
-  const normalizedRole = String(user?.role ?? 'worker').toLowerCase();
-  const isManagerOrSupervisor = ['admin', 'manager', 'supervisor'].includes(normalizedRole);
-  const canManageTimeOff = isManagerOrSupervisor || Boolean(user?.is_admin);
+  const canManageTimeOff = canManagePayrollTimeOff(user);
   const getCurrentDate = () => {
     const date = new Date();
     return date.toLocaleDateString('en-US', {

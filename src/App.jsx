@@ -1,5 +1,5 @@
 import React from 'react';
-import { Provider } from 'react-redux';
+import { Provider, useSelector } from 'react-redux';
 import { persistor, store } from './store/index.js';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -45,6 +45,7 @@ import PayrollSettings from './pages/admin/payroll/PayrollSettings.jsx';
 import PayrollTeamManagement from './pages/admin/payroll/PayrollTeamManagement.jsx';
 import Contacts from './pages/admin/Contacts.jsx';
 import ContactDetail from './pages/admin/ContactDetail.jsx';
+import { canAccessPayrollTimeClock } from './utils/payrollAccess.js';
 
 // Create Material-UI theme that integrates with our design system
 const theme = createTheme({
@@ -79,6 +80,23 @@ const theme = createTheme({
 });
 
 const queryClient = new QueryClient();
+
+const PayrollTimeClockRoute = () => {
+  const user = useSelector((state) => state.auth.user);
+  const userProfile = useSelector((state) => state.auth.user_profile);
+  const role = String(user?.role ?? 'worker').toLowerCase();
+  const needsPayScaleType = role === 'worker' || role === 'manager';
+
+  if (needsPayScaleType && !userProfile) {
+    return null;
+  }
+
+  if (!canAccessPayrollTimeClock(user?.role, userProfile)) {
+    return <Navigate to="/admin/payroll/reports" replace />;
+  }
+
+  return <TimeClock />;
+};
 
 function App() {
   return (
@@ -202,12 +220,17 @@ function App() {
                     />
                     
                     {/* Payroll Routes */}
-                    <Route path="payroll" element={<TimeClock />} />
+                    <Route path="payroll" element={<PayrollTimeClockRoute />} />
                     <Route path="payroll/time-off" element={<PayrollTimeOff />} />
-                    <Route path="payroll/calculator" element={<PayrollCalculator />} />
+                    <Route path="payroll/calculator" element={
+                        <RoleProtectedRoute allowedRoles={['admin', 'supervisor']} redirectPath="/admin/payroll/reports">
+                          <PayrollCalculator />
+                        </RoleProtectedRoute>
+                      }
+                    />
                     <Route path="payroll/reports" element={<PayrollReports />} />
                     <Route path="payroll/settings" element={
-                        <RoleProtectedRoute allowedRoles={['admin', 'manager', 'supervisor']}>
+                        <RoleProtectedRoute allowedRoles={['admin', 'supervisor']} redirectPath="/admin/payroll/reports">
                           <PayrollSettings />
                         </RoleProtectedRoute>
                       }

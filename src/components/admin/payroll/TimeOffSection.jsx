@@ -50,6 +50,7 @@ import {
   useDeleteTimeOffMutation,
 } from '../../../store/api/payrollApi';
 import { useToast } from '@/hooks/use-toast';
+import { canManagePayrollTimeOff } from '../../../utils/payrollAccess';
 import TimeOffCoverageFields from './TimeOffCoverageFields';
 import {
   DEFAULT_COVERAGE_FORM,
@@ -245,12 +246,10 @@ function formatTimeOffApiError(err) {
 const TimeOffSection = ({ hideHero = false }) => {
   const { toast } = useToast();
   const user = useSelector((state) => state.auth.user);
-  const user_profile = useSelector((state) => state.auth.user_profile);
 
   const normalizedRole = String(user?.role ?? 'worker').toLowerCase();
   const isManagerOrSupervisor = ['admin', 'manager', 'supervisor'].includes(normalizedRole);
-  /** Who may add/edit entries: role admin/manager/supervisor (same as payroll elsewhere), or `is_admin` from auth login. */
-  const canManageTimeOff = isManagerOrSupervisor || Boolean(user?.is_admin);
+  const canManageTimeOff = canManagePayrollTimeOff(user);
 
   const [listRange, setListRange] = useState(() => defaultRange());
   const [formEmployee, setFormEmployee] = useState('');
@@ -702,7 +701,7 @@ const TimeOffSection = ({ hideHero = false }) => {
                 View only
               </Typography>
               <Typography variant="body2">
-                Adding or editing time off is limited to managers, supervisors, and administrators. Contact your
+                Adding or editing time off is limited to supervisors, and administrators. Contact your
                 manager if a schedule change is needed.
               </Typography>
             </Alert>
