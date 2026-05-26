@@ -27,6 +27,19 @@ function getEventColor(event, eventStyleGetter) {
   return style["--event-bg-color"] || style.backgroundColor || "#9ca3ef";
 }
 
+function formatInvoiceStatusLabel(status) {
+  const raw = String(status || "").trim();
+  if (!raw) return "";
+  return raw
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function buildEventTitleWithInvoiceStatus(baseTitle, type, invoiceStatusLabel) {
+  if (type !== "job" || !invoiceStatusLabel) return baseTitle;
+  return `${baseTitle}\nInvoice: ${invoiceStatusLabel}`;
+}
+
 function isAllDayOrTimeOff(e) {
   return e?.type === "time_off" || e?.allDay === true;
 }
@@ -71,6 +84,7 @@ function EventBlock({ event, style, isMobile, onSelectEvent, onStaffDrop, isAppo
   const resource = event.resource;
   const isRecurring = resource?.job_type === "recurring";
   const isEstimate = event.type === "estimate";
+  const invoiceStatusLabel = event.type === "job" ? formatInvoiceStatusLabel(resource?.invoice_status) : "";
   const bgColor = getEventColor(event, eventStyleGetter || (() => ({})));
 
   return (
@@ -93,12 +107,17 @@ function EventBlock({ event, style, isMobile, onSelectEvent, onStaffDrop, isAppo
         e.stopPropagation();
         onSelectEvent?.(event);
       }}
-      title={title}
+      title={buildEventTitleWithInvoiceStatus(title, event.type, invoiceStatusLabel)}
     >
       <span className="truncate flex items-center gap-1 flex-1 min-w-0">
         <span className="truncate">{displayTitle}</span>
         {isRecurring && <span className="flex-shrink-0 text-[10px]">(R)</span>}
         {isEstimate && <span className="flex-shrink-0 text-[10px]">(E)</span>}
+        {invoiceStatusLabel && (
+          <span className="flex-shrink-0 rounded bg-black/15 px-1 py-0.5 text-[9px] font-semibold leading-none text-white/95">
+            {invoiceStatusLabel}
+          </span>
+        )}
       </span>
     </div>
   );

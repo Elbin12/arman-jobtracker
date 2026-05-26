@@ -575,6 +575,19 @@ const calendarStyles = `
     z-index: 2 !important;
   }
 `;
+
+function formatInvoiceStatusLabel(status) {
+  const raw = String(status || "").trim();
+  if (!raw) return "";
+  return raw
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function buildCalendarEventTooltip(baseTitle, type, invoiceStatusLabel) {
+  if (type !== "job" || !invoiceStatusLabel) return baseTitle;
+  return `${baseTitle}\nInvoice: ${invoiceStatusLabel}`;
+}
 import { JobCard } from "../jobs/JobCard";
 import { jobsApi, useGetCalendarJobsQuery, useGetAppointmentsCalendarQuery, useGetEstimateAppointmentsCalendarQuery, useGetJobDetailsQuery, useUpdateAppointmentMutation, useDeleteAppointmentMutation, useUpdateEstimateStatusMutation, useDeleteEstimateMutation } from "../../../store/api/jobsApi";
 import { useGetTimeOffListQuery, useGetEmployeesQuery } from "../../../store/api/payrollApi";
@@ -699,6 +712,8 @@ function FullCalendarEventContent({ arg, onStaffDrop, onSelectEvent, eventStyleG
   const isRecurring = resource?.job_type === "recurring";
   const isEstimate = type === "estimate";
   const isTimeOff = type === "time_off";
+  const invoiceStatusLabel = type === "job" ? formatInvoiceStatusLabel(resource?.invoice_status) : "";
+  const tooltipTitle = buildCalendarEventTooltip(title, type, invoiceStatusLabel);
 
   return (
     <div
@@ -720,13 +735,18 @@ function FullCalendarEventContent({ arg, onStaffDrop, onSelectEvent, eventStyleG
         e.stopPropagation();
         onSelectEvent?.(syntheticEvent);
       }}
-      title={title}
+      title={tooltipTitle}
     >
       <span className="truncate flex items-center gap-1 flex-1 min-w-0">
         <span className="truncate">{displayTitle}</span>
         {isRecurring && <span className="flex-shrink-0 text-[11px]">(R)</span>}
         {isEstimate && <span className="flex-shrink-0 text-[11px]">(E)</span>}
         {isTimeOff && <span className="flex-shrink-0 text-[11px]">(Off)</span>}
+        {invoiceStatusLabel && (
+          <span className="flex-shrink-0 rounded bg-black/15 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white/95">
+            {invoiceStatusLabel}
+          </span>
+        )}
       </span>
     </div>
   );
@@ -825,6 +845,8 @@ function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, conti
     resource.job_type === "recurring"
   );
   const isEstimate = event?.type === "estimate";
+  const invoiceStatusLabel = event?.type === "job" ? formatInvoiceStatusLabel(resource?.invoice_status) : "";
+  const tooltipTitle = buildCalendarEventTooltip(eventTitle, event?.type, invoiceStatusLabel);
   
   // Get the background color from the event style (set by eventStyleGetter)
   // We need to extract it from the parent wrapper's computed style or pass it differently
@@ -963,7 +985,7 @@ function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, conti
         userSelect: "none",
         WebkitUserSelect: "none",
       }}
-      title={eventTitle}
+      title={tooltipTitle}
     >
       <div 
         className="rbc-event-content-responsive"
@@ -1025,6 +1047,25 @@ function DroppableEvent({ event, title, style, onStaffDrop, onSelectEvent, conti
             pointerEvents: "none",
           }}>
             (E)
+          </span>
+        )}
+        {invoiceStatusLabel && (
+          <span
+            style={{
+              flexShrink: 0,
+              fontWeight: "600",
+              fontSize: isMobile ? "8px" : "10px",
+              opacity: 0.95,
+              marginLeft: isMobile ? "2px" : "4px",
+              pointerEvents: "none",
+              borderRadius: "9999px",
+              padding: isMobile ? "1px 4px" : "2px 6px",
+              backgroundColor: "rgba(0, 0, 0, 0.15)",
+              color: "white",
+              lineHeight: 1.1,
+            }}
+          >
+            {invoiceStatusLabel}
           </span>
         )}
       </div>
