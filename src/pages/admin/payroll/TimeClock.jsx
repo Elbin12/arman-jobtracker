@@ -44,7 +44,10 @@ import {
 } from '../../../store/api/payrollApi';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { canAccessPayrollTimeClock } from '../../../utils/payrollAccess';
+import {
+  canAccessPayrollTimeClock,
+  canAccessPayrollAdminSections,
+} from '../../../utils/payrollAccess';
 
 const TimeClock = () => {
   const [selectedEmployee, setSelectedEmployee] = useState('');
@@ -64,7 +67,8 @@ const TimeClock = () => {
   const activeEntries = todayEntries?.entries?.filter((entry) => entry.status === 'checked_in') || [];
   const completedEntries = todayEntries?.entries?.filter((entry) => entry.status === 'checked_out') || [];
 
-  const isManagerOrSupervisor = normalizedRole === 'manager' || normalizedRole === 'supervisor' || normalizedRole === 'admin';
+  // Admin/supervisor: manage any employee. Manager/worker: own clock-in only (worker UI).
+  const canManageOthersTimeClock = canAccessPayrollAdminSections(user?.role);
 
   const navigate = useNavigate();
 
@@ -122,13 +126,12 @@ const TimeClock = () => {
   }
   
   // For admins/managers, find the selected employee's active session from today's entries
-  const selectedEmployeeActiveEntry = isManagerOrSupervisor && selectedEmployee
+  const selectedEmployeeActiveEntry = canManageOthersTimeClock && selectedEmployee
     ? activeEntries.find((entry) => entry.employee === selectedEmployee || entry.employee_id === selectedEmployee)
     : null;
   
-  // For regular workers, show only their own active session
-  // For managers/supervisors, show all active sessions
-  const displayActiveSessions = isManagerOrSupervisor
+  // Workers and managers: only their own active session. Admin/supervisor: all active sessions.
+  const displayActiveSessions = canManageOthersTimeClock
     ? allActiveSessions
     : (activeSession?.active 
         ? [{
@@ -141,13 +144,44 @@ const TimeClock = () => {
   // Legacy single session for backward compatibility (used in some places)
   const displayActiveSession = displayActiveSessions.length > 0 ? displayActiveSessions[0] : null;
 
+  const entryMatchesSelectedEmployee = (entry) => {
+    if (!entry || !selectedEmployee) return false;
+    const selected = String(selectedEmployee);
+    const entryIds = [entry.employee, entry.employee_id]
+      .filter((v) => v != null && v !== '')
+      .map(String);
+    if (entryIds.includes(selected)) return true;
+
+    const payrollRow = employees.find(
+      (emp) =>
+        String(emp.user_id) === selected ||
+        String(emp.id) === selected ||
+        emp.user_id === user?.id ||
+        emp.user_id === user?.user_id
+    );
+    if (!payrollRow) return false;
+
+    const payrollIds = [payrollRow.user_id, payrollRow.id]
+      .filter((v) => v != null && v !== '')
+      .map(String);
+    return entryIds.some((id) => payrollIds.includes(id));
+  };
+
+  const isSelectedEmployeeCheckedIn = Boolean(
+    displayActiveSession?.active &&
+      displayActiveSession?.entry &&
+      (canManageOthersTimeClock
+        ? entryMatchesSelectedEmployee(displayActiveSession.entry)
+        : true)
+  );
+
   // Auto-select employee based on role
   useEffect(() => {
     if (user && !selectedEmployee) {
-      if (isManagerOrSupervisor) {
+      if (canManageOthersTimeClock) {
         return;
       } else {
-        // For workers, find their employee record and use the user_id
+        // For workers/managers, find their employee record and use the user_id
         // Try to match by user.id or user.user_id
         let employeeIdToUse = null;
         
@@ -162,8 +196,19 @@ const TimeClock = () => {
           );
           
           if (currentUserEmployee) {
-            // Use the employee's user_id for check-in
-            employeeIdToUse = currentUserEmployee.user_id || currentUserEmployee.id;
+            const activeEntry = activeSession?.entry || activeSession;
+            const activeEmployeeId = activeEntry?.employee ?? activeEntry?.employee_id;
+            const payrollIds = [currentUserEmployee.user_id, currentUserEmployee.id]
+              .filter((v) => v != null && v !== '')
+              .map(String);
+            if (
+              activeEmployeeId != null &&
+              payrollIds.includes(String(activeEmployeeId))
+            ) {
+              employeeIdToUse = activeEmployeeId;
+            } else {
+              employeeIdToUse = currentUserEmployee.user_id || currentUserEmployee.id;
+            }
           }
         }
         
@@ -181,7 +226,7 @@ const TimeClock = () => {
         }
       }
     }
-  }, [user, employees, isManagerOrSupervisor, selectedEmployee]);
+  }, [user, employees, canManageOthersTimeClock, selectedEmployee, activeSession]);
   
   // Poll for active session updates
   useEffect(() => {
@@ -529,11 +574,11 @@ const TimeClock = () => {
                 mb={3}
                 sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }}
               >
-                {isManagerOrSupervisor ? 'Employee Check-in' : 'Clock In / Out'}
+                {canManageOthersTimeClock ? 'Employee Check-in' : 'Clock In / Out'}
               </Typography>
               
               <Stack spacing={3}>
-                {isManagerOrSupervisor ? (
+                {canManageOthersTimeClock ? (
                   <FormControl fullWidth>
                     <InputLabel>Select Employee</InputLabel>
                     <Select
@@ -601,16 +646,7 @@ const TimeClock = () => {
                   size="large"
                   variant="contained"
                   onClick={handleCheckIn}
-                  disabled={
-                    !selectedEmployee || 
-                    checkingIn || 
-                    (displayActiveSession?.active && displayActiveSession?.entry && (
-                      displayActiveSession.entry.employee === selectedEmployee || 
-                      displayActiveSession.entry.employee_id === selectedEmployee ||
-                      displayActiveSession.entry.employee === String(selectedEmployee) ||
-                      displayActiveSession.entry.employee_id === String(selectedEmployee)
-                    ))
-                  }
+                  disabled={!selectedEmployee || checkingIn || isSelectedEmployeeCheckedIn}
                   startIcon={checkingIn ? <CircularProgress size={22} color="inherit" /> : <PlayCircleIcon sx={{ fontSize: 24 }} />}
                   sx={{
                     bgcolor: '#3b82f6',
@@ -637,7 +673,7 @@ const TimeClock = () => {
                   {checkingIn ? 'Checking In...' : 'Clock In'}
                 </Button>
 
-                {displayActiveSession?.active && (displayActiveSession?.entry?.employee === selectedEmployee || displayActiveSession?.entry?.employee_id === selectedEmployee) && (
+                {isSelectedEmployeeCheckedIn && (
                   <Box 
                     sx={{ 
                       p: 1.5, 
@@ -660,7 +696,7 @@ const TimeClock = () => {
         {displayActiveSessions.length > 0 && (
           <Grid item xs={12} md={6} lg={7} sx={{ width: '100%' }}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {isManagerOrSupervisor && displayActiveSessions.length > 1 && (
+              {canManageOthersTimeClock && displayActiveSessions.length > 1 && (
                 <Typography variant="h6" fontWeight={600} color="#0f172a" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
                   Active Sessions ({displayActiveSessions.length})
                 </Typography>
@@ -713,7 +749,7 @@ const TimeClock = () => {
                             <Box flex={1} minWidth={0}>
                               <Box display="flex" alignItems="center" gap={1.5} mb={1.5} flexWrap="wrap">
                                 <Typography variant="h6" fontWeight={700} color="#0f172a" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
-                                  {isManagerOrSupervisor && displayActiveSessions.length > 1 ? 'Active Session' : 'Active Session'}
+                                  {canManageOthersTimeClock && displayActiveSessions.length > 1 ? 'Active Session' : 'Active Session'}
                                 </Typography>
                                 <Chip
                                   label="LIVE"
@@ -926,7 +962,7 @@ const TimeClock = () => {
                                       border: `1px solid ${entry.status === 'checked_in' ? alpha('#3b82f6', 0.2) : alpha('#10b981', 0.2)}`
                                     }}
                                   />
-                                  {entry.status === 'checked_in' && isManagerOrSupervisor && (
+                                  {entry.status === 'checked_in' && canManageOthersTimeClock && (
                                     <Button
                                       variant="outlined"
                                       size="small"
