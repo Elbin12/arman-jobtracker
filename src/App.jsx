@@ -22,6 +22,7 @@ import { BookingWizard } from './components/user/BookingWizard.jsx';
 import UserLogin from './pages/admin/userLogin.jsx';
 import AdminProtectedRoute from './pages/AdminProtectedRoute.jsx';
 import QuoteDetailsPage from './pages/user/QuoteDetailsPage.jsx';
+import OriginalProposalPage from './pages/user/OriginalProposalPage.jsx';
 import HouseSizeInfo from './components/admin/HouseSizeInfo.jsx';
 import LocationScopedManagementGuard from './components/admin/LocationScopedManagementGuard.jsx';
 import SuperuserProtectedRoute from './pages/SuperuserProtectedRoute.jsx';
@@ -114,6 +115,7 @@ function App() {
                   <Route path="/" element={<Navigate to="/booking" replace />} />
                   <Route path="/booking" element={<BookingWizard />} />
                   <Route path="/quote/details/:id" element={<QuoteDetailsPage />} />
+                  <Route path="/quote/original/:id" element={<OriginalProposalPage />} />
                   <Route path="/portal/contacts/:id" element={<ContactDetail />} />
                   <Route path="/terms" element={<TermsAndConditions />} />
                   <Route path="/oauth/location-callback" element={<LocationOAuthCallback />} />

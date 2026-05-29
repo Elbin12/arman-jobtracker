@@ -13,7 +13,11 @@ export const canAccessPayrollTimeClock = (role, userProfile) => {
 
 export const canManagePayrollTimeOff = (user) => {
   const normalizedRole = normalizePayrollRole(user?.role);
-  return normalizedRole === 'admin' || normalizedRole === 'supervisor';
+  return (
+    normalizedRole === 'admin' ||
+    normalizedRole === 'supervisor' ||
+    normalizedRole === 'manager'
+  );
 };
 
 export const canAccessPayrollAdminSections = (role) => {

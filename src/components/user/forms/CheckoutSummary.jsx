@@ -28,6 +28,7 @@ import {
   DialogActions,
   Snackbar,
   Alert,
+  AlertTitle,
   Select,
   MenuItem,
   InputLabel,
@@ -46,9 +47,10 @@ import {
   Lock,
   LockOpen,
   PictureAsPdf,
+  History,
 } from '@mui/icons-material';
 import { useCalculatePriceMutation } from '../../../store/api/user/priceApi';
-import { useCreateCustomProductMutation, useDeleteCustomProductMutation, useGetQuoteDetailsQuery, useUpdateCustomProductMutation, useDeleteServiceMutation, useGetGlobalPriceQuery, useRejectQuoteMutation, useUpdateAdditionalDataMutation } from '../../../store/api/user/quoteApi';
+import { useCreateCustomProductMutation, useDeleteCustomProductMutation, useGetQuoteDetailsQuery, useUpdateCustomProductMutation, useDeleteServiceMutation, useGetGlobalPriceQuery, useRejectQuoteMutation, useUpdateAdditionalDataMutation, usePersistQuoteSnapshotMutation } from '../../../store/api/user/quoteApi';
 import SignatureCanvas from 'react-signature-canvas';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { handleDownloadPDF } from '../../../utils/handleDownloadPDF';
@@ -84,7 +86,7 @@ const calculateTotalSelectedPrice = (selectedPackages, quoteData) => {
     }, 0);
   };
 
-export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepted, additionalNotes, setAdditionalNotes, handleSignatureEnd, setSignature, signatureTimestamp, isStepComplete, handleNext, setActiveStep, setBookingData,initialBookingData }) => {
+export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setTermsAccepted, additionalNotes, setAdditionalNotes, handleSignatureEnd, setSignature, signatureTimestamp, isStepComplete, handleNext, setActiveStep, setBookingData, initialBookingData, readOnly = false }) => {
   const { profile, locationId, formatPrice } = useAccountBranding();
   const termsHref = locationId
     ? `/terms?location_id=${encodeURIComponent(locationId)}`
@@ -121,6 +123,8 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
   const [showLockButton, setShowLockButton] = useState(false);
   const [isLockingNotes, setIsLockingNotes] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isPersistingSnapshot, setIsPersistingSnapshot] = useState(false);
+  const [persistedSnapshotId, setPersistedSnapshotId] = useState(null);
 
   const [searchParams] = useSearchParams();
   const submissionIdFromUrl = searchParams.get("submission_id");
@@ -144,12 +148,18 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
   const [deleteService, { isLoading: isDeleting }] = useDeleteServiceMutation();
   const [rejectQuote, { isLoading: isRejecting }] = useRejectQuoteMutation();
   const [updateAdditionalData] = useUpdateAdditionalDataMutation();
+  const [persistQuoteSnapshot] = usePersistQuoteSnapshotMutation();
 
   const sigCanvasRef = useRef(null);
   const autoSaveTimeoutRef = useRef(null);
   const notesTextareaRef = useRef(null);
 
   const quoteData = useMemo(() => response, [response]);
+  const isEditable = !readOnly && !quoteData?.is_persisted_snapshot;
+  const originalProposalHref = (snapshotId) => {
+    const base = `/quote/original/${snapshotId}`;
+    return locationId ? `${base}?location_id=${encodeURIComponent(locationId)}` : base;
+  };
   const quoteImages = useMemo(() => {
     if (!Array.isArray(response?.images)) return [];
     return response.images.filter((img) => img?.image_url || img?.ghl_file_url || img?.image);
@@ -173,6 +183,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
   console.log(selectedPackages, 'oaa')
 
   useEffect(() => {
+    if (readOnly) return;
     onUpdate({selectedPackages:[]})
   }, []);
 
@@ -211,6 +222,25 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
 
   const surchargeAmount = quoteData?.total_surcharges
 
+
+  // Initialize selected packages from saved quote data (read-only / reload flows)
+  useEffect(() => {
+    if (!quoteData?.service_selections) return;
+    const fromDb = {};
+    quoteData.service_selections.forEach((sel) => {
+      const selected = sel.package_quotes?.find((p) => p.is_selected);
+      if (selected) fromDb[sel.id] = selected.id;
+    });
+    if (Object.keys(fromDb).length > 0) {
+      setSelectedPackages(fromDb);
+    }
+  }, [quoteData]);
+
+  useEffect(() => {
+    if (quoteData?.persisted_snapshot_id) {
+      setPersistedSnapshotId(quoteData.persisted_snapshot_id);
+    }
+  }, [quoteData?.persisted_snapshot_id]);
 
   // Expand all services by default
   useEffect(() => {
@@ -254,7 +284,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
   }, [quoteData?.additional_data?.additional_notes]);
 
   // Check if notes are submitted (read-only)
-  const isNotesSubmitted = quoteData?.additional_data?.is_submitted === true;
+  const isNotesSubmitted = readOnly || quoteData?.is_persisted_snapshot || quoteData?.additional_data?.is_submitted === true;
 
   // Reset lock button visibility when notes are already submitted
   // Also show lock button if notes exist but aren't locked yet
@@ -395,7 +425,27 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
     }
   };
 
+  const handlePersistSnapshot = async () => {
+    if (!data.submission_id || persistedSnapshotId) return;
+    setIsPersistingSnapshot(true);
+    try {
+      const result = await persistQuoteSnapshot(data.submission_id).unwrap();
+      const snapshotId = result.snapshot_id;
+      setPersistedSnapshotId(snapshotId);
+      setToastMessage(result.created ? 'Original proposal saved successfully.' : 'Original proposal was already saved.');
+      setToastOpen(true);
+      refetch();
+    } catch (error) {
+      console.error('Failed to save original proposal:', error);
+      setToastMessage('Failed to save original proposal. Please try again.');
+      setToastOpen(true);
+    } finally {
+      setIsPersistingSnapshot(false);
+    }
+  };
+
   const handlePackageSelect = (serviceSelectionId, packageQuote) => {
+    if (!isEditable) return;
     const newSelected = {
       ...selectedPackages,
       [serviceSelectionId]: packageQuote.id,
@@ -625,13 +675,34 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
   return (
     <Box>
       <Container maxWidth="lg" sx={{p:"0rem"}}>
+        {readOnly && (
+          <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
+            <AlertTitle sx={{ fontWeight: 700 }}>Original Proposal — Saved Copy</AlertTitle>
+            This is the technician&apos;s saved version of the quote. It stays unchanged even if the client edits their copy.
+            {quoteData?.source_submission_id && (
+              <Box mt={1}>
+                <Button
+                  component={Link}
+                  size="small"
+                  variant="outlined"
+                  to={locationId
+                    ? `/booking?submission_id=${quoteData.source_submission_id}&location_id=${encodeURIComponent(locationId)}`
+                    : `/booking?submission_id=${quoteData.source_submission_id}`}
+                  sx={{ textTransform: 'none', borderColor: '#023c8f', color: '#023c8f' }}
+                >
+                  View Current Client Quote
+                </Button>
+              </Box>
+            )}
+          </Alert>
+        )}
         {/* Quote Header */}
         <Box mb={4}>
           <Box display="flex" justifyContent="center">
             <CompanyLogo locationId={locationId} />
           </Box>
           <Typography variant="h4" gutterBottom fontWeight={300} sx={{ color: '#023c8f', textAlign: 'center', fontSize:{ xs: "1.8rem", sm: "1.9rem", md: "2.2rem"} }}>
-            Quote Summary
+            {readOnly ? 'Original Proposal' : 'Quote Summary'}
           </Typography>
           {window.self !== window.top && (
             <Box textAlign="center">
@@ -712,6 +783,51 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                 {isGeneratingPDF ? "Generating..." : "Download PDF"}
               </span>
             </Button>
+            {isEditable && (
+              persistedSnapshotId ? (
+                <Button
+                  component={Link}
+                  variant="outlined"
+                  to={originalProposalHref(persistedSnapshotId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  startIcon={<History />}
+                  sx={{
+                    borderColor: "#023c8f",
+                    color: "#023c8f",
+                    fontWeight: 600,
+                    textTransform: "none",
+                    "&:hover": {
+                      bgcolor: "rgba(2, 60, 143, 0.04)",
+                      borderColor: "#023c8f",
+                    },
+                  }}
+                >
+                  View Original Proposal
+                </Button>
+              ) : (
+                <Button
+                  variant="outlined"
+                  onClick={handlePersistSnapshot}
+                  disabled={isPersistingSnapshot}
+                  startIcon={
+                    isPersistingSnapshot ? <CircularProgress size={16} /> : <History />
+                  }
+                  sx={{
+                    borderColor: "#023c8f",
+                    color: "#023c8f",
+                    fontWeight: 600,
+                    textTransform: "none",
+                    "&:hover": {
+                      bgcolor: "rgba(2, 60, 143, 0.04)",
+                      borderColor: "#023c8f",
+                    },
+                  }}
+                >
+                  {isPersistingSnapshot ? "Saving..." : "Save Original Proposal"}
+                </Button>
+              )
+            )}
           </Box>
         </Box>
 
@@ -791,6 +907,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                   </Typography>
                 </Box>
                 <Box display="flex" alignItems="center" gap={{sx:0, md:1}}>
+                  {isEditable && (
                   <IconButton 
                     sx={{ color: 'white', padding:0 }}
                     onClick={(e) => {
@@ -801,6 +918,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                   >
                     <DeleteForever sx={{fontSize: { xs: "1.125rem", sm: "1.5rem", lg: "1.625rem" }}}/>
                   </IconButton>
+                  )}
                   <IconButton sx={{ color: 'white', padding:0 }}>
                     {expandedServices[selection.id] ? <ExpandLess sx={{fontSize: { xs: "1.125rem", sm: "1.5rem", lg: "1.625rem" }}}/> : <ExpandMore sx={{fontSize: { xs: "1.125rem", sm: "1.5rem", lg: "1.625rem" }}}/>}
                   </IconButton>
@@ -901,7 +1019,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                             <Card
                               variant="outlined"
                               sx={{
-                                cursor: "pointer",
+                                cursor: isEditable ? "pointer" : "default",
                                 border:
                                   selectedPackages[selection.id] === packageQuote.id
                                     ? "2px solid #42bd3f"
@@ -910,7 +1028,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                                   selectedPackages[selection.id] === packageQuote.id
                                     ? "#f8fff8"
                                     : "white",
-                                "&:hover": { borderColor: "#42bd3f" },
+                                "&:hover": isEditable ? { borderColor: "#42bd3f" } : {},
                                 borderRadius: 3,
                                 height:"100%",
                                 width: "fit-content", // responsive height
@@ -922,7 +1040,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                                 flexDirection: "column",
                                 justifyContent: "space-between",
                               }}
-                              onClick={() => handlePackageSelect(selection.id, packageQuote)}
+                              onClick={isEditable ? () => handlePackageSelect(selection.id, packageQuote) : undefined}
                             >
                               <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 },textAlign: "center", }}>
                                 {/* Header */}
@@ -1094,6 +1212,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
         )}
 
         {/* Add More Services Button */}
+        {isEditable && (
         <Card sx={{ mb: 3 }}>
           <CardContent sx={{ p: 3, textAlign: 'center' }}>
             <Button
@@ -1115,6 +1234,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
             </Button>
           </CardContent>
         </Card>
+        )}
 
         {/* Uploaded Images */}
         {quoteImages.length > 0 && (
@@ -1451,6 +1571,8 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
               </Box>
             </Box>
 
+            {isEditable && (
+            <>
             {/* Signature Section */}
             <Box sx={{ mb: 3, maxWidth: { xs: '100%', sm: '500px' } }}>
               <Typography variant="subtitle2" gutterBottom sx={{ color: '#023c8f', fontWeight: 600 }}>
@@ -1615,6 +1737,8 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
             <Typography variant="caption" color="text.secondary" display="block" textAlign="center" mt={2}>
               Final price confirmed after service completion
             </Typography>
+            </>
+            )}
           </CardContent>
         </Card>
       </Container>

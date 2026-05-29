@@ -701,8 +701,8 @@ const TimeOffSection = ({ hideHero = false }) => {
                 View only
               </Typography>
               <Typography variant="body2">
-                Adding or editing time off is limited to supervisors, and administrators. Contact your
-                manager if a schedule change is needed.
+                Adding or editing time off is limited to managers, supervisors, and administrators.
+                Contact your manager if a schedule change is needed.
               </Typography>
             </Alert>
           )}
@@ -774,7 +774,7 @@ const TimeOffSection = ({ hideHero = false }) => {
               <Typography variant="body2" color="text.secondary">
                 {canManageTimeOff
                   ? 'Adjust the dates above or add a new entry.'
-                  : 'Adjust the date range above. Ask an administrator to add or update entries.'}
+                  : 'Adjust the date range above. Ask a manager or supervisor to add or update entries.'}
               </Typography>
             </Box>
           ) : (

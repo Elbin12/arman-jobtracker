@@ -50,6 +50,7 @@ import {
   FileText,
   ExternalLink,
   Percent,
+  History,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import DeleteJobDialog from "./DeleteJobDialog"
@@ -130,6 +131,8 @@ export function JobCard({
   }, [job?.discount_type, job?.discount_value])
 
   const submissionIdForReschedule = job?.submission_id ?? job?.submission ?? null
+  const persistedSnapshotId =
+    jobDetailsData?.persisted_snapshot_id ?? job?.persisted_snapshot_id ?? null
   const statusLower = String(job?.status || "").toLowerCase()
   const canOpenReschedule =
     clientPortalReschedule &&
@@ -1154,6 +1157,57 @@ export function JobCard({
               </Box>
             </Box>
           }
+
+          {persistedSnapshotId && (
+            <Box sx={{ mb: 3 }}>
+              <Box
+                component="a"
+                href={`/quote/original/${persistedSnapshotId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.5,
+                  p: 2,
+                  borderRadius: 2,
+                  bgcolor: "grey.50",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  textDecoration: "none",
+                  transition: "all 0.2s ease",
+                  "&:hover": {
+                    bgcolor: "grey.100",
+                    transform: "translateY(-1px)",
+                    boxShadow: 1,
+                  },
+                }}
+              >
+                <Box
+                  sx={{
+                    p: 1,
+                    borderRadius: 1,
+                    bgcolor: "primary.main",
+                    color: "white",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <History size={18} />
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: "primary.main", mb: 0.25 }}>
+                    View Original Proposal
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.75rem" }}>
+                    Saved technician copy before client changes
+                  </Typography>
+                </Box>
+                <ExternalLink size={16} style={{ color: 'rgba(0, 0, 0, 0.54)', flexShrink: 0 }} />
+              </Box>
+            </Box>
+          )}
 
           {/* Notes (Collapsible) - Fixed height */}
           <Box sx={{ mb: 3, minHeight: job.notes ? '50px' : '0px' }}>

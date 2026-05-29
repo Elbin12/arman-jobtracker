@@ -30,8 +30,6 @@ import {
   ArrowBack,
   ExpandMore,
   ExpandLess,
-  Check,
-  Close,
   Add,
   AccessTime,
   CheckCircle,
@@ -52,6 +50,7 @@ import CompanyLogo from "../../components/CompanyLogo"
 import { QuoteDetailsSkeleton } from "../../components/ui/skeletons"
 import { ImageViewer } from "../../components/ui/ImageViewer"
 import QuoteCalendarScheduler from "../../components/user/QuoteCalendarScheduler"
+import PackageOptionsSummary from "../../components/user/PackageOptionsSummary"
 import { slotWallClockAsUtcIso } from "../../utils/scheduleIso"
 import { buildBookingRedirectUrl } from "../../utils/bookingRedirect"
 
@@ -1027,80 +1026,9 @@ const QuoteDetailsPage = () => {
                         {selection.service_details?.description}
                       </Typography>
 
-                      {/* Selected Package Display */}
-                      {selection.selected_package_details && (
-                        <Box sx={{ mb: 3 }}>
-                          <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: "#023c8f" }}>
-                            Selected Package
-                          </Typography>
-                          <Card
-                            variant="outlined"
-                            sx={{
-                              border: "2px solid #42bd3f",
-                              bgcolor: "#f8fff8",
-                              borderRadius: 3,
-                              minHeight: 220,
-                              display: "flex",
-                              flexDirection: "column",
-                              justifyContent: "space-between",
-                            }}
-                          >
-                            <CardContent sx={{ p: 4 }}>
-                              <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-                                <Typography variant="h6" fontWeight={700}>
-                                  {selection.selected_package_details.name}
-                                </Typography>
-                                <Chip
-                                  label="Selected"
-                                  sx={{
-                                    bgcolor: "#42bd3f",
-                                    color: "white",
-                                    fontWeight: 600,
-                                  }}
-                                />
-                              </Box>
-
-                              <Typography variant="h4" sx={{ color: "#42bd3f", fontWeight: 700, mb: 2 }}>
-                                {formatPrice(selection.final_total_price)}
-                              </Typography>
-
-                              {/* Features List */}
-                              <Box>
-                                {selection.package_quotes?.[0] && (
-                                  <>
-                                    {[
-                                      ...(selection.package_quotes[0].included_features_details || []).map((f) => ({
-                                        ...f,
-                                        included: true,
-                                      })),
-                                      ...(selection.package_quotes[0].excluded_features_details || []).map((f) => ({
-                                        ...f,
-                                        included: false,
-                                      })),
-                                    ].map((feature) => (
-                                      <Box key={feature.id} display="flex" alignItems="center" mb={0.8}>
-                                        {feature.included ? (
-                                          <Check sx={{ fontSize: 18, color: "#42bd3f", mr: 1 }} />
-                                        ) : (
-                                          <Close sx={{ fontSize: 18, color: "#9e9e9e", mr: 1 }} />
-                                        )}
-                                        <Typography
-                                          variant="body2"
-                                          sx={{
-                                            color: feature.included ? "text.primary" : "text.disabled",
-                                            fontWeight: feature.included ? 500 : 400,
-                                          }}
-                                        >
-                                          {feature.name}
-                                        </Typography>
-                                      </Box>
-                                    ))}
-                                  </>
-                                )}
-                              </Box>
-                            </CardContent>
-                          </Card>
-                        </Box>
+                      {/* All package options (selected + alternatives) */}
+                      {(selection.package_quotes?.length > 0 || selection.selected_package_details) && (
+                        <PackageOptionsSummary selection={selection} formatPrice={formatPrice} />
                       )}
 
                       {/* Question Responses */}

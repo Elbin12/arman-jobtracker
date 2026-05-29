@@ -150,6 +150,13 @@ export const quoteApi = createApi({
       }),
       invalidatesTags: ['quote', 'Details'],
     }),
+    persistQuoteSnapshot: builder.mutation({
+      query: (submissionId) => ({
+        url: `${submissionId}/persist-snapshot/`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['quote', 'Details'],
+    }),
     // Submission Images
     uploadSubmissionImage: builder.mutation({
       query: (formData) => ({
@@ -236,7 +243,7 @@ export const quoteApi = createApi({
 export const { useGetInitialDataQuery, useGetServiceQuestionsQuery, useCreateSubmissionMutation, useUpdateSubmissionMutation, useCreateQuestionResponsesMutation,
   useCreateServiceToSubmissionMutation,   useGetQuoteDetailsQuery,useSubmitQuoteMutation, useGetAddressesByContactQuery, useSearchContactsQuery, useCreateCustomProductMutation,
   useUpdateCustomProductMutation, useDeleteCustomProductMutation, useGetServicesQuery, useCreateScheduleMutation, useDeleteServiceMutation, useGetGlobalPriceQuery,
-  useGetCalendarFreeSlotsQuery, useSubmitOnlyCustomProductsMutation, useRejectQuoteMutation, useUpdateAdditionalDataMutation, useGetAccountInfoQuery, useUploadSubmissionImageMutation, useGetSubmissionImagesQuery,
+  useGetCalendarFreeSlotsQuery, useSubmitOnlyCustomProductsMutation, useRejectQuoteMutation, useUpdateAdditionalDataMutation, usePersistQuoteSnapshotMutation, useGetAccountInfoQuery, useUploadSubmissionImageMutation, useGetSubmissionImagesQuery,
   useUpdateSubmissionImageMutation, useDeleteSubmissionImageMutation, useReplaceSubmissionImageMutation,
   useRescheduleQuoteFromJobMutation, useGetReschedulePendingSubmissionsQuery,
  } = quoteApi;

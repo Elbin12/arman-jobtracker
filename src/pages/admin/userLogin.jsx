@@ -16,7 +16,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 // Replace this with your actual login action
 import { loginUser, clearSuccess } from '../../store/slices/authSlice';
-import { ADMIN_PASSWORD, ADMIN_USERNAME, USER_PASSWORD } from '../../store/axios/axios';
+import { USER_PASSWORD } from '../../store/axios/axios';
 
 const UserLogin = () => {
   const dispatch = useDispatch();
@@ -27,35 +27,7 @@ const UserLogin = () => {
   const navigationHandled = useRef(false);
 
   useEffect(() => {
-    if (email === "theservicepilot@gmail.com") {
-      navigationHandled.current = true;
-      // Read returnTo BEFORE login to avoid race condition with success useEffect
-      const returnTo = localStorage.getItem('returnTo');
-      console.log('returnTo (auto-login admin - before dispatch):', returnTo);
-      
-      dispatch(loginUser({ username: ADMIN_USERNAME, password: ADMIN_PASSWORD }))
-        .unwrap()
-        .then((response) => {
-          if (returnTo) {
-            // Clear the stored path and redirect to it
-            localStorage.removeItem('returnTo');
-            dispatch(clearSuccess());
-            navigate(returnTo, { replace: true });
-          } else {
-            // Default redirect based on role
-            const userRole = response?.user?.role || 'worker';
-            dispatch(clearSuccess());
-            if (userRole === 'admin' || userRole === 'manager') {
-              navigate("/admin/dashboard", { replace: true });
-            } else {
-              navigate("/admin/jobs", { replace: true });
-            }
-          }
-        })
-        .catch(() => {
-          navigationHandled.current = false;
-        });
-    } else if (email) {
+    if (email) {
       navigationHandled.current = true;
       // Read returnTo BEFORE login to avoid race condition with success useEffect
       const returnTo = localStorage.getItem('returnTo');
