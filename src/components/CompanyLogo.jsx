@@ -26,6 +26,7 @@ const CompanyLogo = ({
     );
   }
 
+
   const logoSrc = profile.logoUrl || fallbackSrc;
   if (!logoSrc) {
     return (
