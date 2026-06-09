@@ -67,8 +67,14 @@ function buildQuoteDetailsHref(searchParams, submissionId, extraParams = {}) {
   return qs ? `/quote/details/${id}?${qs}` : `/quote/details/${id}`;
 }
 
+function shouldRedirectToQuoteDetails(submissionData) {
+  const status = submissionData?.status;
+  return status === 'submitted' || status === 'accepted' || status === 'rejected';
+}
+
 export const BookingWizard = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { locationId: brandingLocationId } = useAccountBranding();
   const submissionIdFromUrl = searchParams.get("submission_id");
   const paramEmail = searchParams.get("email")
@@ -93,15 +99,8 @@ export const BookingWizard = () => {
   const [bookingData, setBookingData] = useState(() => {
     const saved = '';
     return saved ? JSON.parse(saved) : {
-      submission_id: null,
-      userInfo: { firstName: "", phone: "", email: "", address: "", latitude: "", longitude: "", googlePlaceId: "", contactId: null, selectedLocation: null, selectedHouseSize: null, locationId: null },
-      selectedServices: [],
-      selectedService: null,
-      selectedPackage: null,
-      questionAnswers: {},
-      pricing: { basePrice: 0, tripSurcharge: 0, questionAdjustments: 0, totalPrice: 0 },
-      quoteDetails: null,
-      selectedPackages: [],
+      ...initialBookingData,
+      submission_id: submissionIdFromUrl || null,
     };
   });
 
@@ -110,13 +109,17 @@ export const BookingWizard = () => {
     // Get quoted_by - it might be an ID (number) or name (string) from API
     // We'll keep it as-is for now, but ensure it's converted to ID when needed
     const quotedByValue = submissionData?.quote_schedule?.quoted_by;
+    const serviceSelections = submissionData.service_selections ?? [];
+    const activeCustomProducts = (submissionData.custom_products ?? []).filter(
+      (product) => product.is_active !== false
+    );
     
     const transformedData = {
       submission_id: submissionData.id,
       userInfo: {
-        firstName: submissionData.customer_name || "",
-        phone: submissionData.customer_phone || "",
-        email: submissionData.customer_email || "",
+        firstName: submissionData.customer_name || submissionData.contact?.first_name || "",
+        phone: submissionData.customer_phone || submissionData.contact?.phone || "",
+        email: submissionData.customer_email || submissionData.contact?.email || "",
         address: submissionData.address || "",
         latitude: submissionData.latitude || "",
         longitude: submissionData.longitude || "",
@@ -130,23 +133,24 @@ export const BookingWizard = () => {
         first_time: submissionData?.quote_schedule?.first_time,
         quoted_by: typeof quotedByValue === 'number' ? quotedByValue : (typeof quotedByValue === 'string' && !isNaN(Number(quotedByValue)) ? Number(quotedByValue) : quotedByValue)
       },
-      selectedServices: submissionData.service_selections.map((s) => ({
+      selectedServices: serviceSelections.map((s) => ({
         id: s.service_details.id,
         name: s.service_details.name,
       })),
       selectedService: null,
       selectedPackage: null,
-      selectedPackages: submissionData.service_selections
+      selectedPackages: serviceSelections
         .flatMap((s) =>
-          s.package_quotes.filter((p) => p.is_selected).map((pkg) => ({
+          (s.package_quotes ?? []).filter((p) => p.is_selected).map((pkg) => ({
             service_selection_id: s.id,
             package_id: pkg.package,
             package_name: pkg.package_name,
             total_price: pkg.total_price,
           }))
         ),
+      selectedCustomProducts: activeCustomProducts,
       // FIXED: Proper question answers transformation
-      questionAnswers: submissionData.service_selections.reduce((acc, service) => {
+      questionAnswers: serviceSelections.reduce((acc, service) => {
         service.question_responses.forEach((response) => {
           const serviceId = service.service_details.id;
           const questionId = response.question;
@@ -198,7 +202,7 @@ export const BookingWizard = () => {
         basePrice: submissionData.total_base_price || 0,
         tripSurcharge: submissionData.total_surcharges || 0,
         questionAdjustments: submissionData.total_adjustments || 0,
-        totalPrice: submissionData.final_total || 0,
+        totalPrice: submissionData.final_total || submissionData.custom_service_total || 0,
       },
       quoteDetails: submissionData,
     };
@@ -213,13 +217,15 @@ export const BookingWizard = () => {
 }, [isSuccess, submissionData]);
 
   useLayoutEffect(() => {
-    if (isSuccess && submissionData) {
-      if (submissionData?.status==="submitted" || submissionData?.status==="accepted" || submissionData?.status==="rejected"){
-        navigate(buildQuoteDetailsHref(searchParams, submissionData?.id))
-      }
-      setActiveStep(4); // Updated to step 4 (Review & Submit) since we added image upload step
+    if (!isSuccess || !submissionData || !submissionIdFromUrl) return;
+
+    if (shouldRedirectToQuoteDetails(submissionData)) {
+      navigate(buildQuoteDetailsHref(searchParams, submissionData.id));
+      return;
     }
-  }, [isSuccess, submissionData]);
+
+    setActiveStep(4);
+  }, [isSuccess, submissionData, submissionIdFromUrl, navigate, searchParams]);
 
   // // Save to localStorage whenever bookingData changes
   // useEffect(() => {
@@ -235,7 +241,6 @@ export const BookingWizard = () => {
   const [addServiceToSubmission] = useCreateServiceToSubmissionMutation();
   
   const isSavingContact = creating || updating
-  const navigate = useNavigate()
 
   // Use useCallback to prevent infinite loops
   const updateBookingData = useCallback((stepData) => {

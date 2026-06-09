@@ -128,6 +128,7 @@ export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setT
 
   const [searchParams] = useSearchParams();
   const submissionIdFromUrl = searchParams.get("submission_id");
+  const effectiveSubmissionId = data.submission_id || submissionIdFromUrl;
 
   const navigate = useNavigate();
 
@@ -136,7 +137,8 @@ export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setT
     isLoading,
     isError,
     refetch,
-  } = useGetQuoteDetailsQuery(data.submission_id, {
+  } = useGetQuoteDetailsQuery(effectiveSubmissionId, {
+    skip: !effectiveSubmissionId,
     refetchOnMountOrArgChange: true,
     refetchOnFocus: true,
     refetchOnReconnect: true,
@@ -154,7 +156,24 @@ export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setT
   const autoSaveTimeoutRef = useRef(null);
   const notesTextareaRef = useRef(null);
 
-  const quoteData = useMemo(() => response, [response]);
+  const quoteData = useMemo(() => {
+    if (response) return response;
+    if (
+      data.quoteDetails &&
+      String(data.quoteDetails.id) === String(effectiveSubmissionId)
+    ) {
+      return data.quoteDetails;
+    }
+    return undefined;
+  }, [response, data.quoteDetails, effectiveSubmissionId]);
+
+  const activeCustomProducts = useMemo(() => {
+    const fromState = customProducts.filter((product) => product.is_active !== false);
+    if (fromState.length > 0) return fromState;
+    return (quoteData?.custom_products ?? []).filter((product) => product.is_active !== false);
+  }, [customProducts, quoteData?.custom_products]);
+
+  const isLoadingQuote = isLoading && !quoteData;
   const isEditable = !readOnly && !quoteData?.is_persisted_snapshot;
   const originalProposalHref = (snapshotId) => {
     const base = `/quote/original/${snapshotId}`;
@@ -193,10 +212,12 @@ export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setT
     if (!quoteData) return;
 
     const totalSelectedPrice = calculateTotalSelectedPrice(selectedPackages, quoteData);
-    const customProductsTotal = calculateCustomProductsTotal(customProducts.filter((p)=>p.is_active===true));
+    const customProductsTotal = calculateCustomProductsTotal(activeCustomProducts);
+    const apiCustomTotal = Number.parseFloat(quoteData?.custom_service_total || 0);
+    const effectiveCustomTotal = customProductsTotal > 0 ? customProductsTotal : apiCustomTotal;
     const surcharge = quoteData.total_surcharges ? parseFloat(quoteData.total_surcharges) : 0;
 
-    const total = totalSelectedPrice + customProductsTotal + surcharge;
+    const total = totalSelectedPrice + effectiveCustomTotal + surcharge;
     const globalBase = parseFloat(globalPriceData?.base_price || 0);
 
     // ✅ Check if all services have a package selected
@@ -218,7 +239,7 @@ export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setT
       setBasePriceApplied(false);
       setFinalTotal(total);
     }
-  }, [selectedPackages, customProducts, quoteData, globalPriceData]);
+  }, [selectedPackages, activeCustomProducts, quoteData, globalPriceData]);
 
   const surchargeAmount = quoteData?.total_surcharges
 
@@ -258,12 +279,14 @@ export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setT
       console.log(quoteData, 'datad')
       onUpdate({
         quoteDetails: quoteData,
-        selectedCustomProducts: quoteData?.custom_products.filter((p) => p.is_active),
+        selectedCustomProducts: quoteData?.custom_products?.filter((p) => p.is_active !== false) ?? [],
         pricing: {
           basePrice: parseFloat(quoteData.total_base_price || 0),
           totalAdjustments: parseFloat(quoteData.total_adjustments || 0),
           totalSurcharges: parseFloat(quoteData.total_surcharges || 0),
-          finalTotal: parseFloat(quoteData.final_total || 0),
+          finalTotal:
+            parseFloat(quoteData.final_total || 0) ||
+            parseFloat(quoteData.custom_service_total || 0),
         },
       });
     }
@@ -618,7 +641,7 @@ export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setT
     setDialogOpen(true);
   };
 
-  if (isLoading) {
+  if (isLoadingQuote) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
         <CircularProgress sx={{ color: '#023c8f' }} />
@@ -878,7 +901,7 @@ export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setT
         </Card>
 
         {/* Service Selections */}
-        {quoteData.service_selections.map((selection) => (
+        {(quoteData?.service_selections ?? []).map((selection) => (
           <Card key={selection.id} sx={{ mb: 1.5 }}>
             {/* Service Header */}
             <Box
@@ -1154,7 +1177,7 @@ export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setT
         ))}
 
         {/* Custom Products Section */}
-        {customProducts.length > 0 && (
+        {activeCustomProducts.length > 0 && (
           <Card sx={{ mb: 3 }}>
             <CardContent sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f' }}>
@@ -1164,7 +1187,7 @@ export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setT
                 Additional custom services added to your quote
               </Typography>
               <Grid container spacing={2}>
-                {customProducts.map((product) => (
+                {activeCustomProducts.map((product) => (
                   <Grid item xs={12} sm={6} md={4} key={product.id}>
                     <Card
                       variant="outlined"
@@ -1506,7 +1529,7 @@ export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setT
                   return null;
                 })}
               </Box>
-            ) : data.selectedCustomProducts?.length > 0 ? null : (
+            ) : activeCustomProducts.length > 0 ? null : (
                 <Box mb={2} p={2} sx={{ bgcolor: "#d9edf7", borderRadius: 1, textAlign: "center" }}>
                   <Typography variant="body2" sx={{ color: '#023c8f' }}>
                     Please select a package above
@@ -1515,12 +1538,12 @@ export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setT
             )}
 
             {/* Custom Products in Summary */}
-            {customProducts.filter((p)=>p.is_active===true).length > 0 && (
+            {activeCustomProducts.length > 0 && (
               <Box mb={2}>
                 <Typography variant="subtitle2" fontWeight={600} sx={{ color: '#023c8f', mb: 1 }}>
                   Custom Products
                 </Typography>
-                {customProducts.filter((p)=>p.is_active===true).map((product) => (
+                {activeCustomProducts.map((product) => (
                   <Box key={product.id} mb={1}>
                     <Box display="flex" justifyContent="space-between">
                       <Box>
