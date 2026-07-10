@@ -14,8 +14,10 @@ import moment from "moment-timezone";
 import { useGetEmployeesQuery } from "../../../store/api/payrollApi";
 import { JobTeamAssignmentField } from "./JobTeamAssignmentField";
 import { useCreateJobMutation, useSearchContactsQuery, useGetAddressesByContactQuery } from "../../../store/api/jobsApi";
+import { useCreateAddressForContactMutation } from "../../../store/api/user/quoteApi";
 import { useGetServicesQuery } from "../../../store/api/servicesApi";
 import ContactSearchableSelect from "./ContactSearchableSelect";
+import { ContactAddressFormDialog } from "../../contacts/ContactAddressFormDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { useAccountTimezone } from "@/hooks/useAccountTimezone";
@@ -82,11 +84,13 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [addressEdited, setAddressEdited] = useState(false); // Track if address was manually edited
   const [originalAddressString, setOriginalAddressString] = useState(""); // Store original address from dropdown
+  const [addAddressOpen, setAddAddressOpen] = useState(false);
   
   // Fetch addresses when contact is selected
-  const { data: addressesData, isFetching: isFetchingAddresses } = useGetAddressesByContactQuery(selectedContactId, {
+  const { data: addressesData, isFetching: isFetchingAddresses, refetch: refetchAddresses } = useGetAddressesByContactQuery(selectedContactId, {
     skip: !selectedContactId,
   });
+  const [createAddress, { isLoading: isCreatingAddress }] = useCreateAddressForContactMutation();
 
   // Handle different possible response structures
   const addresses = Array.isArray(addressesData) 
@@ -139,6 +143,13 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
         customer_address: addressString,
       }));
     }
+  };
+
+  const handleCreateAddress = async (payload) => {
+    if (!selectedContactId) return;
+    const created = await createAddress({ contactId: selectedContactId, ...payload }).unwrap();
+    await refetchAddresses();
+    handleAddressSelect(created.id);
   };
 
   // Handle manual address editing
@@ -1201,30 +1212,52 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Loading addresses...
                 </div>
-              ) : addresses.length > 0 ? (
-                <Select
-                  value={selectedAddressId ? String(selectedAddressId) : ""}
-                  onValueChange={handleAddressSelect}
-                >
-                  <SelectTrigger id="address_select">
-                    <SelectValue placeholder="Select an address" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {addresses.map((address) => {
-                      const addressLabel = address.name 
-                        ? `${address.name} — ${address.street_address}, ${address.city}, ${address.state}, ${address.postal_code}`
-                        : `${address.street_address}, ${address.city}, ${address.state}, ${address.postal_code}`;
-                      return (
-                        <SelectItem key={address.id} value={String(address.id)}>
-                          {addressLabel}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
               ) : (
-                <p className="text-sm text-gray-500">No addresses found for this contact.</p>
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-start">
+                  <div className="flex-1 min-w-0">
+                    <Select
+                      value={selectedAddressId ? String(selectedAddressId) : ""}
+                      onValueChange={handleAddressSelect}
+                    >
+                      <SelectTrigger id="address_select">
+                        <SelectValue placeholder={addresses.length ? "Select an address" : "No saved addresses"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {addresses.map((address) => {
+                          const addressLabel = address.name 
+                            ? `${address.name} — ${address.street_address}, ${address.city}, ${address.state}, ${address.postal_code}`
+                            : `${address.street_address}, ${address.city}, ${address.state}, ${address.postal_code}`;
+                          return (
+                            <SelectItem key={address.id} value={String(address.id)}>
+                              {addressLabel}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                    {addresses.length === 0 && (
+                      <p className="text-sm text-gray-500 mt-1">No addresses saved yet. Add one below.</p>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="shrink-0"
+                    onClick={() => setAddAddressOpen(true)}
+                    disabled={isCreatingAddress}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add address
+                  </Button>
+                </div>
               )}
+              <ContactAddressFormDialog
+                open={addAddressOpen}
+                onClose={() => setAddAddressOpen(false)}
+                onSubmit={handleCreateAddress}
+                busy={isCreatingAddress}
+                mode="create"
+              />
             </div>
           )}
 

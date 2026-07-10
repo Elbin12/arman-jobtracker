@@ -297,7 +297,7 @@ export function JobCard({
     setDisplayStatus(job?.status)
   }
 
-  const assignedUserNames = job.assignments
+  const assignedUserNames = job?.assignments
     ?.map((assignment) => {
         if (assignment.user) {
           if (assignment.first_name || assignment.last_name) {
@@ -359,7 +359,11 @@ export function JobCard({
   }
 
   // Check if job is recurring based on job_type
-  const isRecurring = job.job_type === "recurring" || job.is_recurring
+  const isRecurring = job?.job_type === "recurring" || job?.is_recurring
+
+  if (!job) {
+    return null
+  }
 
   // Build status badges (max 3) — job status is controlled by the header selector, not duplicated here
   // Priority order: Recurring (if applicable), Priority

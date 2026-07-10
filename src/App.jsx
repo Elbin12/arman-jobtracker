@@ -46,6 +46,7 @@ import PayrollSettings from './pages/admin/payroll/PayrollSettings.jsx';
 import PayrollTeamManagement from './pages/admin/payroll/PayrollTeamManagement.jsx';
 import Contacts from './pages/admin/Contacts.jsx';
 import ContactDetail from './pages/admin/ContactDetail.jsx';
+import ContactProfilePage from './pages/contact/ContactProfilePage.jsx';
 import { canAccessPayrollTimeClock } from './utils/payrollAccess.js';
 
 // Create Material-UI theme that integrates with our design system
@@ -117,6 +118,8 @@ function App() {
                   <Route path="/quote/details/:id" element={<QuoteDetailsPage />} />
                   <Route path="/quote/original/:id" element={<OriginalProposalPage />} />
                   <Route path="/portal/contacts/:id" element={<ContactDetail />} />
+                  <Route path="/contact/jobs/:ghl_contact_id" element={<ContactProfilePage />} />
+                  <Route path="/contact/profile/:ghl_contact_id" element={<ContactProfilePage />} />
                   <Route path="/terms" element={<TermsAndConditions />} />
                   <Route path="/oauth/location-callback" element={<LocationOAuthCallback />} />
                   

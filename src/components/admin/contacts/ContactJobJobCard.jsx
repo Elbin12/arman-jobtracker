@@ -32,7 +32,7 @@ export function ContactJobJobCard({ jobLite, usePublicJobApi = false, lookupId, 
 
   if (!jobLite) return null;
 
-  if (isLoading && !full) {
+  if (isLoading && !full && !skipDetailFetch) {
     return (
       <Box>
         <Skeleton variant="rounded" height={56} sx={{ mb: 2 }} />

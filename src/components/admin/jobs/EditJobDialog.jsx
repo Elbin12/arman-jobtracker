@@ -26,11 +26,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Users, RotateCcw, Plus, XSquare } from "lucide-react";
 import moment from "moment-timezone";
 import { jobsApi, useUpdateJobMutation, useConvertJobToSeriesMutation, useSearchContactsQuery, useGetAddressesByContactQuery } from "../../../store/api/jobsApi";
+import { useCreateAddressForContactMutation } from "../../../store/api/user/quoteApi";
 import { useGetEmployeesQuery } from "../../../store/api/payrollApi";
 import { JobTeamAssignmentField } from "./JobTeamAssignmentField";
 import { useGetServicesQuery } from "../../../store/api/servicesApi";
 import { useDispatch } from "react-redux";
 import ContactSearchableSelect from "./ContactSearchableSelect";
+import { ContactAddressFormDialog } from "../../contacts/ContactAddressFormDialog";
 import { Select as ShadcnSelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { jobGrandTotalAmount, jobSurchargeAmount } from "../../../utils/jobPricing";
@@ -105,11 +107,15 @@ export function EditJobDialog({
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [addressEdited, setAddressEdited] = useState(false);
   const [originalAddressString, setOriginalAddressString] = useState("");
+  const [addAddressOpen, setAddAddressOpen] = useState(false);
+
+  const contactIdForAddresses = selectedContactId || formData.contact_id;
   
   // Fetch addresses when contact is selected
-  const { data: addressesData, isFetching: isFetchingAddresses } = useGetAddressesByContactQuery(selectedContactId, {
-    skip: !selectedContactId,
+  const { data: addressesData, isFetching: isFetchingAddresses, refetch: refetchAddresses } = useGetAddressesByContactQuery(contactIdForAddresses, {
+    skip: !contactIdForAddresses,
   });
+  const [createAddress, { isLoading: isCreatingAddress }] = useCreateAddressForContactMutation();
 
   // Handle different possible response structures
   const addresses = Array.isArray(addressesData) 
@@ -424,6 +430,13 @@ export function EditJobDialog({
         customer_address: addressString,
       }));
     }
+  };
+
+  const handleCreateAddress = async (payload) => {
+    if (!contactIdForAddresses) return;
+    const created = await createAddress({ contactId: contactIdForAddresses, ...payload }).unwrap();
+    await refetchAddresses();
+    handleAddressSelect(created.id);
   };
 
   // Handle manual address editing
@@ -1112,30 +1125,53 @@ export function EditJobDialog({
                       <Loader2 className="h-4 w-4 animate-spin" />
                       Loading addresses...
                     </div>
-                  ) : addresses.length > 0 ? (
-                    <ShadcnSelect
-                      value={selectedAddressId ? String(selectedAddressId) : ""}
-                      onValueChange={(value) => handleAddressSelect(value)}
-                    >
-                      <SelectTrigger id="address_select">
-                        <SelectValue placeholder="Select an address" />
-                      </SelectTrigger>
-                      <SelectContent className="z-[1500]" position="popper">
-                        {addresses.map((address) => {
-                          const addressLabel = address.name 
-                            ? `${address.name} — ${address.street_address}, ${address.city}, ${address.state}, ${address.postal_code}`
-                            : `${address.street_address}, ${address.city}, ${address.state}, ${address.postal_code}`;
-                          return (
-                            <SelectItem key={address.id} value={String(address.id)}>
-                              {addressLabel}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </ShadcnSelect>
                   ) : (
-                    <p className="text-sm text-gray-500">No addresses found for this contact.</p>
+                    <div className="flex flex-col sm:flex-row gap-2 sm:items-start">
+                      <div className="flex-1 min-w-0">
+                        <ShadcnSelect
+                          value={selectedAddressId ? String(selectedAddressId) : ""}
+                          onValueChange={(value) => handleAddressSelect(value)}
+                        >
+                          <SelectTrigger id="address_select">
+                            <SelectValue placeholder={addresses.length ? "Select an address" : "No saved addresses"} />
+                          </SelectTrigger>
+                          <SelectContent className="z-[1500]" position="popper">
+                            {addresses.map((address) => {
+                              const addressLabel = address.name 
+                                ? `${address.name} — ${address.street_address}, ${address.city}, ${address.state}, ${address.postal_code}`
+                                : `${address.street_address}, ${address.city}, ${address.state}, ${address.postal_code}`;
+                              return (
+                                <SelectItem key={address.id} value={String(address.id)}>
+                                  {addressLabel}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </ShadcnSelect>
+                        {addresses.length === 0 && (
+                          <p className="text-sm text-gray-500 mt-1">No addresses saved yet. Add one below.</p>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outlined"
+                        size="small"
+                        startIcon={<Plus size={16} />}
+                        onClick={() => setAddAddressOpen(true)}
+                        disabled={isCreatingAddress}
+                        sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
+                      >
+                        Add address
+                      </Button>
+                    </div>
                   )}
+                  <ContactAddressFormDialog
+                    open={addAddressOpen}
+                    onClose={() => setAddAddressOpen(false)}
+                    onSubmit={handleCreateAddress}
+                    busy={isCreatingAddress}
+                    mode="create"
+                  />
                 </div>
               )}
 

@@ -63,6 +63,7 @@ import {
   canAccessPayrollAdminSections,
   canAccessPayrollTimeClock,
 } from "../../utils/payrollAccess"
+import IframeSsoLoginHandler from "../auth/IframeSsoLoginHandler"
 
 // Navigation configuration based on roles
 const getNavItemsByRole = (role, fullAccessRoles, user_profile) => {
@@ -292,6 +293,7 @@ export const AdminLayout = ({ children }) => {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <IframeSsoLoginHandler />
       {/* Main Navigation Bar */}
       {!shouldHideNavbar && (
         <AppBar
