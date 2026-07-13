@@ -590,6 +590,7 @@ function buildCalendarEventTooltip(baseTitle, type, invoiceStatusLabel) {
 }
 import { JobCard } from "../jobs/JobCard";
 import { jobsApi, useGetCalendarJobsQuery, useGetAppointmentsCalendarQuery, useGetEstimateAppointmentsCalendarQuery, useGetJobDetailsQuery, useUpdateAppointmentMutation, useDeleteAppointmentMutation, useUpdateEstimateStatusMutation, useDeleteEstimateMutation } from "../../../store/api/jobsApi";
+import { isRecurringJob, jobsBelongToSameRecurringSeries } from "../../../utils/recurringJobUtils";
 import { useGetTimeOffListQuery, useGetEmployeesQuery } from "../../../store/api/payrollApi";
 import {
   formatEquivalentDays,
@@ -2442,15 +2443,9 @@ appointmentsParams.search = filterParams.appointment_search;
         calendarJobsParams,
         (draft) => {
           if (Array.isArray(draft)) {
-            if (option === "sequence" && jobToDelete.is_recurring) {
-              // Remove all jobs in the recurring sequence
+            if (option === "sequence" && isRecurringJob(jobToDelete)) {
               const filtered = draft.filter(
-                (j) => !(
-                  (j.customer_name === jobToDelete.customer_name && 
-                   j.job_type === jobToDelete.job_type && 
-                   j.is_recurring) ||
-                  j.series_id === jobToDelete.series_id
-                )
+                (j) => !jobsBelongToSameRecurringSeries(j, jobToDelete)
               )
               // Clear and repopulate the array
               draft.length = 0

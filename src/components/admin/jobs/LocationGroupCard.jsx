@@ -7,6 +7,7 @@ import { jobGrandTotalAmount } from '../../../utils/jobPricing';
 import { JobCard } from './JobCard';
 import { Box, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Typography } from '@mui/material';
 import { useDispatch } from 'react-redux';
+import { isRecurringJob, jobsBelongToSameRecurringSeries } from '../../../utils/recurringJobUtils';
 
 export const LocationGroupCard = ({ locationInfo, users }) => {
   const { formatMoney } = useMoneyFormatter();
@@ -85,20 +86,14 @@ export const LocationGroupCard = ({ locationInfo, users }) => {
         "getJobsByLocation",
         { address: jobAddress },
         (draft) => {
-          if (option === "sequence" && jobToDelete.is_recurring) {
-            // Remove all jobs in the recurring sequence
+          if (option === "sequence" && isRecurringJob(jobToDelete)) {
+            const beforeCount = draft.results.length
             draft.results = draft.results.filter(
-              (j) => !(
-                (j.customer_name === jobToDelete.customer_name && 
-                 j.job_type === jobToDelete.job_type && 
-                 j.is_recurring) ||
-                j.series_id === jobToDelete.series_id
-              )
+              (j) => !jobsBelongToSameRecurringSeries(j, jobToDelete)
             )
-            // Update count
             if (draft.count) {
-              const deletedCount = draft.results.length - (draft.count - 1)
-              draft.count = Math.max(0, draft.count - deletedCount)
+              const removedCount = beforeCount - draft.results.length
+              draft.count = Math.max(0, draft.count - removedCount)
             }
           } else {
             // Remove only the single job

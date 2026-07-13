@@ -7,18 +7,23 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Label } from "@/components/ui/label"
 import { Trash2, RotateCw, Calendar } from "lucide-react"
-import { useDeleteJobMutation, useDeleteJobSeriesMutation } from "../../../store/api/jobsApi"
+import {
+  useDeleteJobMutation,
+  useDeleteJobSeriesMutation,
+  useDeleteJobRecurringSeriesMutation,
+} from "../../../store/api/jobsApi"
+import { hasRecurringSeriesId, isRecurringJob } from "../../../utils/recurringJobUtils"
 
 export function DeleteJobDialog({ job, open, onClose, onDelete, disabled = false }) {
   const [deleteOption, setDeleteOption] = useState("single")
   const [deleting, setDeleting] = useState(false)
   const [deleteJob] = useDeleteJobMutation()
   const [deleteJobSeries] = useDeleteJobSeriesMutation()
-  
-  // Check if job has series_id (for recurring jobs)
-  const hasSeriesId = job?.series_id != null && job?.series_id !== undefined
+  const [deleteJobRecurringSeries] = useDeleteJobRecurringSeriesMutation()
 
-  // Reset delete option when dialog closes or job changes
+  const recurringJob = isRecurringJob(job)
+  const hasSeriesId = hasRecurringSeriesId(job)
+
   useEffect(() => {
     if (!open) {
       setDeleteOption("single")
@@ -27,14 +32,21 @@ export function DeleteJobDialog({ job, open, onClose, onDelete, disabled = false
 
   const handleDelete = async () => {
     if (!job) return
-    
+
     setDeleting(true)
     try {
-      // If deleting entire series and series_id exists
-      if (deleteOption === "sequence" && hasSeriesId) {
-        await deleteJobSeries(job.series_id).unwrap()
+      if (deleteOption === "sequence" && recurringJob) {
+        if (hasSeriesId) {
+          await deleteJobSeries(job.series_id).unwrap()
+        } else {
+          const jobId = job.job_id || job.id
+          if (!jobId) {
+            setDeleting(false)
+            return
+          }
+          await deleteJobRecurringSeries(jobId).unwrap()
+        }
       } else {
-        // Delete single job - support both job_id and id fields
         const jobId = job.job_id || job.id
         if (!jobId) {
           setDeleting(false)
@@ -42,12 +54,11 @@ export function DeleteJobDialog({ job, open, onClose, onDelete, disabled = false
         }
         await deleteJob(jobId).unwrap()
       }
-      
-      // Call the onDelete callback with the job and option for cache updates
+
       if (onDelete) {
         onDelete(job, deleteOption)
       }
-      
+
       onClose()
     } catch (error) {
       // Error handled by toast notification
@@ -57,15 +68,15 @@ export function DeleteJobDialog({ job, open, onClose, onDelete, disabled = false
   }
 
   const getDeleteDescription = () => {
-    if (!hasSeriesId) {
+    if (!recurringJob) {
       return `Are you sure you want to delete "${job?.title}"? This action cannot be undone.`
     }
 
     if (deleteOption === "single") {
       return `Are you sure you want to delete this single occurrence of "${job?.title}"? Other recurring jobs will remain scheduled.`
-    } else {
-      return `Are you sure you want to delete ALL recurring jobs for "${job?.title}"? This will delete the entire recurring sequence. This action cannot be undone.`
     }
+
+    return `Are you sure you want to delete ALL recurring jobs for "${job?.title}"? This will delete the entire recurring sequence. This action cannot be undone.`
   }
 
   return (
@@ -82,7 +93,7 @@ export function DeleteJobDialog({ job, open, onClose, onDelete, disabled = false
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {hasSeriesId && (
+          {recurringJob && (
             <div className="space-y-3">
               <Label className="text-sm font-semibold">Choose deletion option:</Label>
               <RadioGroup value={deleteOption} onValueChange={setDeleteOption}>
@@ -123,14 +134,14 @@ export function DeleteJobDialog({ job, open, onClose, onDelete, disabled = false
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={deleting}>
+          <Button variant="outline" onClick={onClose} disabled={deleting || disabled}>
             Cancel
           </Button>
-          <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-            {deleting 
-              ? "Deleting..." 
-              : hasSeriesId && deleteOption === "sequence" 
-                ? "Delete All Recurring Jobs" 
+          <Button variant="destructive" onClick={handleDelete} disabled={deleting || disabled}>
+            {deleting
+              ? "Deleting..."
+              : recurringJob && deleteOption === "sequence"
+                ? "Delete All Recurring Jobs"
                 : "Delete Job"}
           </Button>
         </DialogFooter>

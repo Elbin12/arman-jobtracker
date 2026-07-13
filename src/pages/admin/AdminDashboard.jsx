@@ -72,7 +72,7 @@ const parseLocalDate = (dateStr) => {
 };
 import { useGetEmployeesQuery } from '../../store/api/payrollApi';
 import { useMoneyFormatter } from '../../hooks/useMoneyFormatter';
-import { AlertCircle, AlertTriangle, CheckCircle, Clock, File, FileText, PersonStandingIcon } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Ban, CheckCircle, Clock, File, FileText, PersonStandingIcon } from 'lucide-react';
 
 const STATUS_COLORS = {
   paid: '#22c55e',
@@ -81,6 +81,9 @@ const STATUS_COLORS = {
   overdue: '#ef4444',
   draft: '#64748b',
   sent: '#3b82f6',
+  void: '#6b7280',
+  partially_paid: '#a855f7',
+  partial: '#a855f7',
   payment_processing: '#8b5cf6',
 };
 
@@ -311,6 +314,22 @@ export const AdminDashboard = () => {
       }));
   };
 
+  const unpaidBreakdown = useMemo(() => {
+    const fromApi = analyticsData?.paid_unpaid_overview?.unpaid_breakdown;
+    if (Array.isArray(fromApi) && fromApi.length > 0) return fromApi;
+    if (!analyticsData?.status_distribution) return [];
+    return Object.entries(analyticsData.status_distribution)
+      .filter(([key]) => !['paid', 'payment_processing', 'due', 'overdue'].includes(key))
+      .map(([key, value]) => ({
+        status: key,
+        label: value.label,
+        count: value.count,
+        total: value.total,
+      }))
+      .filter((row) => row.count > 0)
+      .sort((a, b) => b.count - a.count);
+  }, [analyticsData?.paid_unpaid_overview?.unpaid_breakdown, analyticsData?.status_distribution]);
+
   const getLoadLevelColor = (level) => {
     switch (level) {
       case 'none': return '#f1f5f9';
@@ -344,8 +363,8 @@ export const AdminDashboard = () => {
         </Box>
 
         {/* Summary Cards Skeleton - Matching actual design */}
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 mb-4">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 mb-4">
+          {[1, 2, 3, 4, 5, 6, 7].map((i) => (
             <div key={i} className="shadow-sm bg-gradient-to-br from-gray-100/60 to-gray-100/10 rounded-lg">
               <Box className="flex items-center justify-between px-4 pt-4">
                 <Skeleton variant="text" width="60%" height={16} sx={{ bgcolor: 'rgba(0,0,0,0.1)' }} />
@@ -468,6 +487,19 @@ export const AdminDashboard = () => {
     );
   }
 
+  if (!analyticsData?.summary) {
+    return (
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+        <Typography variant="h5" gutterBottom>
+          Dashboard
+        </Typography>
+        <Alert severity="error" sx={{ mt: 2 }}>
+          Could not load dashboard data. Make sure the backend is running on port 8000, then refresh this page.
+        </Alert>
+      </Box>
+    );
+  }
+
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Box>
@@ -580,7 +612,7 @@ export const AdminDashboard = () => {
         </Card>
 
         {/* Summary Cards - Responsive Grid */}
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 mb-4">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 mb-4">
           <div className="shadow-sm bg-gradient-to-br from-stone-200/60 to-from-stone-200/10 rounded-lg">
             <Box className="flex items-center justify-between px-4 pt-4">
               <Typography variant="body2" color="text.secondary" fontWeight="500">
@@ -654,6 +686,24 @@ export const AdminDashboard = () => {
               <p className="text-xs text-muted-foreground">
                 {((analyticsData.paid_unpaid_overview.unpaid.total / analyticsData.summary.total_amount * 100) || 0).toFixed(1)}% pending
               </p>
+              {unpaidBreakdown.length > 0 && (
+                <Box sx={{ mt: 1.5, pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5, fontWeight: 600 }}>
+                    Breakdown by status
+                  </Typography>
+                  {unpaidBreakdown.map((row) => (
+                    <Typography
+                      key={row.status}
+                      variant="caption"
+                      color="text.secondary"
+                      display="block"
+                      sx={{ lineHeight: 1.5 }}
+                    >
+                      {row.label}: {row.count} · {formatCurrency(row.total)}
+                    </Typography>
+                  ))}
+                </Box>
+              )}
             </CardContent>
           </div>
 
@@ -737,6 +787,34 @@ export const AdminDashboard = () => {
               </div>
               <p className="text-xs text-muted-foreground">
                 {((analyticsData.status_distribution.draft?.total / analyticsData.summary.total_amount * 100) || 0).toFixed(1)}% of total amount
+              </p>
+            </CardContent>
+          </div>
+
+          <div className="shadow-sm bg-gradient-to-br from-slate-200/60 to-slate-200/10 rounded-lg">
+            <Box className="flex flex-row items-center justify-between px-4 pt-4">
+              <Typography variant="body2" color="text.secondary" fontWeight="500">Void</Typography>
+              <div className="h-8 w-8 rounded-full bg-slate-400/20 flex items-center justify-center">
+                <Ban className="h-4 w-4 text-slate-500" />
+              </div>
+            </Box>
+            <CardContent >
+              <div className="text-3xl font-bold">{analyticsData?.status_distribution.void?.count || 0}</div>
+              <p className="text-sm font-medium text-slate-600 mt-0.5">
+                {formatCurrency(analyticsData?.status_distribution.void?.total || 0)}
+              </p>
+              <div className="mt-2">
+                <Box mt={2}>
+                  <ProgressBar 
+                    variant="determinate" 
+                    value={(analyticsData?.status_distribution.void?.total / analyticsData.summary.total_amount * 100) || 0} 
+                    trackcolor="#f1f5f9"
+                    barcolor="#64748b"
+                  />
+                </Box>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {((analyticsData?.status_distribution.void?.total / analyticsData.summary.total_amount * 100) || 0).toFixed(1)}% of total amount
               </p>
             </CardContent>
           </div>

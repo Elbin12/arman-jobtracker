@@ -1,0 +1,19 @@
+# Copy to deploy.config and adjust if needed:
+#   cp scripts/deploy.config.example scripts/deploy.config
+#
+# deploy.config is gitignored.
+
+# Path to your EC2 SSH key (default: ~/Downloads/service-pilot.pem)
+SSH_KEY="$HOME/Downloads/service-pilot.pem"
+
+# EC2 SSH target
+SSH_HOST="ubuntu@ec2-3-139-155-75.us-east-2.compute.amazonaws.com"
+
+# Where nginx serves the built frontend on EC2
+REMOTE_WEB_ROOT="/var/www/dist"
+
+# Staging folder on EC2 (ubuntu can write here; script sudo-moves to REMOTE_WEB_ROOT)
+REMOTE_STAGING_DIR="/home/ubuntu/frontend-deploy-staging"
+
+# Production site (used for post-deploy message)
+SITE_URL="https://services.theservicepilot.com"

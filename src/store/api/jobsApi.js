@@ -49,6 +49,10 @@ export const jobsApi = createApi({
       query: (seriesId) => ({ url: `jobs-series/${seriesId}/`, method: 'DELETE' }),
       invalidatesTags: ['Job'],
     }),
+    deleteJobRecurringSeries: builder.mutation({
+      query: (jobId) => ({ url: `jobs/${jobId}/recurring-series/`, method: 'DELETE' }),
+      invalidatesTags: ['Job'],
+    }),
 
     //Calendar jobs - uses occurrences endpoint for flattened calendar events
     getCalendarJobs: builder.query({
@@ -240,6 +244,7 @@ export const {
   useConvertJobToSeriesMutation,
   useDeleteJobMutation,
   useDeleteJobSeriesMutation,
+  useDeleteJobRecurringSeriesMutation,
   useGetJobsByLocationQuery,
   useGetLocationsQuery,
 
