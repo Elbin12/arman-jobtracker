@@ -31,3 +31,23 @@ export const jobsBelongToSameRecurringSeries = (candidate, source) => {
     )
   );
 };
+
+const getJobScheduledTime = (job) => {
+  if (!job?.scheduled_at) return null;
+  const time = new Date(job.scheduled_at).getTime();
+  return Number.isNaN(time) ? null : time;
+};
+
+/** True when candidate should be removed for a future-only series delete (scheduled_at >= now). */
+export const isFutureSeriesOccurrence = (job, now = Date.now()) => {
+  const time = getJobScheduledTime(job);
+  if (time == null) return false;
+  return time >= now;
+};
+
+export const shouldRemoveJobForDeleteOption = (candidate, source, option, now = Date.now()) => {
+  if (!jobsBelongToSameRecurringSeries(candidate, source)) return false;
+  if (option === 'sequence') return true;
+  if (option === 'future') return isFutureSeriesOccurrence(candidate, now);
+  return false;
+};

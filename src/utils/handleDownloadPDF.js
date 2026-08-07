@@ -292,8 +292,10 @@ export const handleDownloadPDF = async (
     // ------------------------
     const totalServicePrice =
       service_selections?.reduce((sum, s) => sum + Number(s.final_total_price || 0), 0) || 0
+    const activeCustomProducts =
+      custom_products?.filter((p) => p.is_active !== false) ?? []
     const customServiceTotal =
-      custom_products?.reduce((sum, p) => sum + Number(p.price || 0), 0) || 0
+      activeCustomProducts.reduce((sum, p) => sum + Number(p.price || 0), 0) || 0
     let subtotal = 0
     if (service_selections?.length > 0) {
       if (totalServicePrice < (globalPriceData?.base_price || 0)) {
@@ -470,8 +472,8 @@ export const handleDownloadPDF = async (
       })
     }
 
-    if (custom_products?.length > 0) {
-      custom_products.forEach((product) => {
+    if (activeCustomProducts.length > 0) {
+      activeCustomProducts.forEach((product) => {
         const details = []
         if (product.description) details.push(product.description)
         drawProposalRow(product.product_name || "Additional item", details, product.price)

@@ -13,7 +13,7 @@ import DeleteJobDialog from "../../components/admin/jobs/DeleteJobDialog"
 import { EditJobDialog } from "../../components/admin/jobs/EditJobDialog"
 import { useDispatch, useSelector } from "react-redux"
 import { JobCardSkeleton, CardGridSkeleton } from "../../components/ui/skeletons"
-import { isRecurringJob, jobsBelongToSameRecurringSeries } from "../../utils/recurringJobUtils"
+import { isRecurringJob, shouldRemoveJobForDeleteOption } from "../../utils/recurringJobUtils"
 
 export function Jobs() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -76,10 +76,11 @@ export function Jobs() {
         "getJobs",
         { ...filterParams, page },
         (draft) => {
-          if (option === "sequence" && isRecurringJob(jobToDelete)) {
+          if ((option === "sequence" || option === "future") && isRecurringJob(jobToDelete)) {
             const beforeCount = draft.results.length
+            const now = Date.now()
             draft.results = draft.results.filter(
-              (j) => !jobsBelongToSameRecurringSeries(j, jobToDelete)
+              (j) => !shouldRemoveJobForDeleteOption(j, jobToDelete, option, now)
             )
             if (draft.count) {
               const removedCount = beforeCount - draft.results.length

@@ -167,11 +167,17 @@ export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setT
     return undefined;
   }, [response, data.quoteDetails, effectiveSubmissionId]);
 
-  const activeCustomProducts = useMemo(() => {
-    const fromState = customProducts.filter((product) => product.is_active !== false);
-    if (fromState.length > 0) return fromState;
-    return (quoteData?.custom_products ?? []).filter((product) => product.is_active !== false);
-  }, [customProducts, quoteData?.custom_products]);
+  // Once quote data is loaded, trust local `customProducts` (incl. empty / unselected).
+  // Avoid falling back to stale quoteData after toggles/deletes.
+  const allCustomProducts = useMemo(() => {
+    if (quoteData) return customProducts;
+    return customProducts.length > 0 ? customProducts : [];
+  }, [customProducts, quoteData]);
+
+  const activeCustomProducts = useMemo(
+    () => allCustomProducts.filter((product) => product.is_active !== false),
+    [allCustomProducts]
+  );
 
   const isLoadingQuote = isLoading && !quoteData;
   const isEditable = !readOnly && !quoteData?.is_persisted_snapshot;
@@ -212,9 +218,12 @@ export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setT
     if (!quoteData) return;
 
     const totalSelectedPrice = calculateTotalSelectedPrice(selectedPackages, quoteData);
+    // Prefer live selection state so unselecting custom products drops them from the total.
+    // Only fall back to API total when we have no product list yet.
     const customProductsTotal = calculateCustomProductsTotal(activeCustomProducts);
     const apiCustomTotal = Number.parseFloat(quoteData?.custom_service_total || 0);
-    const effectiveCustomTotal = customProductsTotal > 0 ? customProductsTotal : apiCustomTotal;
+    const effectiveCustomTotal =
+      allCustomProducts.length > 0 ? customProductsTotal : apiCustomTotal;
     const surcharge = quoteData.total_surcharges ? parseFloat(quoteData.total_surcharges) : 0;
 
     const total = totalSelectedPrice + effectiveCustomTotal + surcharge;
@@ -239,7 +248,7 @@ export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setT
       setBasePriceApplied(false);
       setFinalTotal(total);
     }
-  }, [selectedPackages, activeCustomProducts, quoteData, globalPriceData]);
+  }, [selectedPackages, activeCustomProducts, allCustomProducts, quoteData, globalPriceData]);
 
   const surchargeAmount = quoteData?.total_surcharges
 
@@ -606,26 +615,39 @@ export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setT
   };
 
   const handleToggleCustomProduct = async (product) => {
+    if (!isEditable) return;
+
+    const nextActive = !(product.is_active !== false);
+
+    // Optimistic UI so the card stays visible and total updates immediately
+    const optimisticList = allCustomProducts.map((p) =>
+      p.id === product.id ? { ...p, is_active: nextActive } : p
+    );
+    setCustomProducts(optimisticList);
+    onUpdate({
+      selectedCustomProducts: optimisticList.filter((p) => p.is_active !== false),
+    });
+
     try {
       const updated = await updateCustomProduct({
         id: product.id,
-        is_active: !product.is_active, // toggle
+        is_active: nextActive,
       }).unwrap();
 
-      // Build the new array first
-      const updatedList = customProducts.map((p) =>
+      const updatedList = optimisticList.map((p) =>
         p.id === product.id ? { ...p, is_active: updated.is_active } : p
       );
-
-      // Update state
       setCustomProducts(updatedList);
-
-      // Notify parent with the new list
       onUpdate({
-        selectedCustomProducts: updatedList.filter((p) => p.is_active),
+        selectedCustomProducts: updatedList.filter((p) => p.is_active !== false),
       });
     } catch (error) {
       console.error("Failed to update custom product:", error);
+      // Revert on failure
+      setCustomProducts(allCustomProducts);
+      onUpdate({
+        selectedCustomProducts: allCustomProducts.filter((p) => p.is_active !== false),
+      });
     }
   };
 
@@ -1176,28 +1198,31 @@ export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setT
           </Card>
         ))}
 
-        {/* Custom Products Section */}
-        {activeCustomProducts.length > 0 && (
+        {/* Custom Products Section — show all so user can unselect; only active count toward total */}
+        {allCustomProducts.length > 0 && (
           <Card sx={{ mb: 3 }}>
             <CardContent sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f' }}>
                 Custom Products
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Additional custom services added to your quote
+                Tap a custom service to include or exclude it from your quote total
               </Typography>
               <Grid container spacing={2}>
-                {activeCustomProducts.map((product) => (
+                {allCustomProducts.map((product) => {
+                  const isSelected = product.is_active !== false;
+                  return (
                   <Grid item xs={12} sm={6} md={4} key={product.id}>
                     <Card
                       variant="outlined"
                       sx={{
-                        border: product.is_active ? "2px solid #42bd3f" : "1px solid #e0e0e0",
-                        bgcolor: product.is_active ? "#f8fff8" : "white",
+                        border: isSelected ? "2px solid #42bd3f" : "1px solid #e0e0e0",
+                        bgcolor: isSelected ? "#f8fff8" : "white",
                         borderRadius: 2,
                         height: "100%",
-                        cursor: "pointer",
-                        "&:hover": { borderColor: "#42bd3f" },
+                        cursor: isEditable ? "pointer" : "default",
+                        opacity: isSelected ? 1 : 0.7,
+                        "&:hover": isEditable ? { borderColor: "#42bd3f" } : {},
                         display: "flex",
                         flexDirection: "column",
                         justifyContent: "space-between",
@@ -1206,9 +1231,23 @@ export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setT
                     >
                       <CardContent sx={{ p: 2 }}>
                         <Box display="flex" alignItems="center" justifyContent="space-between" gap={2} mb={2}>
-                          <Typography variant="h6" fontWeight={600}>
-                            {product.product_name}
-                          </Typography>
+                          <Box display="flex" alignItems="center" gap={1} minWidth={0}>
+                            <Checkbox
+                              checked={isSelected}
+                              disabled={!isEditable}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={() => handleToggleCustomProduct(product)}
+                              sx={{
+                                p: 0.5,
+                                color: "#9e9e9e",
+                                "&.Mui-checked": { color: "#42bd3f" },
+                              }}
+                            />
+                            <Typography variant="h6" fontWeight={600} noWrap>
+                              {product.product_name}
+                            </Typography>
+                          </Box>
+                          {isEditable && (
                           <Box>
                             <IconButton size="small" onClick={(e) => { e.stopPropagation(); openEditDialog(product); }}>
                               <Edit fontSize="small" />
@@ -1217,18 +1256,26 @@ export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setT
                               <Delete fontSize="small" />
                             </IconButton>
                           </Box>
+                          )}
                         </Box>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                           {product.description}
                         </Typography>
-                        <Typography variant="h6" sx={{ color: "#42bd3f", fontWeight: 700 }}>
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            color: isSelected ? "#42bd3f" : "text.secondary",
+                            fontWeight: 700,
+                            textDecoration: isSelected ? "none" : "line-through",
+                          }}
+                        >
                           {formatPrice(product.price)}
                         </Typography>
                       </CardContent>
                     </Card>
                   </Grid>
-
-                ))}
+                  );
+                })}
               </Grid>
             </CardContent>
           </Card>

@@ -1,6 +1,10 @@
 import axios from 'axios';
 import { logout } from '../slices/authSlice';
-import { getIframeLocationId, withLocationIdParams } from '../../utils/iframeContext';
+import {
+  appendIframeContextToPath,
+  getIframeLocationId,
+  withLocationIdParams,
+} from '../../utils/iframeContext';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'https://site.cleanonthego.com/api';
 export const ADMIN_USERNAME = import.meta.env.VITE_ADMIN_USERNAME
@@ -97,7 +101,9 @@ axiosInstance.interceptors.response.use(
         // Store current location before token expires (for automatic logout scenarios)
         // Only store if not already on login page and returnTo doesn't already exist
         if (typeof window !== 'undefined') {
-          const currentPath = window.location.pathname + window.location.search;
+          const currentPath = appendIframeContextToPath(
+            window.location.pathname + window.location.search,
+          );
           if (!currentPath.includes('/admin/login')) {
             const existingReturnTo = localStorage.getItem('returnTo');
             // Only store if there's no existing returnTo (to preserve the original page)

@@ -7,7 +7,8 @@ import { useUrlSsoLogin } from '../../hooks/useUrlSsoLogin';
 import { friendlySsoErrorMessage } from '../../utils/urlSsoLogin';
 
 /**
- * Handles dynamic SSO when GHL iframe URL includes email + location_id.
+ * Handles dynamic SSO when GHL iframe URL includes email + location_id
+ * (or when a remembered iframe SSO email is available).
  * Switches logged-in user when the email param changes; shows errors inline.
  */
 export function IframeSsoLoginHandler() {
@@ -15,9 +16,9 @@ export function IframeSsoLoginHandler() {
   const [searchParams] = useSearchParams();
   const urlEmail = searchParams.get('email');
 
-  const { switching, ssoError } = useUrlSsoLogin({ enabled: true });
+  const { email, switching, ssoError } = useUrlSsoLogin({ enabled: true });
 
-  if (!urlEmail && !searchParams.get('sso_token')) {
+  if (!email && !searchParams.get('sso_token')) {
     return null;
   }
 
@@ -34,7 +35,7 @@ export function IframeSsoLoginHandler() {
       >
         <CircularProgress color="inherit" size={28} />
         <Typography variant="body2">
-          Signing in{urlEmail ? ` as ${urlEmail}` : ''}…
+          Signing in{email ? ` as ${email}` : ''}…
         </Typography>
       </Backdrop>
 
@@ -48,7 +49,7 @@ export function IframeSsoLoginHandler() {
             borderColor: 'divider',
           }}
         >
-          {friendlySsoErrorMessage(ssoError, urlEmail)}
+          {friendlySsoErrorMessage(ssoError, urlEmail || email)}
         </Alert>
       )}
     </>

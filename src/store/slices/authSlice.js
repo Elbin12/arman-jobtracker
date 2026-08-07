@@ -1,6 +1,11 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { BASE_URL } from '../axios/axios';
+import {
+  clearIframeSsoEmail,
+  setIframeLocationId,
+  setIframeSsoEmail,
+} from '../../utils/iframeContext';
 
 
 const access = localStorage.getItem('access');
@@ -107,6 +112,7 @@ const authSlice = createSlice({
       state.refresh = null;
       state.isAuthenticated = false;
       state.error = null;
+      clearIframeSsoEmail();
     },
     clearError: (state) => {
       state.error = null;
@@ -142,11 +148,29 @@ const authSlice = createSlice({
       } else {
         localStorage.removeItem('ghl_account');
       }
+      const loginEmail =
+        action.payload.user?.email || action.payload.user?.username || '';
+      if (loginEmail) {
+        setIframeSsoEmail(loginEmail);
+      }
+      const loginLocationId = action.payload.account?.location_id;
+      if (loginLocationId) {
+        setIframeLocationId(loginLocationId);
+      }
       state.isAuthenticated = true;
       state.error = null;
       state.ssoError = null;
       state.ssoSwitching = false;
       state.success = true;
+    };
+
+    const clearSessionStorage = () => {
+      localStorage.removeItem('access');
+      localStorage.removeItem('refresh');
+      localStorage.removeItem('user_profile');
+      localStorage.removeItem('ghl_account');
+      localStorage.removeItem('user');
+      clearIframeSsoEmail();
     };
 
     builder
@@ -196,11 +220,7 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.error = null;
         state.success = false;
-        localStorage.removeItem('access');
-        localStorage.removeItem('refresh');
-        localStorage.removeItem('user_profile');
-        localStorage.removeItem('ghl_account');
-        localStorage.removeItem('user');
+        clearSessionStorage();
       })
       .addCase(logoutUser.rejected, (state) => {
         state.user = null;
@@ -208,8 +228,7 @@ const authSlice = createSlice({
         state.refresh = null;
         state.isAuthenticated = false;
         state.error = null;
-        localStorage.removeItem('access');
-        localStorage.removeItem('refresh');
+        clearSessionStorage();
       });
   },
 });

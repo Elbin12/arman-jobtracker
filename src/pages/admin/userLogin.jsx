@@ -17,8 +17,12 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { loginUser, clearSuccess } from '../../store/slices/authSlice';
 import { useUrlSsoLogin } from '../../hooks/useUrlSsoLogin';
-import { friendlySsoErrorMessage } from '../../utils/urlSsoLogin';
-import { getIframeLocationId } from '../../utils/iframeContext';
+import { getAutoLoginDiagnostic } from '../../utils/urlSsoLogin';
+import {
+  getIframeLocationId,
+  isInIframe,
+  resolveIframeSsoEmail,
+} from '../../utils/iframeContext';
 import { getPostLoginRedirectPath, resolvePostLoginNavigation } from '../../utils/postLoginRedirect';
 
 const UserLogin = () => {
@@ -26,19 +30,13 @@ const UserLogin = () => {
   const navigate = useNavigate();
   const { loading, error, user, access } = useSelector((state) => state.auth);
   const [searchParams] = useSearchParams();
-  const email = searchParams.get('email');
+  const hasEmailParam = searchParams.has('email');
+  const urlEmail = hasEmailParam ? (searchParams.get('email') ?? '') : null;
+  const email = resolveIframeSsoEmail({ urlEmail });
   const locationId = searchParams.get('location_id') || getIframeLocationId();
-
-  useEffect(() => {
-    if (!access || !user) return;
-    const returnTo = localStorage.getItem('returnTo');
-    if (returnTo) return;
-
-    navigate(
-      getPostLoginRedirectPath({ userRole: user.role, locationId }),
-      { replace: true },
-    );
-  }, [access, user, navigate, locationId]);
+  const inIframe = isInIframe();
+  const hasSsoToken = Boolean(searchParams.get('sso_token'));
+  const canAutoSso = Boolean((email || hasSsoToken) && locationId);
 
   const finishLoginNavigation = useCallback(
     (response) => {
@@ -49,19 +47,60 @@ const UserLogin = () => {
       dispatch(clearSuccess());
       navigate(
         resolvePostLoginNavigation({
-          userRole: response?.user?.role,
+          userRole: response?.user?.role || user?.role,
           locationId,
           returnTo,
         }),
         { replace: true },
       );
     },
-    [dispatch, navigate, locationId],
+    [dispatch, navigate, locationId, user?.role],
   );
 
-  const { ssoError, loading: ssoLoading } = useUrlSsoLogin({
-    enabled: Boolean((email || searchParams.get('sso_token')) && locationId),
-    onSuccess: finishLoginNavigation,
+  const { ssoError, loading: ssoLoading, usedRememberedEmail, hasExplicitUrlSso } =
+    useUrlSsoLogin({
+      enabled: canAutoSso,
+      onSuccess: finishLoginNavigation,
+    });
+
+  // Already authenticated: leave login (including when returnTo is set).
+  // When URL has email/sso_token + location_id, SSO must verify with the backend first —
+  // do not trust a stale localStorage user/token and skip verification.
+  useEffect(() => {
+    if (!access || !user) return;
+    if (canAutoSso && hasExplicitUrlSso) return;
+
+    const returnTo = localStorage.getItem('returnTo');
+    if (returnTo) {
+      localStorage.removeItem('returnTo');
+      navigate(
+        resolvePostLoginNavigation({
+          userRole: user.role,
+          locationId,
+          returnTo,
+        }),
+        { replace: true },
+      );
+      return;
+    }
+
+    navigate(
+      getPostLoginRedirectPath({ userRole: user.role, locationId }),
+      { replace: true },
+    );
+  }, [access, user, navigate, locationId, canAutoSso, hasExplicitUrlSso]);
+
+  const diagnosticLines = getAutoLoginDiagnostic({
+    urlEmail,
+    resolvedEmail: email,
+    locationId,
+    ssoError,
+    usedRememberedEmail,
+    hasSsoToken,
+    inIframe,
+    isAutoLoggingIn: Boolean(
+      canAutoSso && (ssoLoading || loading) && !ssoError,
+    ),
   });
 
   const formik = useFormik({
@@ -102,7 +141,8 @@ const UserLogin = () => {
     },
   });
 
-  const isAutoLoggingIn = (ssoLoading || loading) && (email || searchParams.get('sso_token'));
+  const isAutoLoggingIn =
+    (ssoLoading || loading) && (email || searchParams.get('sso_token'));
 
   if (isAutoLoggingIn && !ssoError) {
     return (
@@ -124,6 +164,8 @@ const UserLogin = () => {
       </Box>
     );
   }
+
+  const diagnosticSeverity = ssoError ? 'warning' : 'info';
 
   return (
     <Box
@@ -155,9 +197,17 @@ const UserLogin = () => {
             </Typography>
           </Box>
 
-          {ssoError && (
-            <Alert severity="warning" sx={{ mb: 2 }}>
-              {friendlySsoErrorMessage(ssoError, email)}
+          {/* Always show on iframe / when SSO failed or email was attempted — helps client-device debugging */}
+          {(inIframe || ssoError || hasEmailParam || usedRememberedEmail) && (
+            <Alert severity={diagnosticSeverity} sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 0.5 }}>
+                Automatic sign-in details
+              </Typography>
+              {diagnosticLines.map((line) => (
+                <Typography key={line} variant="body2" component="div" sx={{ mb: 0.25 }}>
+                  {line}
+                </Typography>
+              ))}
             </Alert>
           )}
 
@@ -192,7 +242,7 @@ const UserLogin = () => {
               />
             </Box>
 
-            {error && (
+            {error && !ssoError && (
               <Typography variant="body2" color="error" mb={2}>
                 {error}
               </Typography>

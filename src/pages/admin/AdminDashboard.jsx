@@ -5,9 +5,7 @@ import {
   Card,
   CardContent,
   Typography,
-  Grid,
   Button,
-  TextField,
   MenuItem,
   FormControl,
   InputLabel,
@@ -57,8 +55,11 @@ import {
   Line,
   ReferenceArea,
 } from 'recharts';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from 'date-fns';
 import { useGetAnalyticsQuery, useGetHeatMapQuery, useGetLeadFunnelReportQuery, useGetSalesForecastingQuery } from '../../store/api/dashboardApi';
+import { useGetEmployeesQuery } from '../../store/api/payrollApi';
+import { useMoneyFormatter } from '../../hooks/useMoneyFormatter';
+import { AlertCircle, AlertTriangle, Ban, CalendarDays, CheckCircle, Clock, File, FileText, PersonStandingIcon } from 'lucide-react';
 
 // Parse date-only string (yyyy-MM-dd) as local date so CDT/other timezones don't show previous day
 const parseLocalDate = (dateStr) => {
@@ -70,9 +71,14 @@ const parseLocalDate = (dateStr) => {
   }
   return new Date(s);
 };
-import { useGetEmployeesQuery } from '../../store/api/payrollApi';
-import { useMoneyFormatter } from '../../hooks/useMoneyFormatter';
-import { AlertCircle, AlertTriangle, Ban, CheckCircle, Clock, File, FileText, PersonStandingIcon } from 'lucide-react';
+
+const currentMonthRange = () => {
+  const now = new Date();
+  return {
+    start_date: format(startOfMonth(now), 'yyyy-MM-dd'),
+    end_date: format(endOfMonth(now), 'yyyy-MM-dd'),
+  };
+};
 
 const STATUS_COLORS = {
   paid: '#22c55e',
@@ -120,17 +126,13 @@ export const AdminDashboard = () => {
     return ids.join(',');
   }, [assigneesData?.results]);
 
-  // Top filter: 2 years — previous year Jan 1 to current year Dec 31
-  const [filters, setFilters] = useState(() => {
-    const now = new Date();
-    const prevYearFirst = new Date(now.getFullYear() - 1, 0, 1);
-    const currentYearLast = new Date(now.getFullYear(), 11, 31);
-    return {
-      granularity: 'monthly',
-      start_date: format(prevYearFirst, 'yyyy-MM-dd'),
-      end_date: format(currentYearLast, 'yyyy-MM-dd'),
-      status: 'all',
-    };
+  // Shared dashboard period — default: current calendar month (1st → last day)
+  const [dateRange, setDateRange] = useState(currentMonthRange);
+
+  // Invoice-only filters (status / chart granularity)
+  const [invoiceFilters, setInvoiceFilters] = useState({
+    granularity: 'monthly',
+    status: 'all',
   });
 
   const [heatmapParams, setHeatmapParams] = useState({
@@ -140,40 +142,49 @@ export const AdminDashboard = () => {
     view: 'heatmap',
   });
 
-  // Lead Funnel Report: current year only — Jan 1 to Dec 31; optional assignee filter (same `assignee_ids` shape as sales forecasting)
-  const [leadFunnelFilters, setLeadFunnelFilters] = useState(() => {
-    const now = new Date();
-    const startOfYear = new Date(now.getFullYear(), 0, 1);
-    const endOfYear = new Date(now.getFullYear(), 11, 31);
-    return {
-      start_date: format(startOfYear, 'yyyy-MM-dd'),
-      end_date: format(endOfYear, 'yyyy-MM-dd'),
-      assigneeUserIds: [],
+  // Lead funnel–only: optional assignee filter
+  const [leadFunnelAssigneeIds, setLeadFunnelAssigneeIds] = useState([]);
+
+  const analyticsParams = useMemo(() => {
+    const p = {
+      start_date: dateRange.start_date,
+      end_date: dateRange.end_date,
+      granularity: invoiceFilters.granularity,
     };
-  });
+    if (invoiceFilters.status && invoiceFilters.status !== 'all') {
+      p.status = invoiceFilters.status;
+    }
+    return p;
+  }, [dateRange.start_date, dateRange.end_date, invoiceFilters.granularity, invoiceFilters.status]);
 
   const leadFunnelReportParams = useMemo(() => {
     const p = {
-      start_date: leadFunnelFilters.start_date,
-      end_date: leadFunnelFilters.end_date,
+      start_date: dateRange.start_date,
+      end_date: dateRange.end_date,
     };
-    const ids = leadFunnelFilters.assigneeUserIds;
-    if (ids?.length) {
-      p.assignee_ids = ids.join(',');
+    if (leadFunnelAssigneeIds?.length) {
+      p.assignee_ids = leadFunnelAssigneeIds.join(',');
     }
     return p;
-  }, [leadFunnelFilters.start_date, leadFunnelFilters.end_date, leadFunnelFilters.assigneeUserIds]);
+  }, [dateRange.start_date, dateRange.end_date, leadFunnelAssigneeIds]);
 
-  const { data: analyticsData, isLoading: analyticsLoading, refetch: refetchAnalytics } = useGetAnalyticsQuery(filters);
+  const { data: analyticsData, isLoading: analyticsLoading, refetch: refetchAnalytics } = useGetAnalyticsQuery(analyticsParams);
   const { data: heatmapData, isLoading: heatmapLoading, refetch: refetchHeatmap } = useGetHeatMapQuery(heatmapParams);
 
-  // Sales forecasting: same date filters as dashboard + assignee_ids (all user IDs, like calendar)
+  // Sales forecasting: rolling timeline (not date-range driven); assignees = all techs like calendar
   const salesForecastParams = useMemo(
-    () => ({ ...filters, assignee_ids: assigneeIdsString }),
-    [filters, assigneeIdsString]
+    () => ({ assignee_ids: assigneeIdsString }),
+    [assigneeIdsString]
   );
   const { data: salesForecastData, isLoading: forecastLoading } = useGetSalesForecastingQuery(salesForecastParams);
   const { data: leadFunnelData, isLoading: leadFunnelLoading } = useGetLeadFunnelReportQuery(leadFunnelReportParams);
+
+  const dateRangeLabel = useMemo(() => {
+    const start = parseLocalDate(dateRange.start_date);
+    const end = parseLocalDate(dateRange.end_date);
+    if (!start || !end) return '';
+    return `${format(start, 'MMM d, yyyy')} – ${format(end, 'MMM d, yyyy')}`;
+  }, [dateRange.start_date, dateRange.end_date]);
 
   const [forecastFormulaAnchor, setForecastFormulaAnchor] = useState(null);
 
@@ -281,16 +292,53 @@ export const AdminDashboard = () => {
     );
   };
 
-  const handleFilterChange = (field, value) => {
-    setFilters((prev) => ({ ...prev, [field]: value }));
+  const handleDateRangeChange = (field, value) => {
+    setDateRange((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleLeadFunnelFilterChange = (field, value) => {
-    setLeadFunnelFilters((prev) => ({ ...prev, [field]: value }));
+  const handleInvoiceFilterChange = (field, value) => {
+    setInvoiceFilters((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleApplyFilters = () => {
-    refetchAnalytics();
+  const applyDatePreset = (preset) => {
+    const now = new Date();
+    if (preset === 'this_month') {
+      setDateRange(currentMonthRange());
+    } else if (preset === 'last_month') {
+      const last = subMonths(now, 1);
+      setDateRange({
+        start_date: format(startOfMonth(last), 'yyyy-MM-dd'),
+        end_date: format(endOfMonth(last), 'yyyy-MM-dd'),
+      });
+    } else if (preset === 'this_year') {
+      setDateRange({
+        start_date: format(startOfYear(now), 'yyyy-MM-dd'),
+        end_date: format(endOfYear(now), 'yyyy-MM-dd'),
+      });
+    }
+  };
+
+  const isPresetActive = (preset) => {
+    const now = new Date();
+    let expected;
+    if (preset === 'this_month') expected = currentMonthRange();
+    else if (preset === 'last_month') {
+      const last = subMonths(now, 1);
+      expected = {
+        start_date: format(startOfMonth(last), 'yyyy-MM-dd'),
+        end_date: format(endOfMonth(last), 'yyyy-MM-dd'),
+      };
+    } else if (preset === 'this_year') {
+      expected = {
+        start_date: format(startOfYear(now), 'yyyy-MM-dd'),
+        end_date: format(endOfYear(now), 'yyyy-MM-dd'),
+      };
+    }
+    return (
+      expected &&
+      dateRange.start_date === expected.start_date &&
+      dateRange.end_date === expected.end_date
+    );
   };
 
   const formatTrendData = () => {
@@ -357,10 +405,13 @@ export const AdminDashboard = () => {
               Dashboard
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Invoice analytics and technician workload overview
+              Invoice analytics, lead funnel, and workload overview
             </Typography>
           </Box>
         </Box>
+
+        {/* Shared period skeleton */}
+        <Skeleton variant="rectangular" height={88} sx={{ mb: 3, borderRadius: 2.5, bgcolor: 'rgba(15,118,110,0.08)' }} />
 
         {/* Summary Cards Skeleton - Matching actual design */}
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 mb-4">
@@ -517,7 +568,7 @@ export const AdminDashboard = () => {
               Dashboard
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Invoice analytics and technician workload overview
+              Invoice analytics, lead funnel, and workload overview
             </Typography>
           </Box>
           <IconButton 
@@ -532,84 +583,178 @@ export const AdminDashboard = () => {
           </IconButton>
         </Box>
 
-        {/* Filters Section - Responsive */}
-        <Card sx={{ mb: 3, boxShadow: 1 }}>
-          <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-            <Typography variant="subtitle1" fontWeight="600" gutterBottom>
-              Filters
+        {/* Shared dashboard period — applies to invoices + lead funnel */}
+        <Paper
+          elevation={0}
+          sx={{
+            mb: 3,
+            p: { xs: 2, sm: 2.5 },
+            borderRadius: 2.5,
+            border: '1px solid',
+            borderColor: 'rgba(15, 118, 110, 0.22)',
+            background: 'linear-gradient(135deg, rgba(240,253,250,0.95) 0%, rgba(255,255,255,0.98) 55%, rgba(248,250,252,0.9) 100%)',
+            boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 118, 110, 0.06)',
+          }}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', md: 'row' },
+              alignItems: { xs: 'stretch', md: 'center' },
+              justifyContent: 'space-between',
+              gap: 2,
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, minWidth: 0 }}>
+              <Box
+                sx={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  bgcolor: 'rgba(15, 118, 110, 0.12)',
+                  color: '#0f766e',
+                  flexShrink: 0,
+                }}
+              >
+                <CalendarDays size={20} />
+              </Box>
+              <Box sx={{ minWidth: 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 0.25 }}>
+                  <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#0f172a', lineHeight: 1.2 }}>
+                    Dashboard period
+                  </Typography>
+                  <Chip
+                    size="small"
+                    label="Shared filter"
+                    sx={{
+                      height: 22,
+                      fontWeight: 600,
+                      fontSize: '0.7rem',
+                      bgcolor: 'rgba(15, 118, 110, 0.12)',
+                      color: '#0f766e',
+                    }}
+                  />
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                  Applies to invoice analytics and lead funnel · {dateRangeLabel}
+                </Typography>
+              </Box>
+            </Box>
+
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.25 }}>
+              {['this_month', 'last_month', 'this_year'].map((preset) => {
+                const labels = { this_month: 'This month', last_month: 'Last month', this_year: 'This year' };
+                const active = isPresetActive(preset);
+                return (
+                  <Chip
+                    key={preset}
+                    label={labels[preset]}
+                    size="small"
+                    onClick={() => applyDatePreset(preset)}
+                    variant={active ? 'filled' : 'outlined'}
+                    sx={{
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      ...(active
+                        ? { bgcolor: '#0f766e', color: '#fff', '&:hover': { bgcolor: '#0d9488' } }
+                        : { borderColor: 'rgba(15, 118, 110, 0.35)', color: '#0f766e' }),
+                    }}
+                  />
+                );
+              })}
+              <DatePicker
+                label="From"
+                value={parseLocalDate(dateRange.start_date)}
+                onChange={(date) =>
+                  date && handleDateRangeChange('start_date', format(date, 'yyyy-MM-dd'))
+                }
+                slotProps={{
+                  textField: {
+                    size: 'small',
+                    sx: {
+                      minWidth: { xs: '100%', sm: 150 },
+                      bgcolor: 'background.paper',
+                      '& .MuiOutlinedInput-root': { borderRadius: 1.5 },
+                    },
+                  },
+                }}
+              />
+              <DatePicker
+                label="To"
+                value={parseLocalDate(dateRange.end_date)}
+                onChange={(date) =>
+                  date && handleDateRangeChange('end_date', format(date, 'yyyy-MM-dd'))
+                }
+                slotProps={{
+                  textField: {
+                    size: 'small',
+                    sx: {
+                      minWidth: { xs: '100%', sm: 150 },
+                      bgcolor: 'background.paper',
+                      '& .MuiOutlinedInput-root': { borderRadius: 1.5 },
+                    },
+                  },
+                }}
+              />
+            </Box>
+          </Box>
+        </Paper>
+
+        {/* Invoice section toolbar — status + chart granularity only */}
+        <Box
+          sx={{
+            mb: 2,
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            alignItems: { xs: 'stretch', sm: 'center' },
+            justifyContent: 'space-between',
+            gap: 1.5,
+          }}
+        >
+          <Box>
+            <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#0f172a' }}>
+              Invoice analytics
             </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6} md={3}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Granularity</InputLabel>
-                  <Select
-                    value={filters.granularity}
-                    label="Granularity"
-                    onChange={(e) => handleFilterChange('granularity', e.target.value)}
-                  >
-                    <MenuItem value="daily">Daily</MenuItem>
-                    <MenuItem value="weekly">Weekly</MenuItem>
-                    <MenuItem value="monthly">Monthly</MenuItem>
-                    <MenuItem value="yearly">Yearly</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={3}>
-                <DatePicker
-                  label="Start Date"
-                  value={parseLocalDate(filters.start_date)}
-                  onChange={(date) =>
-                    date && handleFilterChange('start_date', format(date, 'yyyy-MM-dd'))
-                  }
-                  renderInput={(params) => <TextField {...params} fullWidth size="small" />}
-                  slotProps={{ textField: { size: 'small', fullWidth: true } }}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={3}>
-                <DatePicker
-                  label="End Date"
-                  value={parseLocalDate(filters.end_date)}
-                  onChange={(date) =>
-                    date && handleFilterChange('end_date', format(date, 'yyyy-MM-dd'))
-                  }
-                  renderInput={(params) => <TextField {...params} fullWidth size="small" />}
-                  slotProps={{ textField: { size: 'small', fullWidth: true } }}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={3}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Status</InputLabel>
-                  <Select
-                    value={filters.status}
-                    label="Status"
-                    onChange={(e) => handleFilterChange('status', e.target.value)}
-                  >
-                    <MenuItem value="all">All</MenuItem>
-                    <MenuItem value="paid">Paid</MenuItem>
-                    <MenuItem value="overdue">Overdue</MenuItem>
-                    <MenuItem value="draft">Draft</MenuItem>
-                    <MenuItem value="sent">Sent</MenuItem>
-                    <MenuItem value="void">Void</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-
-              <Grid item xs={12}>
-                <Button 
-                  variant="contained" 
-                  onClick={handleApplyFilters}
-                  size={isMobile ? 'small' : 'medium'}
-                  fullWidth={isMobile}
-                >
-                  Apply Filters
-                </Button>
-              </Grid>
-            </Grid>
-          </CardContent>
-        </Card>
+            <Typography variant="caption" color="text.secondary">
+              Status and chart detail for this section only
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
+            <FormControl size="small" sx={{ minWidth: 140 }}>
+              <InputLabel>Granularity</InputLabel>
+              <Select
+                value={invoiceFilters.granularity}
+                label="Granularity"
+                onChange={(e) => handleInvoiceFilterChange('granularity', e.target.value)}
+                sx={{ bgcolor: 'background.paper', borderRadius: 1.5 }}
+              >
+                <MenuItem value="daily">Daily</MenuItem>
+                <MenuItem value="weekly">Weekly</MenuItem>
+                <MenuItem value="monthly">Monthly</MenuItem>
+                <MenuItem value="yearly">Yearly</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl size="small" sx={{ minWidth: 140 }}>
+              <InputLabel>Invoice status</InputLabel>
+              <Select
+                value={invoiceFilters.status}
+                label="Invoice status"
+                onChange={(e) => handleInvoiceFilterChange('status', e.target.value)}
+                sx={{ bgcolor: 'background.paper', borderRadius: 1.5 }}
+              >
+                <MenuItem value="all">All</MenuItem>
+                <MenuItem value="paid">Paid</MenuItem>
+                <MenuItem value="overdue">Overdue</MenuItem>
+                <MenuItem value="draft">Draft</MenuItem>
+                <MenuItem value="sent">Sent</MenuItem>
+                <MenuItem value="void">Void</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        </Box>
 
         {/* Summary Cards - Responsive Grid */}
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 mb-4">
@@ -954,41 +1099,29 @@ export const AdminDashboard = () => {
           </Card>
         </div>
 
-        {/* Lead Funnel Report - Replace Top Customers position */}
+        {/* Lead Funnel Report */}
           <Card sx={{ mb: 3, boxShadow: 1 }}>
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 2 }}>
-                <Typography variant="subtitle1" fontWeight="600">
-                  Lead Funnel Report
-                </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
-                  <LocalizationProvider dateAdapter={AdapterDateFns}>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
-                      <DatePicker
-                        label="Start date"
-                        value={parseLocalDate(leadFunnelFilters.start_date)}
-                        onChange={(date) => date && handleLeadFunnelFilterChange('start_date', format(date, 'yyyy-MM-dd'))}
-                        slotProps={{ textField: { size: 'small', sx: { minWidth: 140 } } }}
-                      />
-                      <DatePicker
-                        label="End date"
-                        value={parseLocalDate(leadFunnelFilters.end_date)}
-                        onChange={(date) => date && handleLeadFunnelFilterChange('end_date', format(date, 'yyyy-MM-dd'))}
-                        slotProps={{ textField: { size: 'small', sx: { minWidth: 140 } } }}
-                      />
-                    </Box>
-                  </LocalizationProvider>
+                <Box>
+                  <Typography variant="subtitle1" fontWeight="600">
+                    Lead Funnel Report
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Uses dashboard period · assignees filter this section only
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5 }}>
                   {canViewStaff && (
                     <FormControl size="small" sx={{ minWidth: 200, maxWidth: { xs: '100%', sm: 320 } }}>
                       <InputLabel id="lead-funnel-assignees-label">Assignees</InputLabel>
                       <Select
                         labelId="lead-funnel-assignees-label"
                         multiple
-                        value={leadFunnelFilters.assigneeUserIds}
+                        value={leadFunnelAssigneeIds}
                         onChange={(e) => {
                           const v = e.target.value;
-                          handleLeadFunnelFilterChange(
-                            'assigneeUserIds',
+                          setLeadFunnelAssigneeIds(
                             typeof v === 'string' ? v.split(',').filter(Boolean) : [...v]
                           );
                         }}
@@ -1039,11 +1172,11 @@ export const AdminDashboard = () => {
                       </Select>
                     </FormControl>
                   )}
-                  {canViewStaff && leadFunnelFilters.assigneeUserIds?.length > 0 && (
+                  {canViewStaff && leadFunnelAssigneeIds?.length > 0 && (
                     <Button
                       size="small"
                       variant="text"
-                      onClick={() => handleLeadFunnelFilterChange('assigneeUserIds', [])}
+                      onClick={() => setLeadFunnelAssigneeIds([])}
                       sx={{ textTransform: 'none', flexShrink: 0 }}
                     >
                       Clear assignees
@@ -1155,7 +1288,7 @@ export const AdminDashboard = () => {
                           </Box>
                           <Box>
                             <Typography variant="body2" fontWeight="600">
-                              Contacts created on {format(parseLocalDate(leadFunnelFilters.start_date), 'MMM d, yyyy')} – {format(parseLocalDate(leadFunnelFilters.end_date), 'MMM d, yyyy')}
+                              Contacts created on {format(parseLocalDate(dateRange.start_date), 'MMM d, yyyy')} – {format(parseLocalDate(dateRange.end_date), 'MMM d, yyyy')}
                             </Typography>
                           </Box>
                         </Box>
@@ -1418,8 +1551,8 @@ export const AdminDashboard = () => {
                         borderColor: 'info.main'
                       }
                     }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1.5 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0, flex: 1 }}>
                           <Box sx={{ 
                             width: 36, 
                             height: 36, 
@@ -1427,20 +1560,21 @@ export const AdminDashboard = () => {
                             bgcolor: 'rgba(25, 118, 210, 0.1)',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center'
+                            justifyContent: 'center',
+                            flexShrink: 0,
                           }}>
                             <Clock sx={{ color: 'info.main', fontSize: 18 }} />
                           </Box>
-                          <Box>
-                            <Typography variant="body2" fontWeight="600">
-                              {leadFunnelData.lead_funnel.scheduled_jobs.label}
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography variant="body2" fontWeight="600" noWrap>
+                              Scheduled Jobs
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              Upcoming jobs
+                            <Typography variant="caption" color="text.secondary" display="block" noWrap>
+                              Active in range (not completed)
                             </Typography>
                           </Box>
                         </Box>
-                        <Box sx={{ textAlign: 'right' }}>
+                        <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
                           <Chip 
                             label={leadFunnelData.lead_funnel.scheduled_jobs.count} 
                             color="info" 
@@ -1484,7 +1618,7 @@ export const AdminDashboard = () => {
                               {leadFunnelData.lead_funnel.in_progress_jobs.label}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
-                              Currently active
+                              Scheduled in range, in progress
                             </Typography>
                           </Box>
                         </Box>
@@ -1532,7 +1666,7 @@ export const AdminDashboard = () => {
                               {leadFunnelData.lead_funnel.cancelled_jobs.label}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
-                              Cancelled
+                              Cancelled + on hold, scheduled in range
                             </Typography>
                           </Box>
                         </Box>
@@ -1579,7 +1713,7 @@ export const AdminDashboard = () => {
                               {leadFunnelData.lead_funnel.closed_jobs.label}
                             </Typography>
                             <Typography variant="caption" color="success.dark">
-                              Revenue generated
+                              Completed jobs scheduled in range
                             </Typography>
                           </Box>
                         </Box>

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Label } from "@/components/ui/label"
-import { Trash2, RotateCw, Calendar } from "lucide-react"
+import { Trash2, RotateCw, Calendar, CalendarClock } from "lucide-react"
 import {
   useDeleteJobMutation,
   useDeleteJobSeriesMutation,
@@ -35,19 +35,20 @@ export function DeleteJobDialog({ job, open, onClose, onDelete, disabled = false
 
     setDeleting(true)
     try {
-      if (deleteOption === "sequence" && recurringJob) {
+      const jobId = job.job_id || job.id
+
+      if ((deleteOption === "future" || deleteOption === "sequence") && recurringJob) {
+        const scope = deleteOption === "future" ? "future" : "all"
         if (hasSeriesId) {
-          await deleteJobSeries(job.series_id).unwrap()
+          await deleteJobSeries({ seriesId: job.series_id, scope }).unwrap()
         } else {
-          const jobId = job.job_id || job.id
           if (!jobId) {
             setDeleting(false)
             return
           }
-          await deleteJobRecurringSeries(jobId).unwrap()
+          await deleteJobRecurringSeries({ jobId, scope }).unwrap()
         }
       } else {
-        const jobId = job.job_id || job.id
         if (!jobId) {
           setDeleting(false)
           return
@@ -76,7 +77,19 @@ export function DeleteJobDialog({ job, open, onClose, onDelete, disabled = false
       return `Are you sure you want to delete this single occurrence of "${job?.title}"? Other recurring jobs will remain scheduled.`
     }
 
-    return `Are you sure you want to delete ALL recurring jobs for "${job?.title}"? This will delete the entire recurring sequence. This action cannot be undone.`
+    if (deleteOption === "future") {
+      return `Are you sure you want to delete this and all future scheduled jobs for "${job?.title}"? Past jobs (including completed ones) will be kept.`
+    }
+
+    return `Are you sure you want to delete ALL recurring jobs for "${job?.title}"? This removes the entire series including past jobs. This action cannot be undone.`
+  }
+
+  const deleteButtonLabel = () => {
+    if (deleting) return "Deleting..."
+    if (!recurringJob) return "Delete Job"
+    if (deleteOption === "future") return "Delete Future Jobs"
+    if (deleteOption === "sequence") return "Delete Entire Series"
+    return "Delete Job"
   }
 
   return (
@@ -111,14 +124,27 @@ export function DeleteJobDialog({ job, open, onClose, onDelete, disabled = false
                 </div>
 
                 <div className="flex items-start space-x-2 rounded-lg border p-4">
+                  <RadioGroupItem value="future" id="future" className="mt-1" />
+                  <div className="flex-1 space-y-1">
+                    <Label htmlFor="future" className="flex items-center gap-2 font-semibold cursor-pointer">
+                      <CalendarClock className="h-4 w-4" />
+                      Delete this and all future jobs
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Remove today/upcoming occurrences. Past and completed jobs stay in history.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-2 rounded-lg border p-4">
                   <RadioGroupItem value="sequence" id="sequence" className="mt-1" />
                   <div className="flex-1 space-y-1">
                     <Label htmlFor="sequence" className="flex items-center gap-2 font-semibold cursor-pointer">
                       <RotateCw className="h-4 w-4" />
-                      Delete all recurring jobs
+                      Delete entire series
                     </Label>
                     <p className="text-sm text-muted-foreground">
-                      Remove all jobs in this recurring sequence permanently.
+                      Permanently remove every job in this series, including past ones.
                     </p>
                   </div>
                 </div>
@@ -138,11 +164,7 @@ export function DeleteJobDialog({ job, open, onClose, onDelete, disabled = false
             Cancel
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={deleting || disabled}>
-            {deleting
-              ? "Deleting..."
-              : recurringJob && deleteOption === "sequence"
-                ? "Delete All Recurring Jobs"
-                : "Delete Job"}
+            {deleteButtonLabel()}
           </Button>
         </DialogFooter>
       </DialogContent>

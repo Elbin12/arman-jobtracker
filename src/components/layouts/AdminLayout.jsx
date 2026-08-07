@@ -64,6 +64,7 @@ import {
   canAccessPayrollTimeClock,
 } from "../../utils/payrollAccess"
 import IframeSsoLoginHandler from "../auth/IframeSsoLoginHandler"
+import { appendIframeContextToPath } from "../../utils/iframeContext"
 
 // Navigation configuration based on roles
 const getNavItemsByRole = (role, fullAccessRoles, user_profile) => {
@@ -250,7 +251,7 @@ export const AdminLayout = ({ children }) => {
   }
 
   const handleNavigate = (path) => {
-    navigate(path)
+    navigate(appendIframeContextToPath(path))
     handleManagementClose()
     handleMobileMenuClose()
   }
@@ -258,13 +259,15 @@ export const AdminLayout = ({ children }) => {
   const handleLogout = () => {
     // Store current location before logout (only if not already on login page)
     if (!location.pathname.includes('/admin/login')) {
-      const currentPath = location.pathname + location.search;
+      const currentPath = appendIframeContextToPath(
+        location.pathname + location.search,
+      );
       localStorage.setItem('returnTo', currentPath);
       console.log('Stored returnTo in logout:', currentPath);
     }
     
     dispatch(logoutUser())
-    navigate("/admin/login")
+    navigate(appendIframeContextToPath("/admin/login", { includeEmail: false }))
     handleUserMenuClose()
   }
 

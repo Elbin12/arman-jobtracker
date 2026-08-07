@@ -695,7 +695,7 @@ export const BookingWizard = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex items-center justify-between">
           <div className="text-center sm:text-left flex-1">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Your Quote</h1>
-            <p className="text-gray-600">Complete the steps below to create your quote</p>
+            <p className="text-gray-600">Complete the steps below to create your own quote</p>
           </div>
 
           {/* Switch to Admin button */}

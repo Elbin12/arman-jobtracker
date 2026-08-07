@@ -6,10 +6,19 @@ import {
   buildSsoAttemptKey,
   sessionMatchesUrl,
 } from '../utils/urlSsoLogin';
-import { getIframeLocationId, setIframeLocationId } from '../utils/iframeContext';
+import {
+  getIframeLocationId,
+  resolveIframeSsoEmail,
+  setIframeLocationId,
+  setIframeSsoEmail,
+} from '../utils/iframeContext';
 
 /**
  * Watch URL for email / sso_token + location_id and SSO-login or switch users.
+ * In an iframe, falls back to the last successful SSO email when the URL omits email.
+ *
+ * When the URL explicitly includes email (or sso_token) + location_id, always call the
+ * backend to verify — do not trust a stale localStorage user/token alone.
  *
  * @param {object} options
  * @param {boolean} [options.enabled=true]
@@ -20,15 +29,19 @@ export function useUrlSsoLogin({ enabled = true, onSuccess } = {}) {
   const [searchParams] = useSearchParams();
   const user = useSelector((state) => state.auth.user);
   const account = useSelector((state) => state.auth.account);
+  const access = useSelector((state) => state.auth.access);
   const loading = useSelector((state) => state.auth.loading);
   const ssoError = useSelector((state) => state.auth.ssoError);
   const switching = useSelector((state) => state.auth.ssoSwitching);
 
-  const email = searchParams.get('email');
+  const urlEmail = searchParams.get('email');
   const ssoToken = searchParams.get('sso_token');
+  const email = resolveIframeSsoEmail({ urlEmail });
   const locationId = searchParams.get('location_id') || getIframeLocationId();
+  const usedRememberedEmail = Boolean(email && !urlEmail && !ssoToken);
+  const hasExplicitUrlSso = Boolean((urlEmail && String(urlEmail).trim()) || ssoToken);
 
-  const lastSuccessKey = useRef(null);
+  const lastAttemptKey = useRef(null);
   const activeAttemptKey = useRef(null);
   const onSuccessRef = useRef(onSuccess);
   onSuccessRef.current = onSuccess;
@@ -40,29 +53,45 @@ export function useUrlSsoLogin({ enabled = true, onSuccess } = {}) {
   }, [locationId]);
 
   useEffect(() => {
+    if (urlEmail) {
+      setIframeSsoEmail(urlEmail);
+    }
+  }, [urlEmail]);
+
+  useEffect(() => {
     if (!enabled) return;
     if (!locationId) return;
     if (!email && !ssoToken) return;
 
     const attemptKey = buildSsoAttemptKey({ email, ssoToken, locationId });
 
-    if (email && user && sessionMatchesUrl(user, account, email, locationId)) {
-      lastSuccessKey.current = attemptKey;
+    // Remembered-email only (no email/sso_token in URL): reuse a live matching session.
+    // Require access token — stale user without access was skipping SSO and blocking login.
+    if (
+      !hasExplicitUrlSso &&
+      email &&
+      user &&
+      access &&
+      sessionMatchesUrl(user, account, email, locationId)
+    ) {
+      lastAttemptKey.current = attemptKey;
       if (ssoError) {
         dispatch(clearSsoError());
       }
       return;
     }
 
-    if (loading && lastSuccessKey.current !== attemptKey) {
+    // Already attempted this exact identity+location for this mount (success or failure).
+    if (lastAttemptKey.current === attemptKey) {
       return;
     }
 
-    if (lastSuccessKey.current === attemptKey && (user || ssoError)) {
+    // In-flight for this key.
+    if (loading && activeAttemptKey.current === attemptKey) {
       return;
     }
 
-    const hadExistingSession = Boolean(user?.email || user?.username);
+    const hadExistingSession = Boolean(access && (user?.email || user?.username));
     activeAttemptKey.current = attemptKey;
 
     dispatch(
@@ -76,12 +105,12 @@ export function useUrlSsoLogin({ enabled = true, onSuccess } = {}) {
       .unwrap()
       .then((response) => {
         if (activeAttemptKey.current !== attemptKey) return;
-        lastSuccessKey.current = attemptKey;
+        lastAttemptKey.current = attemptKey;
         onSuccessRef.current?.(response);
       })
       .catch(() => {
         if (activeAttemptKey.current !== attemptKey) return;
-        lastSuccessKey.current = attemptKey;
+        lastAttemptKey.current = attemptKey;
       });
   }, [
     dispatch,
@@ -89,19 +118,24 @@ export function useUrlSsoLogin({ enabled = true, onSuccess } = {}) {
     ssoToken,
     locationId,
     enabled,
+    hasExplicitUrlSso,
     user?.email,
     user?.username,
     account?.location_id,
+    access,
     loading,
     ssoError,
   ]);
 
   return {
     email,
+    urlEmail,
+    usedRememberedEmail,
     ssoToken,
     locationId,
     switching,
     ssoError,
     loading,
+    hasExplicitUrlSso,
   };
 }

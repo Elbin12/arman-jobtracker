@@ -46,11 +46,19 @@ export const jobsApi = createApi({
       invalidatesTags: ['Job'],
     }),
     deleteJobSeries: builder.mutation({
-      query: (seriesId) => ({ url: `jobs-series/${seriesId}/`, method: 'DELETE' }),
+      query: ({ seriesId, scope = 'all' } = {}) => ({
+        url: `jobs-series/${seriesId}/`,
+        method: 'DELETE',
+        params: { scope },
+      }),
       invalidatesTags: ['Job'],
     }),
     deleteJobRecurringSeries: builder.mutation({
-      query: (jobId) => ({ url: `jobs/${jobId}/recurring-series/`, method: 'DELETE' }),
+      query: ({ jobId, scope = 'all' } = {}) => ({
+        url: `jobs/${jobId}/recurring-series/`,
+        method: 'DELETE',
+        params: { scope },
+      }),
       invalidatesTags: ['Job'],
     }),
 
