@@ -72,15 +72,28 @@ BACKUP_NAME="dist-backup-$(date +%Y%m%d-%H%M%S)"
 log "Promoting release on EC2 (backup → $REMOTE_WEB_ROOT) ..."
 ssh "${SSH_OPTS[@]}" "$SSH_HOST" bash -s <<EOF
 set -euo pipefail
+
+# Tiny root disks fill up fast — prune ALL previous dist backups before making a new one
+sudo rm -rf /var/www/dist-backup-*
+
 if [[ -d "$REMOTE_WEB_ROOT" ]]; then
-  sudo cp -a "$REMOTE_WEB_ROOT" "/var/www/$BACKUP_NAME"
-  echo "Backup saved: /var/www/$BACKUP_NAME"
+  # Prefer move+rsync pattern when space is tight: keep one backup only
+  AVAIL_KB=\$(df -Pk /var/www | awk 'NR==2 {print \$4}')
+  DIST_KB=\$(sudo du -sk "$REMOTE_WEB_ROOT" | awk '{print \$1}')
+  # Need ~2x dist size free for a safe copy backup; otherwise skip backup
+  if [[ "\$AVAIL_KB" -gt \$(( DIST_KB * 2 + 102400 )) ]]; then
+    sudo cp -a "$REMOTE_WEB_ROOT" "/var/www/$BACKUP_NAME"
+    echo "Backup saved: /var/www/$BACKUP_NAME"
+  else
+    echo "WARNING: low disk (avail=\${AVAIL_KB}KB, dist=\${DIST_KB}KB) — skipping backup, deploying directly."
+  fi
 fi
 sudo rsync -a --delete "$REMOTE_STAGING_DIR/" "$REMOTE_WEB_ROOT/"
 sudo chown -R www-data:www-data "$REMOTE_WEB_ROOT"
 sudo nginx -t
 sudo systemctl reload nginx
 echo "Nginx reloaded."
+df -h /
 EOF
 
 log "Deploy complete!"

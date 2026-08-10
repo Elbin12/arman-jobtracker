@@ -55,7 +55,7 @@ import {
   Line,
   ReferenceArea,
 } from 'recharts';
-import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, addDays, min as minDate, max as maxDate } from 'date-fns';
 import { useGetAnalyticsQuery, useGetHeatMapQuery, useGetLeadFunnelReportQuery, useGetSalesForecastingQuery } from '../../store/api/dashboardApi';
 import { useGetEmployeesQuery } from '../../store/api/payrollApi';
 import { useMoneyFormatter } from '../../hooks/useMoneyFormatter';
@@ -102,6 +102,132 @@ const ProgressBar = styled(LinearProgress)(({ trackcolor, barcolor, height }) =>
     borderRadius: 4,
   },
 }));
+
+const GRANULARITY_OPTIONS = [
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'yearly', label: 'Yearly' },
+];
+
+/** Format a from–to span for chart axis / tooltip */
+const formatDateSpan = (start, end, { short = false } = {}) => {
+  if (!start) return '';
+  if (!end || start.getTime() === end.getTime()) {
+    return format(start, short ? 'MMM d' : 'MMM d, yyyy');
+  }
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const sameMonth = sameYear && start.getMonth() === end.getMonth();
+  if (short) {
+    if (sameMonth) return `${format(start, 'MMM d')}–${format(end, 'd')}`;
+    if (sameYear) return `${format(start, 'MMM d')}–${format(end, 'MMM d')}`;
+    return `${format(start, 'MMM d, yy')}–${format(end, 'MMM d, yy')}`;
+  }
+  if (sameMonth) return `${format(start, 'MMM d')} – ${format(end, 'd, yyyy')}`;
+  if (sameYear) return `${format(start, 'MMM d')} – ${format(end, 'MMM d, yyyy')}`;
+  return `${format(start, 'MMM d, yyyy')} – ${format(end, 'MMM d, yyyy')}`;
+};
+
+const resolveTrendPeriodBounds = (trend, granularity, rangeStart, rangeEnd) => {
+  const startRaw = trend.period_start || trend.period;
+  let start = parseLocalDate(startRaw);
+  if (!start) return { start: null, end: null };
+
+  let end = trend.period_end ? parseLocalDate(trend.period_end) : null;
+  if (!end) {
+    if (granularity === 'weekly') end = addDays(start, 6);
+    else if (granularity === 'monthly') end = endOfMonth(start);
+    else if (granularity === 'yearly') end = endOfYear(start);
+    else end = start;
+  }
+
+  if (rangeStart) start = maxDate([start, rangeStart]);
+  if (rangeEnd) end = minDate([end, rangeEnd]);
+  if (end < start) end = start;
+  return { start, end };
+};
+
+const formatTrendPeriodLabels = (trend, granularity, rangeStart, rangeEnd) => {
+  const { start, end } = resolveTrendPeriodBounds(trend, granularity, rangeStart, rangeEnd);
+  if (!start) {
+    return { axis: String(trend.period || ''), full: String(trend.period || ''), key: String(trend.period || '') };
+  }
+
+  const key = `${format(start, 'yyyy-MM-dd')}_${format(end, 'yyyy-MM-dd')}`;
+  const spansYears = rangeStart && rangeEnd && rangeStart.getFullYear() !== rangeEnd.getFullYear();
+
+  if (granularity === 'daily') {
+    return {
+      key,
+      axis: format(start, spansYears ? 'MMM d, yy' : 'MMM d'),
+      full: format(start, 'EEE, MMM d, yyyy'),
+    };
+  }
+  if (granularity === 'weekly') {
+    return {
+      key,
+      axis: formatDateSpan(start, end, { short: true }),
+      full: `Week · ${formatDateSpan(start, end)}`,
+    };
+  }
+  if (granularity === 'monthly') {
+    return {
+      key,
+      axis: format(start, 'MMM yyyy'),
+      full: format(start, 'MMMM yyyy'),
+    };
+  }
+  if (granularity === 'yearly') {
+    return {
+      key,
+      axis: format(start, 'yyyy'),
+      full: format(start, 'yyyy'),
+    };
+  }
+  return {
+    key,
+    axis: formatDateSpan(start, end, { short: true }),
+    full: formatDateSpan(start, end),
+  };
+};
+
+const RevenueTrendTooltip = ({ active, payload, formatCurrency }) => {
+  if (!active || !payload?.length) return null;
+  const row = payload[0]?.payload;
+  if (!row) return null;
+  return (
+    <Box
+      sx={{
+        bgcolor: 'rgba(255,255,255,0.98)',
+        border: '1px solid',
+        borderColor: 'rgba(15, 23, 42, 0.08)',
+        borderRadius: 2,
+        boxShadow: '0 8px 24px rgba(15, 23, 42, 0.12)',
+        px: 1.75,
+        py: 1.25,
+        minWidth: 168,
+      }}
+    >
+      <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#0f172a', mb: 1 }}>
+        {row.periodFull}
+      </Typography>
+      {payload.map((item) => (
+        <Box
+          key={item.dataKey}
+          sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 0.25 }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: item.color, flexShrink: 0 }} />
+            <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>{item.name}</Typography>
+          </Box>
+          <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#0f172a' }}>
+            {formatCurrency(Number(item.value) || 0)}
+          </Typography>
+        </Box>
+      ))}
+    </Box>
+  );
+};
 
 export const AdminDashboard = () => {
   const theme = useTheme();
@@ -341,16 +467,32 @@ export const AdminDashboard = () => {
     );
   };
 
-  const formatTrendData = () => {
+  const formatTrendData = useMemo(() => {
     if (!analyticsData?.trends) return [];
-    return analyticsData.trends.map((trend) => ({
-      period: format(new Date(trend.period), 'MMM yyyy'),
-      Paid: trend.total_paid,
-      Unpaid: trend.total_due,
-    }));
-  };
+    const rangeStart = parseLocalDate(dateRange.start_date);
+    const rangeEnd = parseLocalDate(dateRange.end_date);
+    const granularity = invoiceFilters.granularity;
+    return analyticsData.trends.map((trend) => {
+      const labels = formatTrendPeriodLabels(trend, granularity, rangeStart, rangeEnd);
+      return {
+        periodKey: labels.key,
+        period: labels.axis,
+        periodFull: labels.full,
+        Paid: trend.total_paid,
+        Unpaid: trend.total_due,
+      };
+    });
+  }, [analyticsData?.trends, dateRange.start_date, dateRange.end_date, invoiceFilters.granularity]);
 
-  const formatStatusData = () => {
+  const trendLabelByKey = useMemo(() => {
+    const map = {};
+    formatTrendData.forEach((row) => {
+      map[row.periodKey] = row.period;
+    });
+    return map;
+  }, [formatTrendData]);
+
+  const formatStatusData = useMemo(() => {
     if (!analyticsData?.status_distribution) return [];
     return Object.entries(analyticsData.status_distribution)
       .filter(([_, value]) => value.count > 0)
@@ -360,7 +502,27 @@ export const AdminDashboard = () => {
         amount: value.total,
         color: STATUS_COLORS[key] || '#64748b',
       }));
-  };
+  }, [analyticsData?.status_distribution]);
+
+  const statusDataTotal = useMemo(
+    () => formatStatusData.reduce((s, d) => s + d.value, 0),
+    [formatStatusData]
+  );
+
+  const trendXAxisInterval = useMemo(() => {
+    const n = formatTrendData.length;
+    if (n <= 8) return 0;
+    if (n <= 16) return 1;
+    if (n <= 32) return 2;
+    return Math.ceil(n / 12) - 1;
+  }, [formatTrendData.length]);
+
+  const granularityHint = {
+    daily: 'Each bar is one day',
+    weekly: 'Each bar is a week (from–to dates)',
+    monthly: 'Each bar is one calendar month',
+    yearly: 'Each bar is one year',
+  }[invoiceFilters.granularity] || 'Paid vs outstanding over time';
 
   const unpaidBreakdown = useMemo(() => {
     const fromApi = analyticsData?.paid_unpaid_overview?.unpaid_breakdown;
@@ -719,24 +881,47 @@ export const AdminDashboard = () => {
               Invoice analytics
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Status and chart detail for this section only
+              Status and chart detail for this section only · {granularityHint}
             </Typography>
           </Box>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
-            <FormControl size="small" sx={{ minWidth: 140 }}>
-              <InputLabel>Granularity</InputLabel>
-              <Select
-                value={invoiceFilters.granularity}
-                label="Granularity"
-                onChange={(e) => handleInvoiceFilterChange('granularity', e.target.value)}
-                sx={{ bgcolor: 'background.paper', borderRadius: 1.5 }}
-              >
-                <MenuItem value="daily">Daily</MenuItem>
-                <MenuItem value="weekly">Weekly</MenuItem>
-                <MenuItem value="monthly">Monthly</MenuItem>
-                <MenuItem value="yearly">Yearly</MenuItem>
-              </Select>
-            </FormControl>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.25 }}>
+            <Box
+              sx={{
+                display: 'inline-flex',
+                flexWrap: 'wrap',
+                gap: 0.5,
+                p: 0.5,
+                borderRadius: 2,
+                bgcolor: 'rgba(15, 118, 110, 0.06)',
+                border: '1px solid',
+                borderColor: 'rgba(15, 118, 110, 0.14)',
+              }}
+            >
+              {GRANULARITY_OPTIONS.map((opt) => {
+                const active = invoiceFilters.granularity === opt.value;
+                return (
+                  <Chip
+                    key={opt.value}
+                    label={opt.label}
+                    size="small"
+                    onClick={() => handleInvoiceFilterChange('granularity', opt.value)}
+                    variant={active ? 'filled' : 'outlined'}
+                    sx={{
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      border: 'none',
+                      ...(active
+                        ? { bgcolor: '#0f766e', color: '#fff', '&:hover': { bgcolor: '#0d9488' } }
+                        : {
+                            bgcolor: 'transparent',
+                            color: '#0f766e',
+                            '&:hover': { bgcolor: 'rgba(15, 118, 110, 0.1)' },
+                          }),
+                    }}
+                  />
+                );
+              })}
+            </Box>
             <FormControl size="small" sx={{ minWidth: 140 }}>
               <InputLabel>Invoice status</InputLabel>
               <Select
@@ -833,20 +1018,27 @@ export const AdminDashboard = () => {
               </p>
               {unpaidBreakdown.length > 0 && (
                 <Box sx={{ mt: 1.5, pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
-                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5, fontWeight: 600 }}>
-                    Breakdown by status
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.75, fontWeight: 600 }}>
+                    By status
                   </Typography>
-                  {unpaidBreakdown.map((row) => (
-                    <Typography
-                      key={row.status}
-                      variant="caption"
-                      color="text.secondary"
-                      display="block"
-                      sx={{ lineHeight: 1.5 }}
-                    >
-                      {row.label}: {row.count} · {formatCurrency(row.total)}
-                    </Typography>
-                  ))}
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {unpaidBreakdown.map((row) => (
+                      <Chip
+                        key={row.status}
+                        size="small"
+                        label={`${row.label} ${row.count}`}
+                        title={`${row.label}: ${row.count} · ${formatCurrency(row.total)}`}
+                        sx={{
+                          height: 22,
+                          fontSize: '0.65rem',
+                          fontWeight: 600,
+                          bgcolor: 'rgba(249, 115, 22, 0.1)',
+                          color: '#c2410c',
+                          '& .MuiChip-label': { px: 0.75 },
+                        }}
+                      />
+                    ))}
+                  </Box>
                 </Box>
               )}
             </CardContent>
@@ -999,36 +1191,81 @@ export const AdminDashboard = () => {
 
         {/* Charts Section - Responsive */}
         <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 mb-4">
-          <Card sx={{ boxShadow: 1 }}>
+          <Card
+            sx={{
+              boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.04)',
+              border: '1px solid',
+              borderColor: 'rgba(15, 23, 42, 0.06)',
+              borderRadius: 2.5,
+            }}
+          >
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-              <Typography variant="subtitle1" fontWeight="600" gutterBottom>
-                Revenue Trends
-              </Typography>
-              <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
-                Paid vs Outstanding over time
-              </Typography>
-              <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
-                <BarChart data={formatTrendData()}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis 
-                    dataKey="period" 
-                    tick={{ fontSize: isMobile ? 10 : 12 }}
-                    angle={isMobile ? -45 : 0}
-                    textAnchor={isMobile ? 'end' : 'middle'}
-                    height={isMobile ? 60 : 30}
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mb: 0.5 }}>
+                <Box>
+                  <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#0f172a' }}>
+                    Revenue Trends
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Paid vs outstanding · {GRANULARITY_OPTIONS.find((o) => o.value === invoiceFilters.granularity)?.label}
+                  </Typography>
+                </Box>
+                <Chip
+                  size="small"
+                  label={GRANULARITY_OPTIONS.find((o) => o.value === invoiceFilters.granularity)?.label || 'Monthly'}
+                  sx={{
+                    height: 22,
+                    fontWeight: 600,
+                    fontSize: '0.7rem',
+                    bgcolor: 'rgba(15, 118, 110, 0.1)',
+                    color: '#0f766e',
+                  }}
+                />
+              </Box>
+              <ResponsiveContainer width="100%" height={isMobile ? 270 : 320}>
+                <BarChart data={formatTrendData} margin={{ top: 8, right: 8, left: 0, bottom: formatTrendData.length > 8 ? 28 : 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                  <XAxis
+                    dataKey="periodKey"
+                    tickFormatter={(key) => trendLabelByKey[key] || key}
+                    tick={{ fontSize: isMobile ? 9 : 11, fill: '#64748b' }}
+                    angle={formatTrendData.length > 6 || isMobile ? -35 : 0}
+                    textAnchor={formatTrendData.length > 6 || isMobile ? 'end' : 'middle'}
+                    height={formatTrendData.length > 6 || isMobile ? 70 : 36}
+                    interval={trendXAxisInterval}
+                    axisLine={{ stroke: '#e2e8f0' }}
+                    tickLine={false}
                   />
-                  <YAxis tick={{ fontSize: isMobile ? 10 : 12 }} />
-                  <RechartsTooltip formatter={(value) => formatCurrency(Number(value))} />
-                  <Legend wrapperStyle={{ fontSize: isMobile ? 10 : 12 }} />
-                  <Bar dataKey="Paid" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Unpaid" fill="#f97316" radius={[4, 4, 0, 0]} />
+                  <YAxis
+                    tick={{ fontSize: isMobile ? 10 : 12, fill: '#64748b' }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={isMobile ? 44 : 56}
+                  />
+                  <RechartsTooltip
+                    cursor={{ fill: 'rgba(15, 118, 110, 0.06)' }}
+                    content={<RevenueTrendTooltip formatCurrency={formatCurrency} />}
+                  />
+                  <Legend
+                    wrapperStyle={{ fontSize: isMobile ? 10 : 12, paddingTop: 8 }}
+                    iconType="circle"
+                    iconSize={8}
+                  />
+                  <Bar dataKey="Paid" fill="#22c55e" radius={[4, 4, 0, 0]} maxBarSize={36} />
+                  <Bar dataKey="Unpaid" fill="#f97316" radius={[4, 4, 0, 0]} maxBarSize={36} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
-          <Card sx={{ boxShadow: 1 }}>
+          <Card
+            sx={{
+              boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.04)',
+              border: '1px solid',
+              borderColor: 'rgba(15, 23, 42, 0.06)',
+              borderRadius: 2.5,
+            }}
+          >
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-              <Typography variant="subtitle1" fontWeight="600" gutterBottom>
+              <Typography variant="subtitle1" fontWeight={700} gutterBottom sx={{ color: '#0f172a' }}>
                 Invoice Status Distribution
               </Typography>
               <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
@@ -1037,7 +1274,7 @@ export const AdminDashboard = () => {
               <ResponsiveContainer width="100%" height={isMobile ? 280 : 340}>
                 <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
                   <Pie
-                    data={formatStatusData()}
+                    data={formatStatusData}
                     cx="50%"
                     cy="45%"
                     labelLine={false}
@@ -1046,16 +1283,16 @@ export const AdminDashboard = () => {
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {formatStatusData().map((entry, index) => (
+                    {formatStatusData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
                   <RechartsTooltip
                     formatter={(value, name, props) => [
-                      `${value} (${((value / formatStatusData().reduce((s, d) => s + d.value, 0)) * 100).toFixed(1)}%)`,
+                      `${value} (${statusDataTotal ? ((value / statusDataTotal) * 100).toFixed(1) : '0'}%)`,
                       props.payload.name,
                     ]}
-                    contentStyle={{ fontSize: 13, padding: '10px 14px' }}
+                    contentStyle={{ fontSize: 13, padding: '10px 14px', borderRadius: 8 }}
                     itemStyle={{ padding: '4px 0' }}
                   />
                 </PieChart>
@@ -1065,9 +1302,8 @@ export const AdminDashboard = () => {
                   By status
                 </Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
-                  {formatStatusData().map((entry, index) => {
-                    const total = formatStatusData().reduce((s, d) => s + d.value, 0);
-                    const pct = total ? ((entry.value / total) * 100).toFixed(1) : '0';
+                  {formatStatusData.map((entry, index) => {
+                    const pct = statusDataTotal ? ((entry.value / statusDataTotal) * 100).toFixed(1) : '0';
                     return (
                       <Box
                         key={`legend-${index}`}
