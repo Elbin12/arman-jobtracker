@@ -51,6 +51,7 @@ import {
 } from '@mui/icons-material';
 import { useCalculatePriceMutation } from '../../../store/api/user/priceApi';
 import { useCreateCustomProductMutation, useDeleteCustomProductMutation, useGetQuoteDetailsQuery, useUpdateCustomProductMutation, useDeleteServiceMutation, useGetGlobalPriceQuery, useRejectQuoteMutation, useUpdateAdditionalDataMutation, usePersistQuoteSnapshotMutation } from '../../../store/api/user/quoteApi';
+import { useGetContactReferralCreditQuery } from '../../../store/api/referralsApi';
 import SignatureCanvas from 'react-signature-canvas';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { handleDownloadPDF } from '../../../utils/handleDownloadPDF';
@@ -167,6 +168,8 @@ export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setT
     return undefined;
   }, [response, data.quoteDetails, effectiveSubmissionId]);
 
+  const quoteContactId = quoteData?.contact?.id || data?.userInfo?.contactId || null;
+
   // Once quote data is loaded, trust local `customProducts` (incl. empty / unselected).
   // Avoid falling back to stale quoteData after toggles/deletes.
   const allCustomProducts = useMemo(() => {
@@ -249,6 +252,29 @@ export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setT
       setFinalTotal(total);
     }
   }, [selectedPackages, activeCustomProducts, allCustomProducts, quoteData, globalPriceData]);
+
+  const { data: referralCredit } = useGetContactReferralCreditQuery(quoteContactId, {
+    skip: !quoteContactId || isPublicMode,
+  });
+  const availableReferralDollars = Number(referralCredit?.available_credit_dollars || 0);
+  const showReferralCredit =
+    Boolean(quoteContactId) &&
+    !isPublicMode &&
+    Boolean(referralCredit?.program_enabled) &&
+    availableReferralDollars > 0;
+  const estimatedAfterReferral =
+    showReferralCredit && finalTotal != null && !Number.isNaN(Number(finalTotal))
+      ? Math.max(0, Number(finalTotal) - availableReferralDollars)
+      : null;
+
+  // Friend referral discount (referred customer's first job) — from quote details
+  const referralDiscountInfo = quoteData?.referral_discount || null;
+  const referralDiscountDollars = Number(referralDiscountInfo?.discount_dollars || 0);
+  const showReferralDiscount = Boolean(referralDiscountInfo) && referralDiscountDollars > 0;
+  const estimatedAfterReferralDiscount =
+    showReferralDiscount && finalTotal != null && !Number.isNaN(Number(finalTotal))
+      ? Math.max(0, Number(finalTotal) - referralDiscountDollars)
+      : null;
 
   const surchargeAmount = quoteData?.total_surcharges
 
@@ -1644,6 +1670,30 @@ export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setT
                 )}
               </Box>
             </Box>
+
+            {showReferralDiscount && (
+              <Alert severity="success" sx={{ mb: 2 }}>
+                Referral Discount: -{formatPrice(referralDiscountDollars)}
+                {referralDiscountInfo?.referrer_name && (
+                  <> (thanks to {referralDiscountInfo.referrer_name}'s referral)</>
+                )}
+                .
+                {estimatedAfterReferralDiscount != null && (
+                  <> Your total after the referral discount: {formatPrice(estimatedAfterReferralDiscount)}.</>
+                )}{' '}
+                The discount is applied automatically on your job and invoice.
+              </Alert>
+            )}
+
+            {showReferralCredit && (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                Referral credit available: {formatPrice(availableReferralDollars)}.
+                {estimatedAfterReferral != null && (
+                  <> Estimated after credit on a future invoice: {formatPrice(estimatedAfterReferral)}.</>
+                )}{' '}
+                Credit auto-applies when the job invoice is created (not deducted from this quote total).
+              </Alert>
+            )}
 
             {isEditable && (
             <>

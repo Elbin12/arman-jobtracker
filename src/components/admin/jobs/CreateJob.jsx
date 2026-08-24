@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge, FormControl, Grid, InputLabel, MenuItem, Select as MuiSelect, TextField, Typography, OutlinedInput } from "@mui/material";
+import { Badge, FormControl, Grid, InputLabel, MenuItem, Select as MuiSelect, TextField, Typography, OutlinedInput, Alert } from "@mui/material";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@mui/material";
@@ -16,6 +16,7 @@ import { JobTeamAssignmentField } from "./JobTeamAssignmentField";
 import { useCreateJobMutation, useSearchContactsQuery, useGetAddressesByContactQuery } from "../../../store/api/jobsApi";
 import { useCreateAddressForContactMutation } from "../../../store/api/user/quoteApi";
 import { useGetServicesQuery } from "../../../store/api/servicesApi";
+import { useGetContactReferralCreditQuery } from "../../../store/api/referralsApi";
 import ContactSearchableSelect from "./ContactSearchableSelect";
 import { ContactAddressFormDialog } from "../../contacts/ContactAddressFormDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -58,6 +59,8 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
     items: [],
     assignments: [],
     total_price: 0,
+    discount_type: null,
+    discount_value: null,
   });
   
   const [timeData, setTimeData] = useState({
@@ -92,6 +95,27 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
   });
   const [createAddress, { isLoading: isCreatingAddress }] = useCreateAddressForContactMutation();
 
+  const { data: referralCredit } = useGetContactReferralCreditQuery(selectedContactId, {
+    skip: !selectedContactId,
+  });
+
+  const availableReferralDollars = Number(referralCredit?.available_credit_dollars || 0);
+  const showReferralCredit =
+    Boolean(selectedContactId) &&
+    Boolean(referralCredit?.program_enabled) &&
+    availableReferralDollars > 0;
+  const pendingReferral = referralCredit?.pending_referral || null;
+  const pendingReferralDollars = Number(pendingReferral?.friend_discount_dollars || 0);
+  const showPendingReferral =
+    Boolean(selectedContactId) &&
+    Boolean(referralCredit?.program_enabled) &&
+    Boolean(pendingReferral) &&
+    !pendingReferral?.discount_disabled &&
+    pendingReferralDollars > 0;
+  // NOTE: wallet credit and the referral (friend) discount are applied
+  // automatically by the backend — do NOT prefill the manual discount here,
+  // otherwise the reduction would be applied twice.
+
   // Handle different possible response structures
   const addresses = Array.isArray(addressesData) 
     ? addressesData 
@@ -117,6 +141,8 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
       customer_email: contact.email || "",
       ghl_contact_id: contact.contact_id || "", // Use contact.id for GHL Contact ID
       customer_address: "", // Reset address
+      discount_type: null,
+      discount_value: null,
     }));
   };
 
@@ -690,6 +716,15 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
         items: cleanedItems,
         assignments: formData.assignments,
         total_price: parseFloat(formData.total_price),
+        ...(formData.discount_type && Number(formData.discount_value) > 0
+          ? {
+              discount_type: formData.discount_type,
+              discount_value: String(Number(formData.discount_value).toFixed(2)),
+            }
+          : {
+              discount_type: null,
+              discount_value: "0.00",
+            }),
       };
 
       // Add recurring fields if job is recurring
@@ -1039,6 +1074,59 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
           onChange={(e) => setFormData(prev => ({ ...prev, total_price: parseFloat(e.target.value) || 0 }))}
           placeholder="100.00"
         />
+
+        {showPendingReferral && (
+          <Alert severity="info" sx={{ py: 0.5 }}>
+            Referral discount {formatMoney(pendingReferralDollars)} (referred by {pendingReferral.referrer_name})
+            will be applied to this job automatically. You can disable it from the job details after creation.
+          </Alert>
+        )}
+        {showReferralCredit && (
+          <Alert severity="info" sx={{ py: 0.5 }}>
+            Referral wallet credit available: {formatMoney(availableReferralDollars)}. It is applied
+            automatically when the invoice is created — no need to add it as a discount here.
+          </Alert>
+        )}
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          <FormControl size="small" fullWidth>
+            <InputLabel id="discount-type-label">Discount type</InputLabel>
+            <MuiSelect
+              labelId="discount-type-label"
+              label="Discount type"
+              value={formData.discount_type || "none"}
+              onChange={(e) => {
+                const value = e.target.value === "none" ? null : e.target.value;
+                setFormData((prev) => ({
+                  ...prev,
+                  discount_type: value,
+                  discount_value: value ? prev.discount_value || "" : null,
+                }));
+              }}
+            >
+              <MenuItem value="none">None</MenuItem>
+              <MenuItem value="amount">Amount ({currencySymbol})</MenuItem>
+              <MenuItem value="percentage">Percentage (%)</MenuItem>
+            </MuiSelect>
+          </FormControl>
+          <TextField
+            id="discount_value"
+            label={formData.discount_type === "percentage" ? "Discount %" : `Discount (${currencySymbol})`}
+            type="number"
+            size="small"
+            fullWidth
+            disabled={!formData.discount_type}
+            inputProps={{ min: 0, step: 0.01 }}
+            value={formData.discount_value ?? ""}
+            onChange={(e) => {
+              setFormData((prev) => ({
+                ...prev,
+                discount_value: e.target.value === "" ? "" : parseFloat(e.target.value),
+              }));
+            }}
+            placeholder="0.00"
+          />
+        </div>
         
         <div className="flex justify-between gap-2">
           <TextField
@@ -1146,6 +1234,17 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
               <p className="text-sm text-amber-600 mt-1">
                 Please search and select a contact to continue. Fields will be auto-filled once a contact is selected.
               </p>
+            )}
+            {showPendingReferral && (
+              <Alert severity="info" sx={{ mt: 1, py: 0.5 }}>
+                Referred customer: {formatMoney(pendingReferralDollars)} referral discount
+                (referred by {pendingReferral.referrer_name}) applies to their first job automatically.
+              </Alert>
+            )}
+            {showReferralCredit && (
+              <Alert severity="success" sx={{ mt: 1, py: 0.5 }}>
+                This customer has {formatMoney(availableReferralDollars)} referral credit available.
+              </Alert>
             )}
           </div>
 

@@ -52,6 +52,7 @@ import {
   Dashboard as DashboardIcon,
   AccountCircle,
   Contacts as ContactsIcon,
+  CardGiftcard,
 } from "@mui/icons-material"
 import { useState, useMemo } from "react"
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom"
@@ -75,7 +76,7 @@ const getNavItemsByRole = (role, fullAccessRoles, user_profile) => {
     { text: "Quotes", path: "/admin/accepted-quotes", icon: ReceiptLong, roles: ["admin", "supervisor"] },
     { text: "Repeat Job Requests", path: "/admin/pending-reschedule-quotes", icon: PublishedWithChanges, roles: ["admin", "supervisor"] },
     { text: "On Hold Jobs", path: "/admin/on-hold-jobs", icon: PauseCircleOutline, roles: ["admin", "supervisor"] },
-    // { text: "Contacts", path: "/admin/contacts", icon: ContactsIcon, roles: ["admin", "supervisor"] },
+    { text: "Contacts", path: "/admin/contacts", icon: ContactsIcon, roles: ["admin", "supervisor"] },
     { text: "Team", path: "/admin/team", icon: Group, roles: ["admin", "supervisor"] },
   ]
 
@@ -158,6 +159,7 @@ const getManagementItemsByRole = (role, fullAccessRoles) => {
     // { text: "Calendar", path: "/admin/calendar", icon: Event },
     { text: "Service Management", path: "/admin/services", icon: BusinessCenter },
     { text: "Location Management", path: "/admin/locations", icon: LocationOn },
+    { text: "Referrals", path: "/admin/referrals", icon: CardGiftcard },
     { text: "Subaccount Management", path: "/admin/subaccounts", icon: AccountTree },
     // { text: "House Size Info", path: "/admin/house-size-info", icon: Home },
   ]

@@ -14,6 +14,7 @@ import Index from "./pages/Index.jsx";
 import NotFound from "./pages/NotFound.jsx";
 import { AdminLayout } from './components/layouts/AdminLayout.jsx';
 import AdminDashboard from './pages/admin/AdminDashboard.jsx';
+import ReferralOwnerDashboard from './pages/admin/ReferralOwnerDashboard.jsx';
 import ServicesManagement from './pages/admin/ServicesManagement.jsx';
 import LocationsManagement from './pages/admin/LocationsManagement.jsx';
 import SubaccountsManagement from './pages/admin/SubaccountsManagement.jsx';
@@ -22,6 +23,8 @@ import { BookingWizard } from './components/user/BookingWizard.jsx';
 import UserLogin from './pages/admin/userLogin.jsx';
 import AdminProtectedRoute from './pages/AdminProtectedRoute.jsx';
 import QuoteDetailsPage from './pages/user/QuoteDetailsPage.jsx';
+import ReferralClaimPage from './pages/user/ReferralClaimPage.jsx';
+import ReferralCustomerHubPage from './pages/user/ReferralCustomerHubPage.jsx';
 import OriginalProposalPage from './pages/user/OriginalProposalPage.jsx';
 import HouseSizeInfo from './components/admin/HouseSizeInfo.jsx';
 import LocationScopedManagementGuard from './components/admin/LocationScopedManagementGuard.jsx';
@@ -118,6 +121,8 @@ function App() {
                   <Route path="/public-quote" element={<BookingWizard mode="public" />} />
                   <Route path="/quote/details/:id" element={<QuoteDetailsPage />} />
                   <Route path="/quote/original/:id" element={<OriginalProposalPage />} />
+                  <Route path="/r/:code" element={<ReferralClaimPage />} />
+                  <Route path="/refer" element={<ReferralCustomerHubPage />} />
                   <Route path="/portal/contacts/:id" element={<ContactDetail />} />
                   <Route path="/contact/jobs/:ghl_contact_id" element={<ContactProfilePage />} />
                   <Route path="/contact/profile/:ghl_contact_id" element={<ContactProfilePage />} />
@@ -207,6 +212,12 @@ function App() {
                     <Route path="locations" element={
                         <RoleProtectedRoute allowedRoles={['manager', 'supervisor']}>
                           <LocationsManagement />
+                        </RoleProtectedRoute>
+                      }
+                    />
+                    <Route path="referrals" element={
+                        <RoleProtectedRoute allowedRoles={['manager', 'supervisor', 'admin']}>
+                          <ReferralOwnerDashboard />
                         </RoleProtectedRoute>
                       }
                     />

@@ -270,6 +270,7 @@ export const JobsModal = ({
 }) => {
   const { data, isLoading } = useGetJobsByLocationQuery(
     { address },
+    { skip: !isOpen },
   );
 
   return (
