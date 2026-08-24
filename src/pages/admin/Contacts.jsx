@@ -88,10 +88,18 @@ const Contacts = () => {
     return p;
   }, [page, pageSize, ordering, debouncedSearch]);
 
-  const { data, isLoading, isFetching, error } = useGetDashboardContactsQuery(queryParams);
+  const { data, isLoading, isFetching, error, isError } = useGetDashboardContactsQuery(queryParams, {
+    placeholderData: (previousData) => previousData,
+  });
 
   const rows = data?.results ?? [];
   const total = data?.count ?? 0;
+
+  useEffect(() => {
+    if (!data?.count) return;
+    const maxPage = Math.max(1, Math.ceil(data.count / pageSize));
+    if (page > maxPage) setPage(maxPage);
+  }, [data, page, pageSize]);
 
   const handleClearFilters = () => {
     setSearchInput('');
@@ -171,13 +179,13 @@ const Contacts = () => {
           </CardContent>
         </Card>
 
-      {error && (
+      {isError && (
         <Alert severity="error" sx={{ mb: 0 }}>
           {error?.data?.detail || error?.error || 'Unable to load contacts.'}
         </Alert>
       )}
 
-      {!isLoading && !error && (
+      {!isLoading && !isError && (
         <Typography variant="body2" sx={{ fontSize: '0.8125rem', color: 'text.secondary' }}>
           {total === 0 ? 'No contacts match your filters.' : `${total.toLocaleString()} record${total === 1 ? '' : 's'}`}
         </Typography>

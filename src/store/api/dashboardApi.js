@@ -25,6 +25,7 @@ export const dashboardApi = createApi({
     /** Paginated CRM contacts (GHL-synced). Params: page, page_size, search, location_id, ordering */
     getDashboardContacts: builder.query({
       query: (params = {}) => ({ url: 'contacts/', params }),
+      keepUnusedDataFor: 60,
       providesTags: (result) =>
         result?.results?.length
           ? [
