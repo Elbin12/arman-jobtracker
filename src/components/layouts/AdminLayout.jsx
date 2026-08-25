@@ -52,7 +52,6 @@ import {
   Dashboard as DashboardIcon,
   AccountCircle,
   Contacts as ContactsIcon,
-  CardGiftcard,
 } from "@mui/icons-material"
 import { useState, useMemo } from "react"
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom"
@@ -159,7 +158,6 @@ const getManagementItemsByRole = (role, fullAccessRoles) => {
     // { text: "Calendar", path: "/admin/calendar", icon: Event },
     { text: "Service Management", path: "/admin/services", icon: BusinessCenter },
     { text: "Location Management", path: "/admin/locations", icon: LocationOn },
-    { text: "Referrals", path: "/admin/referrals", icon: CardGiftcard },
     { text: "Subaccount Management", path: "/admin/subaccounts", icon: AccountTree },
     // { text: "House Size Info", path: "/admin/house-size-info", icon: Home },
   ]
@@ -219,7 +217,8 @@ export const AdminLayout = ({ children }) => {
   const shouldHideNavbar = 
     location.pathname.startsWith("/admin/payroll") ||
     location.pathname === "/admin/dashboard" ||
-    location.pathname === "/admin/calendar"
+    location.pathname === "/admin/calendar" ||
+    location.pathname === "/admin/referrals"
 
   const getPayrollBreadcrumb = () => {
     const currentPayrollItem = payrollSubNavItems.find(item => item.path === location.pathname)
