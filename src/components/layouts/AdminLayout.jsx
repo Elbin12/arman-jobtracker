@@ -214,11 +214,14 @@ export const AdminLayout = ({ children }) => {
   const showManagementDropdown = managementItems.length > 0
 
   // Hide navbar for specific routes
-  const shouldHideNavbar = 
-    location.pathname.startsWith("/admin/payroll") ||
+  const isDedicatedEmbedPage =
     location.pathname === "/admin/dashboard" ||
     location.pathname === "/admin/calendar" ||
-    location.pathname === "/admin/referrals"
+    location.pathname === "/admin/map" ||
+    location.pathname === "/admin/referrals";
+
+  const shouldHideNavbar =
+    location.pathname.startsWith("/admin/payroll") || isDedicatedEmbedPage;
 
   const getPayrollBreadcrumb = () => {
     const currentPayrollItem = payrollSubNavItems.find(item => item.path === location.pathname)
@@ -304,13 +307,14 @@ export const AdminLayout = ({ children }) => {
           position="sticky"
           elevation={0}
           sx={{
-            backgroundColor: "white",
+            backgroundColor: "#FFFFFF",
             borderBottom: "1px solid",
             borderColor: "divider",
             zIndex: 1200,
+            backdropFilter: "blur(8px)",
           }}
         >
-        <Toolbar sx={{ gap: 1 }}>
+        <Toolbar sx={{ gap: 1, minHeight: { xs: 56, sm: 60 } }}>
           {isMobile && (
             <IconButton
               edge="start"
@@ -717,12 +721,12 @@ export const AdminLayout = ({ children }) => {
       {isPayrollSection && (
         <Box
           sx={{
-            backgroundColor: "#073D7F",
+            backgroundColor: "#0B1F33",
             borderColor: "divider",
             position: "sticky",
             top: shouldHideNavbar ? 0 : 64,
             zIndex: 1200,
-            boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
+            boxShadow: "0 1px 0 rgba(0,0,0,0.08)",
           }}
         >
           {/* Desktop Navigation */}
@@ -822,9 +826,12 @@ export const AdminLayout = ({ children }) => {
         component="main"
         sx={{
           flexGrow: 1,
-          p: { xs: 2, sm: 3 },
-          backgroundColor: "hsl(var(--muted) / 0.3)",
-          minHeight: "calc(100vh - 64px)",
+          p: isDedicatedEmbedPage ? { xs: 1.5, sm: 2 } : { xs: 2, sm: 3 },
+          backgroundColor: "background.default",
+          minHeight: shouldHideNavbar ? "100vh" : "calc(100vh - 64px)",
+          display: isDedicatedEmbedPage ? "flex" : "block",
+          flexDirection: isDedicatedEmbedPage ? "column" : undefined,
+          overflow: isDedicatedEmbedPage ? "hidden" : undefined,
         }}
       >
         {/* Breadcrumb for Payroll Section */}
@@ -855,7 +862,7 @@ export const AdminLayout = ({ children }) => {
         )} */}
         {children}
       </Box>
-      <AdminFooter />
+      {!isDedicatedEmbedPage && <AdminFooter />}
     </Box>
   )
 }

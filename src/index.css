@@ -2,127 +2,103 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Professional service booking platform design system
-All colors MUST be HSL for consistent theming.
-*/
+/* Service Pilot — field-ops SaaS tokens (HSL). */
 
 @layer base {
   :root {
-    /* Base colors - clean, professional palette */
-    --background: 0 0% 100%;
-    --foreground: 224 71% 4%;
+    --background: 210 20% 97%;
+    --foreground: 210 45% 9%;
 
-    /* Card and surface colors */
     --card: 0 0% 100%;
-    --card-foreground: 224 71% 4%;
+    --card-foreground: 210 45% 9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 224 71% 4%;
+    --popover-foreground: 210 45% 9%;
 
-    /* Primary brand - professional blue */
-    --primary: 224 76% 48%;
+    /* Deep field blue */
+    --primary: 207 79% 28%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 224 76% 68%;
-    --primary-dark: 224 76% 28%;
+    --primary-light: 207 50% 46%;
+    --primary-dark: 207 79% 18%;
 
-    /* Secondary accent - elegant purple */
-    --secondary: 259 70% 55%;
+    /* Live / telematics teal (not purple) */
+    --secondary: 175 77% 32%;
     --secondary-foreground: 0 0% 100%;
-    --secondary-light: 259 70% 75%;
+    --secondary-light: 175 64% 50%;
 
-    /* Neutral grays */
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 8% 46%;
+    --muted: 210 18% 94%;
+    --muted-foreground: 210 12% 42%;
 
-    --accent: 220 14% 96%;
-    --accent-foreground: 224 71% 4%;
+    --accent: 210 18% 94%;
+    --accent-foreground: 210 45% 9%;
 
-    /* Status colors */
-    --destructive: 0 84% 60%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    
-    --success: 142 76% 36%;
+
+    --success: 161 94% 30%;
     --success-foreground: 0 0% 100%;
-    
-    --warning: 38 92% 50%;
+
+    --warning: 32 95% 44%;
     --warning-foreground: 0 0% 100%;
 
-    /* UI element colors */
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 224 76% 48%;
+    --border: 210 18% 88%;
+    --input: 210 18% 88%;
+    --ring: 207 79% 28%;
 
-    /* Gradients for beautiful effects */
-    --gradient-primary: linear-gradient(135deg, hsl(224 76% 48%), hsl(259 70% 55%));
-    --gradient-secondary: linear-gradient(135deg, hsl(259 70% 55%), hsl(280 70% 60%));
-    --gradient-light: linear-gradient(135deg, hsl(220 14% 96%), hsl(0 0% 100%));
+    --gradient-primary: linear-gradient(135deg, hsl(207 79% 28%), hsl(207 60% 38%));
+    --gradient-secondary: linear-gradient(135deg, hsl(175 77% 32%), hsl(175 64% 42%));
+    --gradient-light: linear-gradient(180deg, hsl(210 20% 98%), hsl(210 18% 94%));
 
-    /* Shadows for depth */
-    --shadow-sm: 0 1px 2px 0 hsl(220 43% 11% / 0.05);
-    --shadow-md: 0 4px 6px -1px hsl(220 43% 11% / 0.1);
-    --shadow-lg: 0 10px 15px -3px hsl(220 43% 11% / 0.1);
-    --shadow-xl: 0 20px 25px -5px hsl(220 43% 11% / 0.1);
-    
-    /* Animation speeds */
-    --transition-fast: 150ms ease-in-out;
-    --transition-normal: 250ms ease-in-out;
-    --transition-slow: 350ms ease-in-out;
+    --shadow-sm: 0 1px 2px 0 hsl(210 45% 9% / 0.04);
+    --shadow-md: 0 4px 12px -2px hsl(210 45% 9% / 0.08);
+    --shadow-lg: 0 12px 28px -6px hsl(210 45% 9% / 0.12);
+    --shadow-xl: 0 20px 40px -8px hsl(210 45% 9% / 0.14);
 
-    --radius: 0.5rem;
+    --transition-fast: 150ms ease;
+    --transition-normal: 220ms ease;
+    --transition-slow: 320ms ease;
 
-    --sidebar-background: 0 0% 98%;
+    --radius: 0.625rem;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Ops chrome — ink sidebar language */
+    --sidebar-background: 210 42% 12%;
+    --sidebar-foreground: 210 20% 92%;
+    --sidebar-primary: 175 77% 42%;
+    --sidebar-primary-foreground: 210 42% 10%;
+    --sidebar-accent: 210 35% 18%;
+    --sidebar-accent-foreground: 210 20% 96%;
+    --sidebar-border: 210 30% 20%;
+    --sidebar-ring: 175 77% 42%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --background: 210 40% 6%;
+    --foreground: 210 20% 96%;
+    --card: 210 38% 9%;
+    --card-foreground: 210 20% 96%;
+    --popover: 210 38% 9%;
+    --popover-foreground: 210 20% 96%;
+    --primary: 207 70% 55%;
+    --primary-foreground: 210 42% 10%;
+    --secondary: 175 60% 40%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 210 30% 14%;
+    --muted-foreground: 210 12% 65%;
+    --accent: 210 30% 14%;
+    --accent-foreground: 210 20% 96%;
+    --destructive: 0 62% 40%;
+    --destructive-foreground: 210 20% 96%;
+    --border: 210 28% 18%;
+    --input: 210 28% 18%;
+    --ring: 207 70% 55%;
+    --sidebar-background: 210 42% 8%;
+    --sidebar-foreground: 210 20% 92%;
+    --sidebar-primary: 175 70% 45%;
+    --sidebar-primary-foreground: 210 42% 8%;
+    --sidebar-accent: 210 35% 14%;
+    --sidebar-accent-foreground: 210 20% 96%;
+    --sidebar-border: 210 30% 14%;
+    --sidebar-ring: 175 70% 45%;
   }
 }
 
@@ -132,6 +108,28 @@ All colors MUST be HSL for consistent theming.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
   }
+}
+
+/* Google Maps vehicle name/speed labels — bold pill above pin */
+.gps-vehicle-label {
+  background: #ffffff !important;
+  padding: 5px 10px !important;
+  border-radius: 999px !important;
+  border: 1.5px solid rgba(15, 35, 55, 0.14) !important;
+  box-shadow: 0 4px 14px rgba(11, 23, 38, 0.18) !important;
+  transform: translateY(-10px);
+  letter-spacing: 0.01em;
+}
+
+.gps-office-label {
+  background: #eff6ff !important;
+  padding: 5px 10px !important;
+  border-radius: 999px !important;
+  border: 1.5px solid rgba(37, 99, 235, 0.35) !important;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.15) !important;
+  transform: translateY(-10px);
+  letter-spacing: 0.01em;
 }

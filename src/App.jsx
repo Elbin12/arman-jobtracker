@@ -6,8 +6,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Outlet, Navigate } from "react-router-dom";
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { ThemeProvider } from '@mui/material/styles';
 import { CssBaseline } from '@mui/material';
+import { theme } from './theme.js';
 
 // Import pages
 import Index from "./pages/Index.jsx";
@@ -32,7 +33,7 @@ import SuperuserProtectedRoute from './pages/SuperuserProtectedRoute.jsx';
 import { PersistGate } from 'redux-persist/integration/react';
 import TermsAndConditions from './pages/user/TermsAndConditions.jsx';
 import Jobs from './pages/admin/Jobs.jsx';
-import JobsMap from './pages/admin/JobsMap.jsx';
+import AdminMap from './pages/admin/AdminMap.jsx';
 import AdminCalendar from './pages/admin/AdminCalendar.jsx';
 import TeamManagement from './pages/admin/TeamManagement.jsx';
 import AcceptedQuotes from './pages/admin/AcceptedQuotes.jsx';
@@ -51,38 +52,6 @@ import Contacts from './pages/admin/Contacts.jsx';
 import ContactDetail from './pages/admin/ContactDetail.jsx';
 import ContactProfilePage from './pages/contact/ContactProfilePage.jsx';
 import { canAccessPayrollTimeClock } from './utils/payrollAccess.js';
-
-// Create Material-UI theme that integrates with our design system
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: 'hsl(224, 76%, 48%)',
-    },
-    secondary: {
-      main: 'hsl(259, 70%, 55%)',
-    },
-    background: {
-      default: 'hsl(0, 0%, 100%)',
-      paper: 'hsl(0, 0%, 100%)',
-    },
-  },
-  typography: {
-    fontFamily: '"Inter", "system-ui", sans-serif',
-  },
-  shape: {
-    borderRadius: 8,
-  },
-  components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: 'none',
-          fontWeight: 600,
-        },
-      },
-    },
-  },
-});
 
 const queryClient = new QueryClient();
 
@@ -157,7 +126,7 @@ function App() {
                     <Route path="jobs" element={<Jobs />} />
                     <Route path="map" element={
                         <RoleProtectedRoute allowedRoles={['admin', 'manager', 'supervisor']}>
-                          <JobsMap />
+                          <AdminMap />
                         </RoleProtectedRoute>
                     } />
                     {/* <Route path="jobs/:id" element={<JobDetails />} /> */}

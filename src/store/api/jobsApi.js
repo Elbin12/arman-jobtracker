@@ -220,6 +220,26 @@ export const jobsApi = createApi({
       },
     }),
 
+    getSubaccountOffice: builder.query({
+      queryFn: async () => {
+        try {
+          const result = await axiosInstance({
+            url: '/accounts/subaccount-office/',
+            method: 'GET',
+          });
+          return { data: result.data };
+        } catch (error) {
+          return {
+            error: {
+              status: error.response?.status,
+              data: error.response?.data || error.message,
+            },
+          };
+        }
+      },
+      keepUnusedDataFor: 300,
+    }),
+
     // Get Addresses by Contact (for admin job creation) - uses quote API
     getAddressesByContact: builder.query({
       queryFn: async (contactId) => {
@@ -255,6 +275,7 @@ export const {
   useDeleteJobRecurringSeriesMutation,
   useGetJobsByLocationQuery,
   useGetLocationsQuery,
+  useGetSubaccountOfficeQuery,
 
   useGetCalendarJobsQuery,
   useGetAppointmentsCalendarQuery,

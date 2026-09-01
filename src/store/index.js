@@ -32,6 +32,7 @@ import { payrollApi } from './api/payrollApi';
 import { dashboardApi } from './api/dashboardApi';
 import { contactProfileApi } from './api/contactProfileApi';
 import { referralsApi } from './api/referralsApi';
+import { onestepgpsApi } from './api/onestepgpsApi';
 
 const persistConfig = {
   key: 'booking',
@@ -73,6 +74,7 @@ export const store = configureStore({
     [contactProfileApi.reducerPath]: contactProfileApi.reducer,
     [payrollApi.reducerPath]: payrollApi.reducer,
     [referralsApi.reducerPath]: referralsApi.reducer,
+    [onestepgpsApi.reducerPath]: onestepgpsApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -107,6 +109,7 @@ export const store = configureStore({
       .concat(contactProfileApi.middleware)
       .concat(payrollApi.middleware)
       .concat(referralsApi.middleware)
+      .concat(onestepgpsApi.middleware)
 });
 
 export const persistor = persistStore(store);

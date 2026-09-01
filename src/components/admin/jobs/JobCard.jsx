@@ -737,8 +737,8 @@ export function JobCard({
             </Box>
           </Box>
 
-          {/* 2-Column Layout */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mb: 3 }}>
+          {/* 2-Column Layout — single column in map/detail panel (viewport sm breakpoint is wider than panel) */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: embeddedInDialog ? '1fr' : { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mb: 3 }}>
             {/* Left Column - Contact Info */}
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', mb: 0.5, fontSize: '0.7rem', letterSpacing: '0.5px' }}>
