@@ -39,6 +39,12 @@ function safeDate(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+export function formatDay(value) {
+  const date = safeDate(value);
+  if (!date) return "";
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(date);
+}
+
 export function formatDateTime(value) {
   const date = safeDate(value);
   if (!date) return "";
@@ -54,6 +60,19 @@ export function formatClock(value) {
   const date = safeDate(value);
   if (!date) return "";
   return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(date);
+}
+
+export function coordsLabel(lat, lng) {
+  const a = Number(lat);
+  const b = Number(lng);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return "";
+  return `${a.toFixed(5)}, ${b.toFixed(5)}`;
+}
+
+export function placeLabel(address, lat, lng, fallback = "Location unavailable") {
+  const text = String(address || "").trim();
+  if (text) return text;
+  return coordsLabel(lat, lng) || fallback;
 }
 
 export function relativeTime(value) {

@@ -57,12 +57,24 @@ export const onestepgpsApi = createApi({
       query: () => ({ url: 'fleet/maintenance/' }),
       providesTags: ['FleetMaintenance'],
     }),
+    updateFleetMaintenance: builder.mutation({
+      query: ({ id, ...data }) => ({ url: `fleet/maintenance/${id}/`, method: 'PATCH', data }),
+      invalidatesTags: ['FleetMaintenance'],
+    }),
+    completeFleetMaintenance: builder.mutation({
+      query: ({ id, ...data }) => ({ url: `fleet/maintenance/${id}/complete/`, method: 'POST', data }),
+      invalidatesTags: ['FleetMaintenance'],
+    }),
     getFleetGeofences: builder.query({
       query: () => ({ url: 'fleet/geofences/' }),
       providesTags: ['FleetGeofences'],
     }),
     createFleetGeofence: builder.mutation({
       query: (data) => ({ url: 'fleet/geofences/', method: 'POST', data }),
+      invalidatesTags: ['FleetGeofences'],
+    }),
+    updateFleetGeofence: builder.mutation({
+      query: ({ id, ...data }) => ({ url: `fleet/geofences/${id}/`, method: 'PATCH', data }),
       invalidatesTags: ['FleetGeofences'],
     }),
     deleteFleetGeofence: builder.mutation({
@@ -99,8 +111,11 @@ export const {
   useGetFleetSummaryQuery,
   useGetFleetTripsQuery,
   useGetFleetMaintenanceQuery,
+  useUpdateFleetMaintenanceMutation,
+  useCompleteFleetMaintenanceMutation,
   useGetFleetGeofencesQuery,
   useCreateFleetGeofenceMutation,
+  useUpdateFleetGeofenceMutation,
   useDeleteFleetGeofenceMutation,
   useGetFleetAssignmentsQuery,
   useSaveFleetAssignmentsMutation,

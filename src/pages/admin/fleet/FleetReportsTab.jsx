@@ -3,21 +3,23 @@ import { CheckCircle2, Download, MapPin, Route, ShieldAlert, Wrench, X } from "l
 import { useState } from "react";
 import { useGetFleetReportsQuery } from "../../../store/api/onestepgpsApi";
 import { FleetSectionHeader, PrimaryButton } from "./FleetPrimitives";
-import { SP } from "./fleetUi";
+import { downloadFleetReportPdf } from "./fleetReportPdf";
+import { SP, formatDuration } from "./fleetUi";
 
 export default function FleetReportsTab({ recordCount = 0 }) {
   const { data } = useGetFleetReportsQuery();
   const [ready, setReady] = useState("");
+  const [generating, setGenerating] = useState("");
 
-  const download = (key, payload) => {
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `fleet-${key}-30d.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setReady(key);
+  const generate = async (key) => {
+    if (!data) return;
+    setGenerating(key);
+    try {
+      await downloadFleetReportPdf(key, data);
+      setReady(key);
+    } finally {
+      setGenerating("");
+    }
   };
 
   const cards = [
@@ -27,7 +29,9 @@ export default function FleetReportsTab({ recordCount = 0 }) {
       body: "Miles, drive time, stops, idle time, and utilization by vehicle.",
       schedule: "Weekly",
       icon: Route,
-      detail: data ? `${data.fleet_activity.distance_miles} mi · ${data.fleet_activity.trips} trips · ${data.fleet_activity.stops} stops` : "Last 30 days",
+      detail: data
+        ? `${data.fleet_activity.distance_miles} mi · ${data.fleet_activity.trips} trips · ${data.fleet_activity.stops} stops · ${formatDuration(data.fleet_activity.drive_seconds)}`
+        : "Last 30 days",
     },
     {
       key: "driver_safety",
@@ -35,7 +39,9 @@ export default function FleetReportsTab({ recordCount = 0 }) {
       body: "Speeding, harsh driving, alerts, and driver trends.",
       schedule: "Monthly",
       icon: ShieldAlert,
-      detail: data ? `${data.driver_safety.events} events · ${data.driver_safety.speeding} speeding` : "Last 30 days",
+      detail: data
+        ? `${data.driver_safety.events} safety events · ${data.driver_safety.speeding} speeding · ${data.driver_safety.open ?? 0} open`
+        : "Last 30 days",
     },
     {
       key: "maintenance_health",
@@ -43,7 +49,9 @@ export default function FleetReportsTab({ recordCount = 0 }) {
       body: "Odometer, engine hours, DTCs, and upcoming service.",
       schedule: "Weekly",
       icon: Wrench,
-      detail: data ? `${data.maintenance_health.need_attention} need attention · ${data.maintenance_health.vehicles} monitored` : "Last 30 days",
+      detail: data
+        ? `${data.maintenance_health.need_attention} need attention · ${data.maintenance_health.overdue ?? 0} overdue · ${data.maintenance_health.vehicles} monitored`
+        : "Last 30 days",
     },
     {
       key: "location_activity",
@@ -51,18 +59,25 @@ export default function FleetReportsTab({ recordCount = 0 }) {
       body: "Geofence arrivals, departures, dwell time, and after-hours use.",
       schedule: "On demand",
       icon: MapPin,
-      detail: data ? `${data.location_activity.geofence_events} geofence events · ${data.location_activity.active_geofences} zones` : "Last 30 days",
+      detail: data
+        ? `${data.location_activity.geofence_events} events · ${data.location_activity.active_geofences} zones`
+        : "Last 30 days",
     },
   ];
 
-  const bars = [32, 44, 39, 58, 63, 72, 82];
+  const bars = (data?.fleet_activity?.by_day || [])
+    .filter((d) => d.distance_miles || d.trips)
+    .slice(-7)
+    .map((d) => d.distance_miles || 0);
+  const maxBar = Math.max(...bars, 1);
+  const chartBars = bars.length ? bars.map((v) => Math.max(12, Math.round((v / maxBar) * 100))) : [32, 44, 39, 58, 63, 72, 82];
 
   return (
     <Box>
       <FleetSectionHeader
         eyebrow="Analytics & exports"
         title="Fleet reports"
-        description="Review trends, schedule recurring summaries, and export OneStep fleet data for operations and compliance."
+        description="Review the last 30 days and download a PDF for operations, safety, maintenance, or geofences."
         count={recordCount}
       />
 
@@ -86,16 +101,16 @@ export default function FleetReportsTab({ recordCount = 0 }) {
             Last 30 days
           </Typography>
           <Typography sx={{ fontSize: 22, fontWeight: 800, mt: 0.5 }}>
-            {data?.fleet_activity?.trips
-              ? `${data.fleet_activity.trips} trips · ${data.fleet_activity.distance_miles} mi`
+            {data?.fleet_activity
+              ? `${data.fleet_activity.trips} trips · ${data.fleet_activity.distance_miles} mi · ${formatDuration(data.fleet_activity.drive_seconds)}`
               : "Fleet utilization"}
           </Typography>
           <Typography sx={{ fontSize: 13, mt: 0.5, opacity: 0.9, maxWidth: 520 }}>
-            Review trends from this subaccount’s synced OneStep GPS + JobTracker data — not demo numbers.
+            PDFs include per-vehicle totals, recent events, and service status from this subaccount’s live data.
           </Typography>
         </Box>
         <Stack direction="row" alignItems="flex-end" spacing={0.75} sx={{ height: 72, display: { xs: "none", sm: "flex" } }}>
-          {bars.map((h, i) => (
+          {chartBars.map((h, i) => (
             <Box key={i} sx={{ width: 10, height: `${h}%`, bgcolor: "rgba(255,255,255,0.85)", borderRadius: "3px 3px 0 0" }} />
           ))}
         </Stack>
@@ -104,6 +119,7 @@ export default function FleetReportsTab({ recordCount = 0 }) {
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.75 }}>
         {cards.map((card) => {
           const Icon = card.icon;
+          const busy = generating === card.key;
           return (
             <Box
               key={card.key}
@@ -125,15 +141,15 @@ export default function FleetReportsTab({ recordCount = 0 }) {
               <Box>
                 <Typography sx={{ fontSize: 15, fontWeight: 800 }}>{card.title}</Typography>
                 <Typography sx={{ color: SP.muted, fontSize: 12, mt: 0.5 }}>{card.body}</Typography>
-                <Typography sx={{ color: SP.muted, fontSize: 11, mt: 0.75 }}>Schedule: {card.schedule} · {card.detail}</Typography>
+                <Typography sx={{ color: SP.muted, fontSize: 11, mt: 0.75 }}>PDF · {card.detail}</Typography>
               </Box>
               <PrimaryButton
                 size="small"
                 startIcon={<Download size={14} />}
-                onClick={() => download(card.key, data?.[card.key] || {})}
-                disabled={!data}
+                onClick={() => generate(card.key)}
+                disabled={!data || Boolean(generating)}
               >
-                {ready === card.key ? "Ready" : "Generate"}
+                {busy ? "Building…" : ready === card.key ? "Downloaded" : "Generate PDF"}
               </PrimaryButton>
             </Box>
           );
@@ -144,7 +160,7 @@ export default function FleetReportsTab({ recordCount = 0 }) {
         <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mt: 2, bgcolor: SP.greenSoft, borderRadius: "12px", px: 2, py: 1.25 }}>
           <CheckCircle2 size={18} color={SP.green} />
           <Typography sx={{ fontSize: 13, flex: 1 }}>
-            <strong>{cards.find((c) => c.key === ready)?.title} report is ready.</strong> Downloaded as JSON for this subaccount.
+            <strong>{cards.find((c) => c.key === ready)?.title} PDF is ready.</strong> Saved to your downloads.
           </Typography>
           <Button onClick={() => setReady("")} sx={{ minWidth: 0, color: SP.muted }}><X size={16} /></Button>
         </Stack>
