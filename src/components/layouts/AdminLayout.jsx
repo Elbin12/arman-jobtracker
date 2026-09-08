@@ -71,7 +71,7 @@ const getNavItemsByRole = (role, fullAccessRoles, user_profile) => {
   const adminItems = [
     // { text: "Dashboard", path: "/admin/dashboard", icon: DashboardIcon, roles: ["admin", "supervisor"] },
     { text: "Jobs", path: "/admin/jobs", icon: WorkOutline, roles: ["admin", "supervisor"] },
-    { text: "Map", path: "/admin/map", icon: MapIcon, roles: ["admin", "supervisor"] },
+    { text: "Fleet", path: "/admin/fleet", icon: MapIcon, roles: ["admin", "supervisor"] },
     { text: "Quotes", path: "/admin/accepted-quotes", icon: ReceiptLong, roles: ["admin", "supervisor"] },
     { text: "Repeat Job Requests", path: "/admin/pending-reschedule-quotes", icon: PublishedWithChanges, roles: ["admin", "supervisor"] },
     { text: "On Hold Jobs", path: "/admin/on-hold-jobs", icon: PauseCircleOutline, roles: ["admin", "supervisor"] },
@@ -218,6 +218,7 @@ export const AdminLayout = ({ children }) => {
     location.pathname === "/admin/dashboard" ||
     location.pathname === "/admin/calendar" ||
     location.pathname === "/admin/map" ||
+    location.pathname === "/admin/fleet" ||
     location.pathname === "/admin/referrals";
 
   const shouldHideNavbar =
@@ -860,7 +861,13 @@ export const AdminLayout = ({ children }) => {
             </Typography>
           </Breadcrumbs>
         )} */}
-        {children}
+        {isDedicatedEmbedPage ? (
+          <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            {children}
+          </Box>
+        ) : (
+          children
+        )}
       </Box>
       {!isDedicatedEmbedPage && <AdminFooter />}
     </Box>

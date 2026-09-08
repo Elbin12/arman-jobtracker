@@ -22,10 +22,11 @@ import {
   TextField,
   Typography,
 } from "@mui/material"
-import { CardGiftcard, ContentCopy, Save } from "@mui/icons-material"
+import { CardGiftcard, ContentCopy, Save, Redeem } from "@mui/icons-material"
 import {
   useGetReferralDashboardQuery,
   useGetReferralProgramQuery,
+  useGetReferralGiftCardQuery,
   useUpdateReferralProgramMutation,
 } from "../../store/api/referralsApi"
 
@@ -36,9 +37,19 @@ const ReferralOwnerDashboard = () => {
   const { data: programData, isLoading: programLoading, error: programError } = useGetReferralProgramQuery()
   const { data, isLoading: dashLoading, error, refetch } = useGetReferralDashboardQuery()
   const [updateProgram, { isLoading: saving }] = useUpdateReferralProgramMutation()
+  const [section, setSection] = useState("referrals")
   const [tab, setTab] = useState(0)
   const [message, setMessage] = useState(null)
   const [form, setForm] = useState(null)
+
+  const {
+    data: giftCardData,
+    isLoading: giftCardLoading,
+    error: giftCardError,
+  } = useGetReferralGiftCardQuery(undefined, { skip: section !== "giftcards" })
+
+  const giftCardUrl = giftCardData?.configured ? giftCardData.purchase_url : null
+  const giftCardLocationId = giftCardData?.location_id || ""
 
   useEffect(() => {
     if (data?.program) setForm({ ...data.program })
@@ -74,7 +85,7 @@ const ReferralOwnerDashboard = () => {
     }
   }
 
-  if (programError) {
+  if (programError && section === "referrals") {
     return (
       <Box sx={{ p: 3 }}>
         <Alert severity="error">{programError?.data?.detail || "Failed to load referral program."}</Alert>
@@ -82,7 +93,7 @@ const ReferralOwnerDashboard = () => {
     )
   }
 
-  if (programLoading || !form) {
+  if ((programLoading || !form) && section === "referrals") {
     return (
       <Box sx={{ p: 4, display: "flex", justifyContent: "center" }}>
         <CircularProgress />
@@ -101,13 +112,81 @@ const ReferralOwnerDashboard = () => {
       <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
         <CardGiftcard color="primary" />
         <Box>
-          <Typography variant="h5" fontWeight={700}>Customer Referrals</Typography>
+          <Typography variant="h5" fontWeight={700}>
+            {section === "giftcards" ? "Gift Cards" : "Customer Referrals"}
+          </Typography>
           <Typography variant="body2" color="text.secondary">
-            Homeowner referral credits for this subaccount — not B2B partner referrals.
+            {section === "giftcards"
+              ? "Customer gift card purchase page for this subaccount."
+              : "Homeowner referral credits for this subaccount — not B2B partner referrals."}
           </Typography>
         </Box>
       </Stack>
 
+      <Tabs
+        value={section}
+        onChange={(_, v) => setSection(v)}
+        sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}
+      >
+        <Tab icon={<CardGiftcard fontSize="small" />} iconPosition="start" label="Referrals" value="referrals" />
+        <Tab icon={<Redeem fontSize="small" />} iconPosition="start" label="Gift Cards" value="giftcards" />
+      </Tabs>
+
+      {section === "giftcards" && (
+        <Box>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            This is the page your <strong>customers</strong> use to purchase gift cards. Share this
+            link on your website, emails, or SMS campaigns.
+          </Alert>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            To <strong>manage gift cards</strong>, view orders, and track redemptions, open{" "}
+            <strong>Payment → Gift Card</strong> in your GoHighLevel subaccount menu.
+          </Alert>
+
+          {giftCardError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {giftCardError?.data?.detail || "Failed to load gift card settings."}
+            </Alert>
+          )}
+
+          {giftCardLoading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+              <CircularProgress />
+            </Box>
+          ) : giftCardUrl ? (
+            <Card variant="outlined" sx={{ overflow: "hidden" }}>
+              <Box
+                component="iframe"
+                src={giftCardUrl}
+                title="Gift card purchase"
+                sx={{
+                  display: "block",
+                  width: "100%",
+                  minHeight: { xs: 520, md: "calc(100vh - 280px)" },
+                  height: { xs: 520, md: "calc(100vh - 280px)" },
+                  border: 0,
+                  bgcolor: "background.default",
+                }}
+              />
+            </Card>
+          ) : (
+            <Alert severity="warning">
+              <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+                Gift card page not configured
+              </Typography>
+              <Typography variant="body2">
+                No customer gift card purchase link is set up for this subaccount
+                {giftCardLocationId ? ` (${giftCardLocationId})` : ""}. Contact your administrator to add a payment
+                link, or configure gift cards under <strong>Payment → Gift Card</strong> in
+                GoHighLevel first.
+              </Typography>
+            </Alert>
+          )}
+        </Box>
+      )}
+
+      {section === "referrals" && (
+        <>
       {message && (
         <Alert severity={message.type} sx={{ mb: 2 }} onClose={() => setMessage(null)}>
           {message.text}
@@ -376,6 +455,8 @@ const ReferralOwnerDashboard = () => {
             )}
           </CardContent>
         </Card>
+      )}
+        </>
       )}
     </Box>
   )

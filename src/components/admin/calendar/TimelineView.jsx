@@ -510,8 +510,19 @@ export function TimelineView({
                                     const jobMoment = moment.utc(job.scheduled_at);
                                     const timeStr = jobMoment.format("h:mm A");
                                     
-                                    // Get display name: company_name if available, otherwise customer_name or title
-                                    const displayName = job?.company_name || job.customer_name || job.title;
+                                    const usableName = (value) => {
+                                      if (value == null) return "";
+                                      const text = String(value).trim();
+                                      if (!text) return "";
+                                      const lower = text.toLowerCase();
+                                      if (["n/a", "na", "n.a.", "n.a", "none", "unknown", "customer"].includes(lower)) return "";
+                                      return text;
+                                    };
+                                    const displayName =
+                                      usableName(job?.company_name) ||
+                                      usableName(job?.customer_name) ||
+                                      usableName(job?.title) ||
+                                      "Job";
                                     
                                     return (
                                       <Draggable

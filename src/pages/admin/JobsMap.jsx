@@ -9,7 +9,7 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { useGetCalendarJobsQuery, useGetEstimateAppointmentsCalendarQuery, useGetSubaccountOfficeQuery } from "../../store/api/jobsApi";
-import { useGetDevicesQuery, useGetSettingsQuery } from "../../store/api/onestepgpsApi";
+import { useGetDevicesQuery, useGetFleetGeofencesQuery, useGetSettingsQuery } from "../../store/api/onestepgpsApi";
 import { useGetEmployeesQuery } from "../../store/api/payrollApi";
 import { useDispatch, useSelector } from "react-redux";
 import { geocodeJobs, getEstimateAddress, geocodeAddress } from "../../utils/geocode";
@@ -20,7 +20,7 @@ import { EditJobDialog } from "../../components/admin/jobs/EditJobDialog";
 import OneStepGPSSettingsDialog from "../../components/admin/jobs/OneStepGPSSettingsDialog";
 import MapOpsPanel from "../../components/admin/jobs/MapOpsPanel";
 import { jobsApi } from "../../store/api/jobsApi";
-import { startOfMonth, endOfMonth } from "date-fns";
+import { startOfDay, endOfDay } from "date-fns";
 import {
   appendDeviceTrails,
   buildFadingTrailSegments,
@@ -89,8 +89,8 @@ function buildOfficeMarkerIcon({ size = 48 }) {
 const getDefaultDateRange = () => {
   const now = new Date();
   return {
-    start: startOfMonth(now),
-    end: endOfMonth(now),
+    start: startOfDay(now),
+    end: endOfDay(now),
   };
 };
 
@@ -99,6 +99,7 @@ export function JobsMap({ dedicatedPage = false }) {
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
   const vehicleMarkersRef = useRef([]);
+  const geofenceOverlaysRef = useRef([]);
   const officeMarkerRef = useRef(null);
   const trailPolylinesRef = useRef([]);
   const trailsByDeviceRef = useRef(new Map());
@@ -191,6 +192,8 @@ export function JobsMap({ dedicatedPage = false }) {
   });
 
   const gpsDevices = gpsDevicesData?.devices || [];
+  const { data: geofencesData } = useGetFleetGeofencesQuery(undefined, { skip: !canViewGps });
+  const geofences = geofencesData?.results || [];
 
   // Always fetch both so geocoding has full data; category filtering is display-only
   const { data: occurrencesData, isLoading: jobsLoading } = useGetCalendarJobsQuery(occurrencesParams);
@@ -527,6 +530,7 @@ export function JobsMap({ dedicatedPage = false }) {
         <div style="font-weight:700;margin-bottom:4px;font-size:14px;">${device.display_name || "Vehicle"}</div>
         <div style="font-size:12px;color:#0D9488;font-weight:600;margin-bottom:2px;">${status}${duration}</div>
         ${speed ? `<div style="font-size:12px;color:#334155;">Speed: ${speed}</div>` : ""}
+        ${device.technician_name ? `<div style="font-size:12px;color:#334155;">Tech: ${device.technician_name}</div>` : ""}
         ${addr ? `<div style="font-size:12px;color:#64748B;margin-top:4px;">${addr}</div>` : ""}
         ${device.last_updated ? `<div style="font-size:11px;color:#94A3B8;margin-top:4px;">Updated: ${device.last_updated}</div>` : ""}
       `;
@@ -596,6 +600,57 @@ export function JobsMap({ dedicatedPage = false }) {
       trailPolylinesRef.current = [];
     };
   }, [gpsDevices, showVehicles, addressByDeviceId]);
+
+  // Active geofences from Fleet Center
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !google?.maps || !mapReady) return;
+
+    clearMapOverlays(geofenceOverlaysRef.current);
+    geofenceOverlaysRef.current = [];
+
+    const overlays = [];
+    geofences
+      .filter((g) => g.is_active !== false && g.latitude != null && g.longitude != null)
+      .forEach((g) => {
+        const color = g.color || "#0877f9";
+        const circle = new google.maps.Circle({
+          map,
+          center: { lat: Number(g.latitude), lng: Number(g.longitude) },
+          radius: Math.max(Number(g.radius_miles) || 1, 0.1) * 1609.34,
+          fillColor: color,
+          fillOpacity: 0.12,
+          strokeColor: color,
+          strokeOpacity: 0.85,
+          strokeWeight: 2,
+          zIndex: 400,
+        });
+        const label = new google.maps.Marker({
+          map,
+          position: { lat: Number(g.latitude), lng: Number(g.longitude) },
+          title: g.name,
+          clickable: false,
+          zIndex: 401,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 0,
+          },
+          label: {
+            text: g.name || "Geofence",
+            color: color,
+            fontSize: "12px",
+            fontWeight: "700",
+          },
+        });
+        overlays.push(circle, label);
+      });
+    geofenceOverlaysRef.current = overlays;
+
+    return () => {
+      clearMapOverlays(geofenceOverlaysRef.current);
+      geofenceOverlaysRef.current = [];
+    };
+  }, [geofences, mapReady]);
 
   // Geocode subaccount office address for HQ marker
   useEffect(() => {
@@ -830,8 +885,8 @@ export function JobsMap({ dedicatedPage = false }) {
             flexWrap: "wrap",
             gap: 1.5,
             px: { xs: 2, sm: 2.5 },
-            py: 1.5,
-            bgcolor: "background.paper",
+            py: 1.25,
+            bgcolor: "#fff",
             borderBottom: "1px solid",
             borderColor: "divider",
           }}
@@ -864,7 +919,7 @@ export function JobsMap({ dedicatedPage = false }) {
           </Box>
 
           <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1 }}>
-            {canManageGps && (
+            {canManageGps && !dedicatedPage && (
               <Button
                 size="small"
                 variant="outlined"

@@ -247,6 +247,12 @@ function VehicleCard({ vehicle, address, selected, onClick, onFocus }) {
             {vehicleStatusLine(vehicle)}
           </Typography>
 
+          {vehicle.technician_name && (
+            <Typography variant="caption" sx={{ display: "block", mt: 0.3, color: "text.secondary" }}>
+              {vehicle.technician_name}
+            </Typography>
+          )}
+
           {addr && (
             <Typography
               variant="caption"

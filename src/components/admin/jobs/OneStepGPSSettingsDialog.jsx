@@ -55,6 +55,27 @@ export default function OneStepGPSSettingsDialog({ open, onClose }) {
     }
   };
 
+  const handleCopyDataQueue = async () => {
+    const url = settings?.dataqueue_url;
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setMessage("DataQueue URL copied.");
+      setTimeout(() => setMessage(null), 2500);
+    } catch {
+      setError("Could not copy URL.");
+    }
+  };
+
+  const handleGenerateToken = () => {
+    const token = Array.from(crypto.getRandomValues(new Uint8Array(18)))
+      .map((b) => b.toString(36).padStart(2, "0"))
+      .join("")
+      .slice(0, 24);
+    setWebhookPassword(token);
+    setMessage("New DataQueue token generated — save settings, then paste this token into OneStep GPS.");
+  };
+
   const handleSave = async () => {
     setMessage(null);
     setError(null);
@@ -97,7 +118,7 @@ export default function OneStepGPSSettingsDialog({ open, onClose }) {
       <DialogTitle>One Step GPS</DialogTitle>
       <DialogContent>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Connect live vehicles with an API key, and paste the webhook URL into One Step GPS to receive alerts (engine, harsh braking, etc.).
+          API key powers the live map. Alerts, trips, and diagnostics come from the OneStep DataQueue URL below. Leave the legacy webhook URL unchanged.
         </Typography>
 
         {isLoading ? (
@@ -134,13 +155,35 @@ export default function OneStepGPSSettingsDialog({ open, onClose }) {
 
             <Divider sx={{ my: 0.5 }} />
 
-            <Typography variant="subtitle2">Alerts webhook</Typography>
-            <Typography variant="caption" color="text.secondary">
-              In One Step GPS, create a JSON webhook pointing to this URL. Use the location-specific path so alerts land in this subaccount.
+            <Typography variant="subtitle2">OneStep DataQueue (use this)</Typography>
+            <Typography variant="caption" color="text.secondary" component="div">
+              Paste this URL in OneStep GPS → DataQueues → Webhook endpoint.
+              Consumption type: Webhook. Authentication: <strong>No Authentication</strong>.
+              Enable Alerts, Device Points, Drives and Stops, and DTCs.
+              {settings?.last_webhook_at && (
+                <> Last event received: {new Date(settings.last_webhook_at).toLocaleString()}.</>
+              )}
             </Typography>
-
             <TextField
-              label="Webhook URL"
+              label="DataQueue URL"
+              value={settings?.dataqueue_url || ""}
+              fullWidth
+              InputProps={{
+                readOnly: true,
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton edge="end" onClick={handleCopyDataQueue} disabled={!settings?.dataqueue_url}>
+                      <ContentCopyIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            <Divider sx={{ my: 0.5 }} />
+            <Typography variant="subtitle2">Legacy JSON webhook (leave as-is)</Typography>
+            <TextField
+              label="Legacy webhook URL"
               value={settings?.webhook_url || ""}
               fullWidth
               InputProps={{
@@ -163,18 +206,21 @@ export default function OneStepGPSSettingsDialog({ open, onClose }) {
               autoComplete="off"
             />
             <TextField
-              label="Webhook password"
+              label="Webhook / DataQueue token (Bearer)"
               type="password"
               value={webhookPassword}
               onChange={(e) => setWebhookPassword(e.target.value)}
               placeholder={
                 settings?.webhook_password_set
-                  ? "Saved password is set — enter new password to replace"
-                  : "Optional"
+                  ? "Saved token is set — enter new token to replace"
+                  : "Generate or paste token"
               }
               fullWidth
               autoComplete="new-password"
             />
+            <Button size="small" variant="outlined" onClick={handleGenerateToken}>
+              Generate DataQueue token
+            </Button>
 
             {message && <Alert severity="success">{message}</Alert>}
             {error && <Alert severity="error">{error}</Alert>}

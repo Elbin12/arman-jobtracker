@@ -197,6 +197,12 @@ const QuoteDetailsPage = () => {
     quote_origin,
   } = quote
 
+  const customerVisibleNotes = (
+    additional_data?.customer_notes ||
+    (quote_origin === "public" ? additional_data?.additional_notes : "") ||
+    ""
+  ).trim()
+
   const renderQuestionResponse = (response) => {
     switch (response.question_type) {
       case "yes_no":
@@ -1238,7 +1244,7 @@ const QuoteDetailsPage = () => {
               )}
 
               {/* Additional Information */}
-              {(additional_data && (additional_data?.signature || additional_data?.additional_notes)) || quoted_by_details ? (
+              {(additional_data && (additional_data?.signature || customerVisibleNotes)) || quoted_by_details ? (
                 <Card>
                   <Box sx={{ p: 3, py: 2 }}>
                     <Stack direction="row" alignItems="center" spacing={2}>
@@ -1404,7 +1410,7 @@ const QuoteDetailsPage = () => {
                         </Box>
                       )}
 
-                      {additional_data?.additional_notes && (
+                      {customerVisibleNotes && (
                         <Box>
                           <Typography variant="subtitle2" sx={{ color: "#64748b", mb: 1 }}>
                             Additional Notes
@@ -1416,7 +1422,7 @@ const QuoteDetailsPage = () => {
                               p: 2,
                             }}
                           >
-                            <Typography variant="body2">{additional_data.additional_notes}</Typography>
+                            <Typography variant="body2">{customerVisibleNotes}</Typography>
                           </Box>
                         </Box>
                       )}

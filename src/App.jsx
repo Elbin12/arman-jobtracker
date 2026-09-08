@@ -34,6 +34,7 @@ import { PersistGate } from 'redux-persist/integration/react';
 import TermsAndConditions from './pages/user/TermsAndConditions.jsx';
 import Jobs from './pages/admin/Jobs.jsx';
 import AdminMap from './pages/admin/AdminMap.jsx';
+import FleetCenter from './pages/admin/fleet/FleetCenter.jsx';
 import AdminCalendar from './pages/admin/AdminCalendar.jsx';
 import TeamManagement from './pages/admin/TeamManagement.jsx';
 import AcceptedQuotes from './pages/admin/AcceptedQuotes.jsx';
@@ -127,6 +128,11 @@ function App() {
                     <Route path="map" element={
                         <RoleProtectedRoute allowedRoles={['admin', 'manager', 'supervisor']}>
                           <AdminMap />
+                        </RoleProtectedRoute>
+                    } />
+                    <Route path="fleet" element={
+                        <RoleProtectedRoute allowedRoles={['admin', 'manager', 'supervisor']}>
+                          <FleetCenter />
                         </RoleProtectedRoute>
                     } />
                     {/* <Route path="jobs/:id" element={<JobDetails />} /> */}

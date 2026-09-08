@@ -1341,7 +1341,7 @@ export function JobCard({
                 onClick={() => setNotesExpanded(!notesExpanded)}
               >
                 <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
-                  Job Notes
+                  Technician notes
                 </Typography>
                 {notesExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </Box>

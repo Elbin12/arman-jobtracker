@@ -1386,7 +1386,7 @@ export function EditJobDialog({
 
           {/* Notes */}
           <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
+            <Label htmlFor="notes">Technician notes (not shown to customer)</Label>
             <Textarea
               id="notes"
               value={formData.notes}

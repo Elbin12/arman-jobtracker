@@ -4,6 +4,9 @@
  * Custom menu links should pass both email and location_id, e.g.:
  *   https://services.theservicepilot.com/admin/calendar?email={{user.email}}&location_id={{location.id}}
  *   https://services.theservicepilot.com/admin/map?email={{user.email}}&location_id={{location.id}}
+ *   https://services.theservicepilot.com/admin/fleet?email={{user.email}}&location_id={{location.id}}
+ * DataQueue webhook (OneStep GPS):
+ *   https://services.theservicepilot.com/api/onestepgps/dataqueue/{{location.id}}/
  *   https://services.theservicepilot.com/admin/referrals?email={{user.email}}&location_id={{location.id}}
  * Same pattern for dashboard, payroll, jobtracker, quote, etc.
  *
