@@ -44,6 +44,20 @@ export const dashboardApi = createApi({
       }),
       providesTags: (result, error, id) => [{ type: 'DashboardContact', id: String(id) }],
     }),
+    updateDashboardContact: builder.mutation({
+      query: ({ ghlContactId, lookupId: _lookupId, ...data }) => ({
+        url: `contacts/${encodeURIComponent(String(ghlContactId))}/`,
+        method: 'PATCH',
+        data,
+      }),
+      invalidatesTags: (result, error, { ghlContactId, lookupId }) => [
+        { type: 'DashboardContact', id: String(ghlContactId) },
+        ...(lookupId != null && String(lookupId) !== String(ghlContactId)
+          ? [{ type: 'DashboardContact', id: String(lookupId) }]
+          : []),
+        { type: 'DashboardContact', id: 'LIST' },
+      ],
+    }),
   }),
 });
 
@@ -54,6 +68,7 @@ export const {
   useGetLeadFunnelReportQuery,
   useGetDashboardContactsQuery,
   useGetDashboardContactByIdQuery,
+  useUpdateDashboardContactMutation,
 } = dashboardApi;
 
 
