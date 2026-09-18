@@ -360,14 +360,15 @@ const REPORTS = {
 
 export async function downloadFleetReportPdf(key, data) {
   const spec = REPORTS[key];
-  if (!spec || !data) return;
+  if (!spec) return;
+  const report = data || {};
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: "letter" });
-  const company = data.account?.company_name || "Fleet Center";
-  const payload = data[key] || {};
-  let y = drawHeader(doc, { title: spec.title, company, data });
+  const company = report.account?.company_name || "Fleet Center";
+  const payload = report[key] || {};
+  let y = drawHeader(doc, { title: spec.title, company, data: report });
   y = spec.build(doc, y, payload);
   drawFooter(doc, company);
-  const day = data.period_end ? formatDay(data.period_end).replace(/[^a-z0-9]+/gi, "-") : "30d";
+  const day = report.period_end ? formatDay(report.period_end).replace(/[^a-z0-9]+/gi, "-") : "30d";
   doc.save(`fleet-${key}-${day}.pdf`);
 }

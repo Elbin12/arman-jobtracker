@@ -57,6 +57,10 @@ export const onestepgpsApi = createApi({
       query: () => ({ url: 'fleet/maintenance/' }),
       providesTags: ['FleetMaintenance'],
     }),
+    ensureFleetMaintenance: builder.mutation({
+      query: (data) => ({ url: 'fleet/maintenance/', method: 'POST', data }),
+      invalidatesTags: ['FleetMaintenance'],
+    }),
     updateFleetMaintenance: builder.mutation({
       query: ({ id, ...data }) => ({ url: `fleet/maintenance/${id}/`, method: 'PATCH', data }),
       invalidatesTags: ['FleetMaintenance'],
@@ -111,6 +115,7 @@ export const {
   useGetFleetSummaryQuery,
   useGetFleetTripsQuery,
   useGetFleetMaintenanceQuery,
+  useEnsureFleetMaintenanceMutation,
   useUpdateFleetMaintenanceMutation,
   useCompleteFleetMaintenanceMutation,
   useGetFleetGeofencesQuery,

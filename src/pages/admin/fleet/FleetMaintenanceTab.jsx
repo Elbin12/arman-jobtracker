@@ -3,6 +3,7 @@ import { Activity, CheckCircle2, ClipboardCheck, Fuel, Gauge, Plus, Siren, Wrenc
 import { useMemo, useState } from "react";
 import {
   useCompleteFleetMaintenanceMutation,
+  useEnsureFleetMaintenanceMutation,
   useGetDevicesQuery,
   useGetFleetMaintenanceQuery,
   useUpdateFleetMaintenanceMutation,
@@ -81,12 +82,49 @@ function nextServiceText(vehicle) {
 }
 
 export default function FleetMaintenanceTab({ recordCount = 0 }) {
-  useGetDevicesQuery(undefined, { pollingInterval: 30000 });
-  const { data, isLoading } = useGetFleetMaintenanceQuery(undefined, { pollingInterval: 30000 });
+  const { data: devicesData, isLoading: devicesLoading } = useGetDevicesQuery(undefined, { pollingInterval: 30000 });
+  const { data, isLoading, isError } = useGetFleetMaintenanceQuery(undefined, { pollingInterval: 30000 });
+  const [ensureMaintenance] = useEnsureFleetMaintenanceMutation();
   const [updateSchedule] = useUpdateFleetMaintenanceMutation();
   const [completeService] = useCompleteFleetMaintenanceMutation();
-  const vehicles = data?.results || [];
+  const maintRows = data?.results || [];
+  const devices = devicesData?.devices || [];
+  const vehicles = useMemo(() => {
+    const byId = new Map(maintRows.map((row) => [String(row.device_id), row]));
+    if (!devices.length) return maintRows;
+    const merged = devices.map((device) => {
+      const existing = byId.get(String(device.device_id));
+      const name = device.display_name || device.device_name || device.device_id;
+      if (existing) {
+        return {
+          ...existing,
+          device_name: existing.device_name || name,
+          odometer_miles: existing.odometer_miles ?? device.odometer_miles ?? device.odometer ?? null,
+          engine_hours: existing.engine_hours ?? device.engine_hours ?? null,
+          fuel_level_percent: existing.fuel_level_percent ?? device.fuel_level_percent ?? null,
+        };
+      }
+      return {
+        id: null,
+        device_id: device.device_id,
+        device_name: name,
+        odometer_miles: device.odometer_miles ?? device.odometer ?? null,
+        engine_hours: device.engine_hours ?? null,
+        fuel_level_percent: device.fuel_level_percent ?? null,
+        check_engine: Boolean(device.check_engine),
+        dtc_codes: device.dtc_codes || [],
+        due_status: "ok",
+        logs: [],
+        updated_at: device.dt_tracker || device.updated_at || null,
+      };
+    });
+    maintRows.forEach((row) => {
+      if (!merged.some((item) => String(item.device_id) === String(row.device_id))) merged.push(row);
+    });
+    return merged;
+  }, [maintRows, devices]);
   const totals = data?.totals || {};
+  const vehiclesMonitored = totals.vehicles_monitored || vehicles.length;
   const [filter, setFilter] = useState("all");
   const [scheduleVehicle, setScheduleVehicle] = useState(null);
   const [completeVehicle, setCompleteVehicle] = useState(null);
@@ -118,15 +156,23 @@ export default function FleetMaintenanceTab({ recordCount = 0 }) {
     if (!scheduleVehicle) return;
     setSaving(true);
     try {
-      await updateSchedule({
-        id: scheduleVehicle.id,
+      const payload = {
         service_type: scheduleForm.service_type,
         next_service_at: scheduleForm.next_service_at || null,
         next_service_miles: scheduleForm.next_service_miles === "" ? null : Number(scheduleForm.next_service_miles),
         interval_miles: scheduleForm.interval_miles === "" ? null : Number(scheduleForm.interval_miles),
         interval_days: scheduleForm.interval_days === "" ? null : Number(scheduleForm.interval_days),
         notes: scheduleForm.notes,
-      }).unwrap();
+      };
+      if (scheduleVehicle.id) {
+        await updateSchedule({ id: scheduleVehicle.id, ...payload }).unwrap();
+      } else {
+        await ensureMaintenance({
+          device_id: scheduleVehicle.device_id,
+          device_name: scheduleVehicle.device_name,
+          ...payload,
+        }).unwrap();
+      }
       setScheduleVehicle(null);
     } finally {
       setSaving(false);
@@ -137,8 +183,16 @@ export default function FleetMaintenanceTab({ recordCount = 0 }) {
     if (!completeVehicle) return;
     setSaving(true);
     try {
+      let id = completeVehicle.id;
+      if (!id) {
+        const created = await ensureMaintenance({
+          device_id: completeVehicle.device_id,
+          device_name: completeVehicle.device_name,
+        }).unwrap();
+        id = created.id;
+      }
       await completeService({
-        id: completeVehicle.id,
+        id,
         service_type: completeForm.service_type,
         performed_at: completeForm.performed_at || undefined,
         odometer_miles: completeForm.odometer_miles === "" ? undefined : Number(completeForm.odometer_miles),
@@ -162,7 +216,7 @@ export default function FleetMaintenanceTab({ recordCount = 0 }) {
         <MetricCard icon={Wrench} label="Need attention" value={totals.need_attention ?? 0} tone={totals.need_attention ? "red" : "green"} />
         <MetricCard icon={ClipboardCheck} label="Due soon" value={totals.due_soon ?? 0} tone="amber" />
         <MetricCard icon={Fuel} label="Average fuel" value={totals.average_fuel != null ? `${totals.average_fuel}%` : "—"} tone="blue" />
-        <MetricCard icon={Gauge} label="Vehicles monitored" value={totals.vehicles_monitored ?? 0} tone="green" />
+        <MetricCard icon={Gauge} label="Vehicles monitored" value={vehiclesMonitored} tone="green" />
       </Stack>
 
       <Stack sx={{ mb: 2 }}>
@@ -179,10 +233,10 @@ export default function FleetMaintenanceTab({ recordCount = 0 }) {
       </Stack>
 
       <OperationsPanel title="Vehicle health" subtitle="Latest diagnostic state per vehicle" icon={Activity}>
-        {isLoading ? (
+        {vehicles.length === 0 && (isLoading || devicesLoading) ? (
           <LoadingBlock />
         ) : vehicles.length === 0 ? (
-          <OperationsEmpty icon={Wrench} label="Diagnostic and maintenance information will appear when supported trackers send it." />
+          <OperationsEmpty icon={Wrench} label={isError ? "Could not load saved diagnostics. Live GPS vehicles will show here when the tracker list is available." : "Diagnostic and maintenance information will appear when supported trackers send it."} />
         ) : filtered.length === 0 ? (
           <OperationsEmpty icon={Wrench} label="No vehicles match this filter." />
         ) : (

@@ -10,12 +10,15 @@ export default function FleetReportsTab({ recordCount = 0 }) {
   const { data } = useGetFleetReportsQuery();
   const [ready, setReady] = useState("");
   const [generating, setGenerating] = useState("");
+  const activity = data?.fleet_activity || {};
+  const safety = data?.driver_safety || {};
+  const maintenance = data?.maintenance_health || {};
+  const location = data?.location_activity || {};
 
   const generate = async (key) => {
-    if (!data) return;
     setGenerating(key);
     try {
-      await downloadFleetReportPdf(key, data);
+      await downloadFleetReportPdf(key, data || { [key]: {} });
       setReady(key);
     } finally {
       setGenerating("");
@@ -30,7 +33,7 @@ export default function FleetReportsTab({ recordCount = 0 }) {
       schedule: "Weekly",
       icon: Route,
       detail: data
-        ? `${data.fleet_activity.distance_miles} mi · ${data.fleet_activity.trips} trips · ${data.fleet_activity.stops} stops · ${formatDuration(data.fleet_activity.drive_seconds)}`
+        ? `${activity.distance_miles ?? 0} mi · ${activity.trips ?? 0} trips · ${activity.stops ?? 0} stops · ${formatDuration(activity.drive_seconds)}`
         : "Last 30 days",
     },
     {
@@ -40,7 +43,7 @@ export default function FleetReportsTab({ recordCount = 0 }) {
       schedule: "Monthly",
       icon: ShieldAlert,
       detail: data
-        ? `${data.driver_safety.events} safety events · ${data.driver_safety.speeding} speeding · ${data.driver_safety.open ?? 0} open`
+        ? `${safety.events ?? 0} safety events · ${safety.speeding ?? 0} speeding · ${safety.open ?? 0} open`
         : "Last 30 days",
     },
     {
@@ -50,7 +53,7 @@ export default function FleetReportsTab({ recordCount = 0 }) {
       schedule: "Weekly",
       icon: Wrench,
       detail: data
-        ? `${data.maintenance_health.need_attention} need attention · ${data.maintenance_health.overdue ?? 0} overdue · ${data.maintenance_health.vehicles} monitored`
+        ? `${maintenance.need_attention ?? 0} need attention · ${maintenance.overdue ?? 0} overdue · ${maintenance.vehicles ?? 0} monitored`
         : "Last 30 days",
     },
     {
@@ -60,7 +63,7 @@ export default function FleetReportsTab({ recordCount = 0 }) {
       schedule: "On demand",
       icon: MapPin,
       detail: data
-        ? `${data.location_activity.geofence_events} events · ${data.location_activity.active_geofences} zones`
+        ? `${location.geofence_events ?? 0} events · ${location.active_geofences ?? 0} zones`
         : "Last 30 days",
     },
   ];
@@ -102,7 +105,7 @@ export default function FleetReportsTab({ recordCount = 0 }) {
           </Typography>
           <Typography sx={{ fontSize: 22, fontWeight: 800, mt: 0.5 }}>
             {data?.fleet_activity
-              ? `${data.fleet_activity.trips} trips · ${data.fleet_activity.distance_miles} mi · ${formatDuration(data.fleet_activity.drive_seconds)}`
+              ? `${activity.trips ?? 0} trips · ${activity.distance_miles ?? 0} mi · ${formatDuration(activity.drive_seconds)}`
               : "Fleet utilization"}
           </Typography>
           <Typography sx={{ fontSize: 13, mt: 0.5, opacity: 0.9, maxWidth: 520 }}>
@@ -147,7 +150,7 @@ export default function FleetReportsTab({ recordCount = 0 }) {
                 size="small"
                 startIcon={<Download size={14} />}
                 onClick={() => generate(card.key)}
-                disabled={!data || Boolean(generating)}
+                disabled={Boolean(generating)}
               >
                 {busy ? "Building…" : ready === card.key ? "Downloaded" : "Generate PDF"}
               </PrimaryButton>
