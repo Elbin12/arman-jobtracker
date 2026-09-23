@@ -14,7 +14,7 @@ import CheckoutSummary from "./forms/CheckoutSummary"
 import MultiServiceSelectionForm from "./forms/MultiServiceSelectionForm"
 import ImageUploadForm from "./forms/ImageUploadForm"
 import { useCreateQuestionResponsesMutation, useCreateServiceToSubmissionMutation, useCreateSubmissionMutation, useStartPublicSubmissionMutation, useGetQuoteDetailsQuery, useSubmitOnlyCustomProductsMutation, useSubmitQuoteMutation, useUpdateSubmissionMutation, useUpdateAdditionalDataMutation } from "../../store/api/user/quoteApi"
-import { useDispatch } from "react-redux"
+import { useDispatch, useSelector } from "react-redux"
 import { resetBookingData } from "../../store/slices/bookingSlice"
 import { Box, Typography, Card, CardContent } from "@mui/material"
 import PoweredBy from "../PoweredBy"
@@ -74,6 +74,10 @@ function shouldRedirectToQuoteDetails(submissionData) {
 }
 
 export const BookingWizard = ({ mode } = {}) => {
+  const authUser = useSelector((state) => state.auth.user);
+  const accessToken = useSelector((state) => state.auth.access);
+  const isLoggedIn = Boolean(authUser && accessToken);
+
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const isPublicMode = mode === 'public' || location.pathname.startsWith('/public-quote');
@@ -217,12 +221,12 @@ export const BookingWizard = ({ mode } = {}) => {
     
     setBookingData(transformedData);
     
-    // Load additional notes from API response
-    if (submissionData.additional_data?.additional_notes) {
+    // Load additional notes from API response (public quote only)
+    if (isPublicMode && submissionData.additional_data?.additional_notes) {
       setAdditionalNotes(submissionData.additional_data.additional_notes);
     }
   }
-}, [isSuccess, submissionData]);
+}, [isSuccess, submissionData, isPublicMode]);
 
   useLayoutEffect(() => {
     if (!isSuccess || !submissionData || !submissionIdFromUrl) return;
@@ -626,6 +630,18 @@ export const BookingWizard = ({ mode } = {}) => {
       };
       
       await submitQuote({ submissionId: submission_id, payload }).unwrap();
+
+      // Submit replaces additional_data; put general notes back via the existing merge endpoint.
+      if (!isPublicMode && (addiditional_notes || '').trim()) {
+        await updateAdditionalData({
+          submissionId: submission_id,
+          payload: {
+            additional_data: {
+              customer_notes: addiditional_notes,
+            },
+          },
+        }).unwrap();
+      }
       
       localStorage.removeItem("bookingData");      // Navigate to success page or quote details
       navigate(buildQuoteDetailsHref(searchParams, submission_id, {
@@ -853,7 +869,7 @@ export const BookingWizard = ({ mode } = {}) => {
               <span className="hidden sm:inline">Start a new quote</span>
             </Button>
 
-            {!isPublicMode && (
+            {!isPublicMode && isLoggedIn && (
               <Button
                 variant="outline"
                 className="border-blue-600 text-blue-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg text-sm px-3 py-2"
