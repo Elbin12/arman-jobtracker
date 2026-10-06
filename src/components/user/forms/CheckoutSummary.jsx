@@ -1253,6 +1253,39 @@ export const CheckoutSummary = ({ data, onUpdate = () => {}, termsAccepted, setT
                                   {formatPrice(packageQuote.total_price)}
                                 </Typography>
 
+                                {packageQuote.percent_breakdown?.lines?.length > 0 && (
+                                  <Box
+                                    textAlign="left"
+                                    sx={{ bgcolor: "#f8f9fa", borderRadius: 1, p: 1, mb: 2 }}
+                                  >
+                                    <Box display="flex" justifyContent="space-between" gap={1}>
+                                      <Typography variant="caption" color="text.secondary">
+                                        Service price
+                                      </Typography>
+                                      <Typography variant="caption" fontWeight={600}>
+                                        {formatPrice(packageQuote.percent_breakdown.subtotal)}
+                                      </Typography>
+                                    </Box>
+                                    {packageQuote.percent_breakdown.lines.map((line, i) => {
+                                      const amount = Number(line.amount);
+                                      const label =
+                                        line.answer_text === "Yes"
+                                          ? line.question_text
+                                          : line.answer_text.split("—")[0].trim();
+                                      return (
+                                        <Box key={i} display="flex" justifyContent="space-between" gap={1}>
+                                          <Typography variant="caption" color="text.secondary" sx={{ minWidth: 0 }}>
+                                            {label} ({Number(line.percent)}%)
+                                          </Typography>
+                                          <Typography variant="caption" fontWeight={600} sx={{ whiteSpace: "nowrap" }}>
+                                            {amount < 0 ? "-" : "+"}{formatPrice(Math.abs(amount))}
+                                          </Typography>
+                                        </Box>
+                                      );
+                                    })}
+                                  </Box>
+                                )}
+
                                 {/* Features List */}
                                 <Box textAlign="left">
                                   {[
