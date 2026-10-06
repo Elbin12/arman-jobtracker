@@ -632,6 +632,16 @@ import { EditJobDialog } from "../jobs/EditJobDialog";
 import { TimelineSidebar } from "./TimelineSidebar";
 import { useUpdateJobMutation } from "../../../store/api/jobsApi";
 import { jobGrandTotalAmount } from "../../../utils/jobPricing";
+
+// Canceled and on-hold jobs stay on the calendar, but they do not count toward day/week totals.
+const EXCLUDED_SCHEDULE_TOTAL_STATUSES = new Set(["cancelled", "canceled", "onhold"]);
+
+function jobCountsTowardScheduleTotal(job) {
+  const status = String(job?.status || "")
+    .toLowerCase()
+    .replace(/[\s_-]/g, "");
+  return !EXCLUDED_SCHEDULE_TOTAL_STATUSES.has(status);
+}
 import { Typography } from "@mui/material";
 
 const TIME_OFF_KIND_LABELS = {
@@ -1885,9 +1895,10 @@ appointmentsParams.search = filterParams.appointment_search;
     const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999);
 
-    // Only count jobs that are scheduled
+    // Only count jobs that are scheduled and still active (not canceled or on hold)
     jobs.forEach((job) => {
       if (!job.scheduled_at) return;
+      if (!jobCountsTowardScheduleTotal(job)) return;
       const hasPriceField =
         job.total_price !== null &&
         job.total_price !== undefined;
@@ -1919,6 +1930,7 @@ appointmentsParams.search = filterParams.appointment_search;
     const bySunday = {};
     jobs.forEach((job) => {
       if (!job.scheduled_at) return;
+      if (!jobCountsTowardScheduleTotal(job)) return;
       const hasPriceField = job.total_price != null;
       const hasSurchargeField = job.total_surcharge != null;
       if (!hasPriceField && !hasSurchargeField) return;
