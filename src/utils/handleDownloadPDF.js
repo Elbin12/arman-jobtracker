@@ -297,9 +297,18 @@ export const handleDownloadPDF = async (
       custom_products?.filter((p) => p.is_active !== false) ?? []
     const customServiceTotal =
       activeCustomProducts.reduce((sum, p) => sum + Number(p.price || 0), 0) || 0
+    // A service with package options but no chosen package has no price yet; the
+    // minimum base price must not stand in for it, so list the options instead.
+    const isPackageUnselected = (s) =>
+      s.package_quotes?.length > 0 &&
+      !s.selected_package &&
+      !s.selected_package_details?.name &&
+      !s.package_quotes.some((q) => q.is_selected)
+    const hasUnselectedPackages = service_selections?.some(isPackageUnselected) ?? false
+
     let subtotal = 0
     if (service_selections?.length > 0) {
-      if (totalServicePrice < (globalPriceData?.base_price || 0)) {
+      if (!hasUnselectedPackages && totalServicePrice < (globalPriceData?.base_price || 0)) {
         subtotal = Number(globalPriceData?.base_price || 0)
       } else {
         subtotal = totalServicePrice + customServiceTotal
@@ -337,6 +346,49 @@ export const handleDownloadPDF = async (
 
     const advanceY = (n = 1) => {
       yPosition += n * detailLine
+    }
+
+    const drawQuestionResponses = (selection) => {
+      if (selection.question_responses?.length > 0) {
+        checkPageBreak(4)
+        advanceY(0.4)
+        doc.setFont(undefined, "bold")
+        doc.setFontSize(8)
+        doc.setTextColor(72, 72, 72)
+        doc.text("Questions & responses", margin + 4, yPosition)
+        doc.setTextColor(0, 0, 0)
+        advanceY(1.1)
+
+        selection.question_responses.forEach((response, qIdx) => {
+          const answers = formatResponse(response)
+          const answerText =
+            answers.length > 1 ? answers.map((a, i) => `${i + 1}. ${a}`).join(" ") : answers.join(" ")
+
+          const qLines = doc.splitTextToSize(
+            `${qIdx + 1}. ${response.question_text || "Question"}`,
+            descColW - 8
+          )
+          const aLines = doc.splitTextToSize(answerText || "—", descColW - 12)
+
+          checkPageBreak(2 + qLines.length + aLines.length)
+          doc.setFont(undefined, "bold")
+          doc.setFontSize(8)
+          qLines.forEach((ql) => {
+            doc.text(ql, margin + 6, yPosition)
+            advanceY(1)
+          })
+          doc.setFont(undefined, "normal")
+          doc.setFontSize(8)
+          doc.setTextColor(60, 60, 60)
+          aLines.forEach((al) => {
+            checkPageBreak(1)
+            doc.text(al, margin + 10, yPosition)
+            advanceY(1)
+          })
+          doc.setTextColor(0, 0, 0)
+          advanceY(0.65)
+        })
+      }
     }
 
     const drawServiceLineItem = (selection, linePrice) => {
@@ -381,46 +433,7 @@ export const handleDownloadPDF = async (
         advanceY(1.15)
       }
 
-      if (selection.question_responses?.length > 0) {
-        checkPageBreak(4)
-        advanceY(0.4)
-        doc.setFont(undefined, "bold")
-        doc.setFontSize(8)
-        doc.setTextColor(72, 72, 72)
-        doc.text("Questions & responses", margin + 4, yPosition)
-        doc.setTextColor(0, 0, 0)
-        advanceY(1.1)
-
-        selection.question_responses.forEach((response, qIdx) => {
-          const answers = formatResponse(response)
-          const answerText =
-            answers.length > 1 ? answers.map((a, i) => `${i + 1}. ${a}`).join(" ") : answers.join(" ")
-
-          const qLines = doc.splitTextToSize(
-            `${qIdx + 1}. ${response.question_text || "Question"}`,
-            descColW - 8
-          )
-          const aLines = doc.splitTextToSize(answerText || "—", descColW - 12)
-
-          checkPageBreak(2 + qLines.length + aLines.length)
-          doc.setFont(undefined, "bold")
-          doc.setFontSize(8)
-          qLines.forEach((ql) => {
-            doc.text(ql, margin + 6, yPosition)
-            advanceY(1)
-          })
-          doc.setFont(undefined, "normal")
-          doc.setFontSize(8)
-          doc.setTextColor(60, 60, 60)
-          aLines.forEach((al) => {
-            checkPageBreak(1)
-            doc.text(al, margin + 10, yPosition)
-            advanceY(1)
-          })
-          doc.setTextColor(0, 0, 0)
-          advanceY(0.65)
-        })
-      }
+      drawQuestionResponses(selection)
 
       const priceStr = formatPrice(linePrice)
       doc.setFontSize(9)
@@ -467,9 +480,73 @@ export const handleDownloadPDF = async (
       yPosition += 8
     }
 
+    const drawPackageOptionsBlock = (selection) => {
+      checkPageBreak(16)
+      doc.setFont(undefined, "bold")
+      doc.setFontSize(9)
+      doc.setTextColor(0, 0, 0)
+      doc.splitTextToSize(selection.service_details?.name || "Service", descColW).forEach((tl) => {
+        doc.text(tl, margin + 2, yPosition)
+        advanceY(1)
+      })
+      if (selection.service_details?.description) {
+        advanceY(0.35)
+        doc.setFont(undefined, "normal")
+        doc.setFontSize(8)
+        doc.setTextColor(55, 55, 55)
+        doc.splitTextToSize(selection.service_details.description, descColW - 4).forEach((ln) => {
+          checkPageBreak(1)
+          doc.text(ln, margin + 4, yPosition)
+          advanceY(1)
+        })
+        doc.setTextColor(0, 0, 0)
+        advanceY(0.5)
+      }
+
+      doc.setFont(undefined, "normal")
+      doc.setFontSize(8)
+      doc.setTextColor(...rgb.muted)
+      doc.text("Choose one of the packages below to continue.", margin + 4, yPosition)
+      doc.setTextColor(0, 0, 0)
+      advanceY(1.5)
+
+      selection.package_quotes.forEach((q) => {
+        checkPageBreak(4)
+        doc.setFont(undefined, "bold")
+        doc.setFontSize(9)
+        const name = q.package_name || "Package"
+        const priceStr = formatPrice(q.total_price)
+        doc.text(name, margin + 4, yPosition)
+        doc.text(priceStr, pageWidth - margin - 2 - doc.getTextWidth(priceStr), yPosition)
+        advanceY(1)
+        if (q.package_description) {
+          doc.setFont(undefined, "normal")
+          doc.setFontSize(8)
+          doc.setTextColor(55, 55, 55)
+          doc.splitTextToSize(q.package_description, descColW - 8).forEach((ln) => {
+            checkPageBreak(1)
+            doc.text(ln, margin + 6, yPosition)
+            advanceY(1)
+          })
+          doc.setTextColor(0, 0, 0)
+        }
+        advanceY(0.6)
+      })
+
+      drawQuestionResponses(selection)
+
+      doc.setDrawColor(230, 230, 230)
+      doc.line(margin, yPosition, pageWidth - margin, yPosition)
+      yPosition += 8
+    }
+
     if (service_selections?.length > 0) {
       service_selections.forEach((selection) => {
-        drawServiceLineItem(selection, selection.final_total_price)
+        if (isPackageUnselected(selection)) {
+          drawPackageOptionsBlock(selection)
+        } else {
+          drawServiceLineItem(selection, selection.final_total_price)
+        }
       })
     }
 
@@ -495,10 +572,20 @@ export const handleDownloadPDF = async (
     }
 
     yPosition += 4
-    lineTotal("Subtotal", formatPrice(final))
-    lineTotal(`Tax (${taxRatePercent}%)`, formatPrice(taxAmount))
+    if (hasUnselectedPackages) {
+      checkPageBreak(3)
+      doc.setFont(undefined, "bold")
+      doc.setFontSize(10)
+      doc.text("Total: shown once a package is selected", totalsX - 20, yPosition)
+      doc.setFont(undefined, "normal")
+      yPosition += 6
+    } else {
+      lineTotal("Subtotal", formatPrice(final))
+      lineTotal(`Tax (${taxRatePercent}%)`, formatPrice(taxAmount))
+    }
 
     if (
+      !hasUnselectedPackages &&
       service_selections?.length > 0 &&
       totalServicePrice < (globalPriceData?.base_price || 0)
     ) {
@@ -514,11 +601,13 @@ export const handleDownloadPDF = async (
       doc.setFontSize(10)
     }
 
-    yPosition += 4
-    doc.setDrawColor(0, 0, 0)
-    doc.line(totalsX - 4, yPosition, pageWidth - margin, yPosition)
-    yPosition += 8
-    lineTotal("Total", formatPrice(finalWithTax), true)
+    if (!hasUnselectedPackages) {
+      yPosition += 4
+      doc.setDrawColor(0, 0, 0)
+      doc.line(totalsX - 4, yPosition, pageWidth - margin, yPosition)
+      yPosition += 8
+      lineTotal("Total", formatPrice(finalWithTax), true)
+    }
 
     yPosition += 4
     doc.setFontSize(8)

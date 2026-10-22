@@ -99,6 +99,9 @@ export function JobCard({
     job?.discount_type ? String(job?.discount_value ?? "") : ""
   )
   const [discountSaving, setDiscountSaving] = useState(false)
+  const [depositValue, setDepositValue] = useState(String(parseFloat(job?.deposit_amount) || ""))
+  const [depositNote, setDepositNote] = useState(job?.deposit_note ?? "")
+  const [depositSaving, setDepositSaving] = useState(false)
   const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false)
   const [rescheduleNotes, setRescheduleNotes] = useState("")
   const [schedulerResetKey, setSchedulerResetKey] = useState(0)
@@ -143,6 +146,12 @@ export function JobCard({
     setDiscountType(job?.discount_type ?? null)
     setDiscountValue(job?.discount_type ? String(job?.discount_value ?? "") : "")
   }, [job?.discount_type, job?.discount_value])
+
+  // Sync deposit from job when job changes (e.g. after save)
+  useEffect(() => {
+    setDepositValue(String(parseFloat(job?.deposit_amount) || ""))
+    setDepositNote(job?.deposit_note ?? "")
+  }, [job?.deposit_amount, job?.deposit_note])
 
   const submissionIdForReschedule = job?.submission_id ?? job?.submission ?? null
   const persistedSnapshotId =
@@ -362,6 +371,35 @@ export function JobCard({
   const finalTotal = discountedBase + surchargeAmount
   const showSubtotalBeforeAdjustments =
     discountAmount > 0 || surchargeAmount > 0 || referralDiscountAmount > 0 || referralCreditApplied > 0
+
+  // Deposit already received: deducted from the invoice at completion (does not change the job total or payroll)
+  const savedDepositAmount = parseFloat(jobDetailsData?.deposit_amount ?? job?.deposit_amount ?? 0) || 0
+  const depositApplied = Math.min(savedDepositAmount, finalTotal)
+  const numDepositValue = parseFloat(depositValue) || 0
+  const canEditDeposit = job?.status !== "completed" && job?.status !== "cancelled"
+
+  const handleSaveDeposit = async () => {
+    const jobId = job?.job_id || job?.id
+    if (!jobId) return
+    setDepositSaving(true)
+    try {
+      const result = await updateJob({
+        id: jobId,
+        deposit_amount: String(Number(numDepositValue.toFixed(2))),
+        deposit_note: depositNote.trim(),
+      }).unwrap()
+      if (onUpdate) onUpdate(result)
+      toast({ title: "Deposit updated", description: "Deposit will be deducted from the invoice at completion." })
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to update deposit. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setDepositSaving(false)
+    }
+  }
 
   const [referralToggleSaving, setReferralToggleSaving] = useState(false)
   const handleToggleReferralDiscount = async (enabled) => {
@@ -1112,6 +1150,40 @@ export function JobCard({
                 </Box>
               </Box>
               )}
+              {canEditDeposit && (
+                <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
+                  <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                    Deposit received
+                  </Typography>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    placeholder="0.00"
+                    value={depositValue}
+                    onChange={(e) => setDepositValue(e.target.value)}
+                    disabled={depositSaving}
+                    className="w-[100px] h-9"
+                  />
+                  <Input
+                    type="text"
+                    maxLength={255}
+                    placeholder="Date / method / reference"
+                    value={depositNote}
+                    onChange={(e) => setDepositNote(e.target.value)}
+                    disabled={depositSaving}
+                    className="w-[200px] h-9"
+                  />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={handleSaveDeposit}
+                    disabled={depositSaving || numDepositValue < 0}
+                  >
+                    {depositSaving ? "Saving…" : "Save"}
+                  </Button>
+                </Box>
+              )}
               <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                 {showSubtotalBeforeAdjustments && (
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1171,6 +1243,26 @@ export function JobCard({
                     {formatPrice(finalTotal)}
                   </Typography>
                 </Box>
+                {depositApplied > 0 && (
+                  <>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ fontSize: '0.875rem', fontWeight: 500, color: 'text.secondary' }}>
+                        Deposit received{job?.deposit_note ? ` (${job.deposit_note})` : ""}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontSize: '0.875rem', color: "text.secondary", fontWeight: 500 }}>
+                        -{formatPrice(depositApplied)}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ fontSize: '0.875rem', fontWeight: 600 }}>
+                        Balance due at completion
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontSize: '0.875rem', fontWeight: 700 }}>
+                        {formatPrice(finalTotal - depositApplied)}
+                      </Typography>
+                    </Box>
+                  </>
+                )}
               </Box>
               </>
             ) : (

@@ -61,6 +61,8 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
     total_price: 0,
     discount_type: null,
     discount_value: null,
+    deposit_amount: "",
+    deposit_note: "",
   });
   
   const [timeData, setTimeData] = useState({
@@ -725,6 +727,8 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
               discount_type: null,
               discount_value: "0.00",
             }),
+        deposit_amount: String(Number(formData.deposit_amount || 0).toFixed(2)),
+        deposit_note: (formData.deposit_note || "").trim(),
       };
 
       // Add recurring fields if job is recurring
@@ -1125,6 +1129,31 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
               }));
             }}
             placeholder="0.00"
+          />
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          <TextField
+            id="deposit_amount"
+            label={`Deposit received (${currencySymbol})`}
+            type="number"
+            size="small"
+            fullWidth
+            inputProps={{ min: 0, step: 0.01 }}
+            value={formData.deposit_amount ?? ""}
+            onChange={(e) => setFormData((prev) => ({ ...prev, deposit_amount: e.target.value }))}
+            placeholder="0.00"
+            helperText="Deducted from the invoice when the job is completed"
+          />
+          <TextField
+            id="deposit_note"
+            label="Deposit note"
+            size="small"
+            fullWidth
+            inputProps={{ maxLength: 255 }}
+            value={formData.deposit_note ?? ""}
+            onChange={(e) => setFormData((prev) => ({ ...prev, deposit_note: e.target.value }))}
+            placeholder="Date / method / reference"
           />
         </div>
         

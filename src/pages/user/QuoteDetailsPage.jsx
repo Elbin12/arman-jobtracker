@@ -1529,6 +1529,22 @@ const QuoteDetailsPage = () => {
                       const taxAmount = finalNumeric * taxRate
                       const finalWithTax = finalNumeric + taxAmount
 
+                      // No chosen package yet: the stored total is just the minimum price, so don't show it.
+                      const hasUnselectedPackages = service_selections?.some(
+                        (s) =>
+                          s.package_quotes?.length > 0 &&
+                          !s.selected_package &&
+                          !s.selected_package_details?.name &&
+                          !s.package_quotes.some((q) => q.is_selected)
+                      )
+                      if (hasUnselectedPackages) {
+                        return (
+                          <Typography variant="body2" color="text.secondary">
+                            Select a package for each service to see your total.
+                          </Typography>
+                        )
+                      }
+
                       return (
                         <>
                           {/* Adjustments */}
