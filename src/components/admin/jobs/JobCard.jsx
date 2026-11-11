@@ -292,7 +292,7 @@ export function JobCard({
       // Keep dialog open on error so user can retry
       const statusErr = error?.data?.status
       const backendMsg = Array.isArray(statusErr) ? statusErr.join(" ") : statusErr
-      const isConflict = typeof backendMsg === "string" && backendMsg.startsWith("Cannot confirm")
+      const isConflict = typeof backendMsg === "string" && /^Cannot (confirm|save)/.test(backendMsg)
       toast({
         title: isConflict ? "Technician already booked" : "Error",
         description:
