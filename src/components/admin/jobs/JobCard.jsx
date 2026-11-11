@@ -290,9 +290,15 @@ export function JobCard({
       await new Promise(resolve => setTimeout(resolve, 100))
     } catch (error) {
       // Keep dialog open on error so user can retry
+      const statusErr = error?.data?.status
+      const backendMsg = Array.isArray(statusErr) ? statusErr.join(" ") : statusErr
+      const isConflict = typeof backendMsg === "string" && backendMsg.startsWith("Cannot confirm")
       toast({
-        title: "Error",
-        description: "Failed to update job status. Please try again.",
+        title: isConflict ? "Technician already booked" : "Error",
+        description:
+          typeof backendMsg === "string" && backendMsg
+            ? backendMsg
+            : "Failed to update job status. Please try again.",
         variant: "destructive",
       })
     } finally {
