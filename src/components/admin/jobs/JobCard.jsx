@@ -10,6 +10,7 @@ import { slotWallClockAsUtcIso } from "../../../utils/scheduleIso"
 import QuoteCalendarScheduler from "../../user/QuoteCalendarScheduler"
 import { jobSurchargeAmount, overlayJobDetail } from "../../../utils/jobPricing"
 import { useToast } from "@/hooks/use-toast"
+import { ToastAction } from "@/components/ui/toast"
 import { useAccountTimezone } from "@/hooks/useAccountTimezone"
 import { useMoneyFormatter } from "@/hooks/useMoneyFormatter"
 import {
@@ -259,7 +260,7 @@ export function JobCard({
     }
   }
 
-  const updateJobStatus = async (newStatus) => {
+  const updateJobStatus = async (newStatus, forceConfirm = false) => {
     if (!job) return
     
     const jobId = job.job_id || job.id
@@ -272,6 +273,7 @@ export function JobCard({
       const result = await updateJob({
         id: jobId,
         status: newStatus,
+        ...(forceConfirm ? { force_confirm: true } : {}),
       }).unwrap()
       
       // Update display status first
@@ -293,6 +295,7 @@ export function JobCard({
       const statusErr = error?.data?.status
       const backendMsg = Array.isArray(statusErr) ? statusErr.join(" ") : statusErr
       const isConflict = typeof backendMsg === "string" && /^Cannot (confirm|save)/.test(backendMsg)
+      const canForce = isConflict && newStatus === "confirmed" && !forceConfirm
       toast({
         title: isConflict ? "Technician already booked" : "Error",
         description:
@@ -300,6 +303,15 @@ export function JobCard({
             ? backendMsg
             : "Failed to update job status. Please try again.",
         variant: "destructive",
+        ...(canForce
+          ? {
+              action: (
+                <ToastAction altText="Confirm anyway" onClick={() => updateJobStatus(newStatus, true)}>
+                  Confirm anyway
+                </ToastAction>
+              ),
+            }
+          : {}),
       })
     } finally {
       setUpdating(false)
