@@ -477,7 +477,7 @@ export const BookingWizard = ({ mode } = {}) => {
         contact:contactId,
         address:addressId,
         house_sqft: bookingData.userInfo?.selectedHouseSize,
-        location: bookingData.userInfo?.locationId || undefined,
+        location: bookingData.userInfo?.locationId || null,
         first_time: bookingData.userInfo?.first_time? bookingData.userInfo?.first_time: false,
         quoted_by: (() => {
           // Ensure quoted_by is always sent as a number (employee ID)
