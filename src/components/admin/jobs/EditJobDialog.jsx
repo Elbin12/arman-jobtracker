@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { Users, RotateCcw, Plus, XSquare } from "lucide-react";
 import moment from "moment-timezone";
 import { jobsApi, useUpdateJobMutation, useConvertJobToSeriesMutation, useSearchContactsQuery, useGetAddressesByContactQuery } from "../../../store/api/jobsApi";
@@ -38,6 +39,19 @@ import { Loader2 } from "lucide-react";
 import { jobGrandTotalAmount, jobSurchargeAmount } from "../../../utils/jobPricing";
 import { useAccountTimezone } from "@/hooks/useAccountTimezone";
 import { useMoneyFormatter } from "@/hooks/useMoneyFormatter";
+
+// DRF returns {field: ["msg"]} / {detail} / {message}; flatten to one string.
+const extractApiErrorMessage = (data) => {
+  if (!data) return "";
+  if (typeof data === "string") return data;
+  if (data.message) return String(data.message);
+  if (data.detail) return String(data.detail);
+  return Object.values(data)
+    .flat()
+    .map((v) => (typeof v === "string" ? v : ""))
+    .filter(Boolean)
+    .join(" ");
+};
 
 export function EditJobDialog({
   job,
@@ -469,8 +483,8 @@ export function EditJobDialog({
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (e, forceConfirm = false) => {
+    e?.preventDefault?.();
 
     if (!formData.title.trim()) {
       toast({
@@ -561,6 +575,7 @@ export function EditJobDialog({
             id: job.id,
             ...(objective === "convert" ? { filter: convertQueryFilter } : {}),
             ...payload,
+            ...(forceConfirm ? { force_confirm: true } : {}),
           }).unwrap();
 
       // Show success message
@@ -582,10 +597,21 @@ export function EditJobDialog({
 
       onClose();
     } catch (err) {
+      const msg = extractApiErrorMessage(err?.data);
+      const isConflict = /^Cannot (confirm|save) this job/.test(msg || "");
       toast({
-        title: "Error",
-        description: err?.data?.message || (objective === 'convert' ? "Failed to convert quote to job. Please try again." : "Failed to update job. Please try again."),
+        title: isConflict ? "Technician already booked" : "Error",
+        description: msg || (objective === 'convert' ? "Failed to convert quote to job. Please try again." : "Failed to update job. Please try again."),
         variant: "destructive",
+        ...(isConflict && !forceConfirm && objective !== "convert"
+          ? {
+              action: (
+                <ToastAction altText="Save anyway" onClick={() => handleSubmit(null, true)}>
+                  Save anyway
+                </ToastAction>
+              ),
+            }
+          : {}),
       });
     }
   };
@@ -1399,7 +1425,7 @@ export function EditJobDialog({
           {/* Error Display */}
           {submitError && (
             <div className="bg-destructive/10 text-destructive p-3 rounded-md text-sm">
-              {submitError.data?.message || "Failed to update job. Please try again."}
+              {extractApiErrorMessage(submitError.data) || "Failed to update job. Please try again."}
             </div>
           )}
 
