@@ -1426,6 +1426,13 @@ export function EditJobDialog({
           {submitError && (
             <div className="bg-destructive/10 text-destructive p-3 rounded-md text-sm">
               {extractApiErrorMessage(submitError.data) || "Failed to update job. Please try again."}
+              {/^Cannot (confirm|save) this job/.test(extractApiErrorMessage(submitError.data)) && objective !== "convert" && (
+                <div className="mt-2">
+                  <Button type="button" variant="outlined" size="small" disabled={isSubmitting} onClick={() => handleSubmit(null, true)}>
+                    Save anyway
+                  </Button>
+                </div>
+              )}
             </div>
           )}
 
