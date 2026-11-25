@@ -11,6 +11,9 @@ export const hasRecurringSeriesId = (job) => {
   return job?.series_id != null && job.series_id !== undefined && job.series_id !== '';
 };
 
+// Legacy series siblings are titled "<base> (2)", "<base> (3)"... (matches backend).
+const baseSeriesTitle = (title) => (title || '').replace(/\s*\(\d+\)\s*$/, '').trim();
+
 export const jobsBelongToSameRecurringSeries = (candidate, source) => {
   if (!isRecurringJob(source) || !candidate) return false;
 
@@ -20,9 +23,8 @@ export const jobsBelongToSameRecurringSeries = (candidate, source) => {
 
   return (
     candidate.job_type === 'recurring' &&
-    candidate.title === source.title &&
-    candidate.repeat_every === source.repeat_every &&
-    candidate.repeat_unit === source.repeat_unit &&
+    !candidate.series_id &&
+    baseSeriesTitle(candidate.title) === baseSeriesTitle(source.title) &&
     (
       (source.contact && candidate.contact && candidate.contact === source.contact) ||
       (source.ghl_contact_id && candidate.ghl_contact_id === source.ghl_contact_id) ||
@@ -48,6 +50,12 @@ export const isFutureSeriesOccurrence = (job, now = Date.now()) => {
 export const shouldRemoveJobForDeleteOption = (candidate, source, option, now = Date.now()) => {
   if (!jobsBelongToSameRecurringSeries(candidate, source)) return false;
   if (option === 'sequence') return true;
-  if (option === 'future') return isFutureSeriesOccurrence(candidate, now);
+  if (option === 'future') {
+    // "This and future": cut off at the selected occurrence, not at now.
+    // Completed jobs are kept (matches backend).
+    if (candidate.status === 'completed') return false;
+    const sourceTime = getJobScheduledTime(source);
+    return isFutureSeriesOccurrence(candidate, sourceTime ?? now);
+  }
   return false;
 };

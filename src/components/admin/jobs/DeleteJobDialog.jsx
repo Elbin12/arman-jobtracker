@@ -40,7 +40,11 @@ export function DeleteJobDialog({ job, open, onClose, onDelete, disabled = false
       if ((deleteOption === "future" || deleteOption === "sequence") && recurringJob) {
         const scope = deleteOption === "future" ? "future" : "all"
         if (hasSeriesId) {
-          await deleteJobSeries({ seriesId: job.series_id, scope }).unwrap()
+          await deleteJobSeries({
+            seriesId: job.series_id,
+            scope,
+            fromJobId: scope === "future" ? jobId : undefined,
+          }).unwrap()
         } else {
           if (!jobId) {
             setDeleting(false)
@@ -78,7 +82,7 @@ export function DeleteJobDialog({ job, open, onClose, onDelete, disabled = false
     }
 
     if (deleteOption === "future") {
-      return `Are you sure you want to delete this and all future scheduled jobs for "${job?.title}"? Past jobs (including completed ones) will be kept.`
+      return `Are you sure you want to delete this and all future scheduled jobs for "${job?.title}"? Completed jobs and jobs scheduled before this one will be kept.`
     }
 
     return `Are you sure you want to delete ALL recurring jobs for "${job?.title}"? This removes the entire series including past jobs. This action cannot be undone.`

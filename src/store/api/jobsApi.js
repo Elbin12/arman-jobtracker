@@ -46,10 +46,10 @@ export const jobsApi = createApi({
       invalidatesTags: ['Job'],
     }),
     deleteJobSeries: builder.mutation({
-      query: ({ seriesId, scope = 'all' } = {}) => ({
+      query: ({ seriesId, scope = 'all', fromJobId } = {}) => ({
         url: `jobs-series/${seriesId}/`,
         method: 'DELETE',
-        params: { scope },
+        params: fromJobId ? { scope, from_job_id: fromJobId } : { scope },
       }),
       invalidatesTags: ['Job'],
     }),
