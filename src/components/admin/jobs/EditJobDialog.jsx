@@ -39,6 +39,7 @@ import { Loader2 } from "lucide-react";
 import { jobGrandTotalAmount, jobSurchargeAmount } from "../../../utils/jobPricing";
 import { useAccountTimezone } from "@/hooks/useAccountTimezone";
 import { useMoneyFormatter } from "@/hooks/useMoneyFormatter";
+import { MAX_REPEAT_EVERY, repeatEveryError, recurrenceSummary } from "../../../utils/recurringJobUtils";
 
 // DRF returns {field: ["msg"]} / {detail} / {message}; flatten to one string.
 const extractApiErrorMessage = (data) => {
@@ -511,6 +512,19 @@ export function EditJobDialog({
         variant: "destructive",
       });
       return;
+    }
+
+    // Repeat Every must be a gap, not the number of visits. Only checked when it is
+    // changed, so jobs saved before this limit stay editable (backend does the same).
+    if (
+      formData.job_type === "recurring" &&
+      (formData.repeat_every !== (job?.repeat_every ?? null) || formData.repeat_unit !== (job?.repeat_unit ?? null))
+    ) {
+      const repeatError = repeatEveryError(formData.repeat_every, formData.repeat_unit);
+      if (repeatError) {
+        toast({ title: "Error", description: repeatError, variant: "destructive" });
+        return;
+      }
     }
 
     try {
@@ -1309,10 +1323,16 @@ export function EditJobDialog({
                         id="interval"
                         type="number"
                         min="1"
-                        max="52"
+                        max={MAX_REPEAT_EVERY[formData.repeat_unit || "day"] || 52}
                         value={formData.repeat_every || 1}
                         onChange={(e) => setFormData(prev => ({ ...prev, repeat_every: parseInt(e.target.value) || 1 }))}
+                        aria-invalid={!!repeatEveryError(formData.repeat_every, formData.repeat_unit)}
                       />
+                      {repeatEveryError(formData.repeat_every, formData.repeat_unit) && (
+                        <p className="text-xs text-destructive">
+                          {repeatEveryError(formData.repeat_every, formData.repeat_unit)}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-1">
@@ -1381,6 +1401,11 @@ export function EditJobDialog({
 
                   {formData.scheduled_at && (
                     <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
+                      {recurrenceSummary(formData.scheduled_at, formData.repeat_every, formData.repeat_unit, formData.occurrences) && (
+                        <p className="font-medium text-foreground">
+                          {recurrenceSummary(formData.scheduled_at, formData.repeat_every, formData.repeat_unit, formData.occurrences)}
+                        </p>
+                      )}
                       {formData.repeat_every > 1 && formData.repeat_unit === 'week' && (
                         <p>Bi-weekly: Every {formData.repeat_every} weeks</p>
                       )}

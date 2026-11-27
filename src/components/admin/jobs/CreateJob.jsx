@@ -23,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2 } from "lucide-react";
 import { useAccountTimezone } from "@/hooks/useAccountTimezone";
 import { useMoneyFormatter } from "@/hooks/useMoneyFormatter";
+import { MAX_REPEAT_EVERY, repeatEveryError, recurrenceSummary } from "../../../utils/recurringJobUtils";
 
 export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, onJobCreatedError }) {
   const accountTimezone = useAccountTimezone();
@@ -519,6 +520,15 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
         variant: "destructive",
       });
       return;
+    }
+
+    // Validation: Repeat Every must be a gap, not the number of visits
+    if (formData.job_type === "recurring") {
+      const repeatError = repeatEveryError(formData.repeat_every, formData.repeat_unit);
+      if (repeatError) {
+        toast({ title: "Error", description: repeatError, variant: "destructive" });
+        return;
+      }
     }
 
     // Validation: Duration
@@ -1497,10 +1507,16 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
                     id="interval"
                     type="number"
                     min="1"
-                    max="52"
+                    max={MAX_REPEAT_EVERY[formData.repeat_unit || "day"] || 52}
                     value={formData.repeat_every || 1}
                     onChange={(e) => setFormData(prev => ({ ...prev, repeat_every: parseInt(e.target.value) || 1 }))}
+                    aria-invalid={!!repeatEveryError(formData.repeat_every, formData.repeat_unit)}
                   />
+                  {repeatEveryError(formData.repeat_every, formData.repeat_unit) && (
+                    <p className="text-xs text-destructive">
+                      {repeatEveryError(formData.repeat_every, formData.repeat_unit)}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1">
@@ -1563,6 +1579,11 @@ export function CreateJobForm({ onSuccess, onCancel, initialData, onJobCreated, 
 
               {formData.scheduled_at && (
                 <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
+                  {recurrenceSummary(formData.scheduled_at, formData.repeat_every, formData.repeat_unit, formData.occurrences) && (
+                    <p className="font-medium text-foreground">
+                      {recurrenceSummary(formData.scheduled_at, formData.repeat_every, formData.repeat_unit, formData.occurrences)}
+                    </p>
+                  )}
                   {formData.repeat_every > 1 && formData.repeat_unit === 'week' && (
                     <p>Bi-weekly: Every {formData.repeat_every} weeks{formData.day_of_week !== null && ` on ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][formData.day_of_week]}`}</p>
                   )}
